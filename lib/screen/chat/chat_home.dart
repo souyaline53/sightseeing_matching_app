@@ -8,7 +8,7 @@ class ChatHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('チャット')),
-      body: const Center(child: Text('旅について相談しよう')),
+      body: const Center(child: Text('Hello, World!')),
     );
   }
 }

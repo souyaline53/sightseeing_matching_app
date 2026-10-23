@@ -8,7 +8,7 @@ class RecommendationHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('おすすめ')),
-      body: const Center(child: Text('新しい体験を見つけよう')),
+      body: const Center(child: Text('Hello, World!')),
     );
   }
 }

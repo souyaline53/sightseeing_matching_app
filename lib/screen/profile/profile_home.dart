@@ -8,7 +8,7 @@ class ProfileHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('プロフィール')),
-      body: const Center(child: Text('Hello, World!')),
+      body: const Center(child: Text('あなたの興味や好みを登録しよう')),
     );
   }
 }

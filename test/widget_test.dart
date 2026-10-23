@@ -13,13 +13,13 @@ void main() {
       tester.element(find.byType(MyApp)),
     );
 
-    expect(find.text('新しい体験を見つけよう'), findsOneWidget);
+    expect(find.text('Hello, World!'), findsOneWidget);
     expect(container.read(appTabProvider), AppTab.recommendation);
 
     final destinations = [
-      (Icons.map_outlined, AppTab.itinerary, '自分だけの旅を組み立てよう'),
-      (Icons.chat_bubble_outline, AppTab.chat, '旅について相談しよう'),
-      (Icons.person_outline, AppTab.profile, 'あなたの興味や好みを登録しよう'),
+      (Icons.map_outlined, AppTab.itinerary, 'Hello, World!'),
+      (Icons.chat_bubble_outline, AppTab.chat, 'Hello, World!'),
+      (Icons.person_outline, AppTab.profile, 'Hello, World!'),
     ];
 
     for (final (icon, tab, message) in destinations) {

@@ -8,7 +8,7 @@ class ItineraryHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('旅程')),
-      body: const Center(child: Text('自分だけの旅を組み立てよう')),
+      body: const Center(child: Text('Hello, World!')),
     );
   }
 }

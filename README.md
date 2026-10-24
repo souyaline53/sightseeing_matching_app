@@ -1,17 +1,47 @@
-# sightseeing_matching_app
+# TABISAKI — Phase 1
 
-A funtastic application made by Flutter!
+「まだ知らないワクワクを、自分だけの旅に。」北海道の日帰り旅行を発見・計画するFlutter UIプロトタイプです。
 
-## Getting Started
+## 起動
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run -d chrome
+```
 
-A few resources to get you started if this is your first Flutter project:
+## 操作
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+1. 写真付きの6種類の気分から1つ選び、次へ進みます。
+2. 二択2問に回答すると、好みに近い・関連する・意外なジャンルを混ぜた10件を表示します。
+3. 左スワイプまたは×で次へ。右スワイプまたはハートで保存します。長押しまたは「詳しく見る」でストーリーを開きます。
+4. 「旅を組み立てる」で日付・出発地・公共交通/車を指定します。保存した体験は自動追加され、追加・削除・右端ハンドルでの並べ替えが可能です。
+5. 「自分で組み立てる」で現在の訪問順を表示。「AIに提案してもらう」は固定の夕張3件を使うデモ用の旅程です。
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 構成
+
+- `lib/model/experience.dart`: 体験・交通区間のモデル
+- `lib/data/mock_data.dart`: 北海道10件・二択による推薦・交通サンプル生成
+- `lib/state/trip_state.dart`: ChangeNotifierによる保存順・訪問順と旅行条件
+- `lib/screen/recommendation/`: 気分・二択・スワイプ探索・詳細
+- `lib/screen/itinerary/`: 旅の編集・旅程・公共交通コンポーネント
+- `lib/widgets/travel_photo.dart`: 写真と失敗時のプレースホルダー
+
+## 制限
+
+- Firebase、外部API、ログイン、課金、AI、実際の経路検索には接続しません。
+- モックはDart定数。保存・設定はメモリのみで、再起動/ページ更新時にリセットされます。
+- 写真のみUnsplashの静的画像URLから読み込みます。写真は場所を特定しないイメージです。取得失敗時はプレースホルダーを表示します。
+- 農園見学・制作体験などの提供状況は未確認です。実在施設の予約・営業情報を提供するものではありません。
+- 発着時刻、乗換、徒歩、交通費、車の移動時間はすべてダミー。実際の接続、最終便、日帰り可否は検証しません。復路も検索しません。
+- 既存のチャット・プロフィールおよび旧タブ管理ファイルは残していますが、このプロトタイプの導線では使用しません。
+
+## 検証
+
+```sh
+dart format .
+flutter analyze
+flutter test
+flutter build web
+```
+
+将来は`Experience`と`TransitLeg`を返すデータ取得層を追加し、モック生成を差し替える構成です。

@@ -1,11 +1,11 @@
 {
-    "name": "sightseeing_matching_app",
-    "short_name": "sightseeing_matching_app",
+    "name": "TABISAKI",
+    "short_name": "TABISAKI",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A funtastic application made by Flutter!",
+    "background_color": "#145C49",
+    "theme_color": "#145C49",
+    "description": "まだ知らないワクワクを、自分だけの旅に。",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

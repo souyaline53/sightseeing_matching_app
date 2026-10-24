@@ -1,11 +1,12 @@
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../model/experience.dart';
 
-class TravelPhoto extends StatelessWidget {
+class TravelPhoto extends HookConsumerWidget {
   final Experience experience;
   const TravelPhoto(this.experience, {super.key});
   @override
-  Widget build(BuildContext context) => Image.network(
+  Widget build(BuildContext context, WidgetRef ref) => Image.network(
     experience.imageUrl,
     fit: BoxFit.cover,
     width: double.infinity,

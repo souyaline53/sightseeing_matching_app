@@ -1,37 +1,25 @@
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../provider/app_tab_provider.dart';
 import 'package:flutter/material.dart';
 import '../state/trip_state.dart';
 import 'recommendation/recommendation_home.dart';
 import 'itinerary/itinerary_home.dart';
 
-class BasePage extends StatefulWidget {
+class BasePage extends HookConsumerWidget {
   const BasePage({super.key});
   @override
-  State<BasePage> createState() => _BasePageState();
-}
-
-class _BasePageState extends State<BasePage> {
-  final trip = TripState();
-  int tab = 0;
-  @override
-  void dispose() {
-    trip.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: trip,
-    builder: (context, _) => Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trip = ref.watch(tripProvider);
+    final tab = ref.watch(appTabProvider).index;
+    return Scaffold(
       body: IndexedStack(
         index: tab,
-        children: [
-          RecommendationHome(trip: trip),
-          ItineraryHome(trip: trip),
-        ],
+        children: [const RecommendationHome(), const ItineraryHome()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (value) => setState(() => tab = value),
+        onDestinationSelected: (value) =>
+            ref.read(appTabProvider.notifier).select(AppTab.values[value]),
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.explore_outlined),
@@ -48,6 +36,6 @@ class _BasePageState extends State<BasePage> {
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }

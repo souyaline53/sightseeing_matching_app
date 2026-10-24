@@ -1,16 +1,2 @@
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-
-enum AppTab { recommendation, itinerary, chat, profile }
-
-final appTabProvider = NotifierProvider<AppTabNotifier, AppTab>(
-  AppTabNotifier.new,
-);
-
-class AppTabNotifier extends Notifier<AppTab> {
-  @override
-  AppTab build() => AppTab.recommendation;
-
-  void select(AppTab tab) {
-    state = tab;
-  }
-}
+// Keep existing imports pointing to the same Riverpod provider.
+export '../provider/app_tab_provider.dart';

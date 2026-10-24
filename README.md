@@ -21,7 +21,8 @@ flutter run -d chrome
 
 - `lib/model/experience.dart`: 体験・交通区間のモデル
 - `lib/data/mock_data.dart`: 北海道10件・二択による推薦・交通サンプル生成
-- `lib/state/trip_state.dart`: ChangeNotifierによる保存順・訪問順と旅行条件
+- `lib/state/trip_state.dart`: Riverpod Notifierによる保存順・訪問順と旅行条件
+- `lib/state/discovery_state.dart`: Riverpod Notifierによる気分・二択・カード表示位置
 - `lib/screen/recommendation/`: 気分・二択・スワイプ探索・詳細
 - `lib/screen/itinerary/`: 旅の編集・旅程・公共交通コンポーネント
 - `lib/widgets/travel_photo.dart`: 写真と失敗時のプレースホルダー

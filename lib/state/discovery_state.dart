@@ -40,7 +40,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   @override
   DiscoveryState build() => DiscoveryState();
   void reset() => state = DiscoveryState(mood: state.mood);
-  void selectMood(int mood) => state = state.copyWith(mood: mood);
+  void selectMood(int mood) => state = DiscoveryState(mood: mood, step: 1);
   void startQuestions() => state = state.copyWith(step: 1);
   void answer(int choice) {
     final answers = [...state.answers, choice];
@@ -54,10 +54,22 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
           );
   }
 
-  void advance() {
-    if (state.index < state.deck.length) {
-      state = state.copyWith(index: state.index + 1);
+  void goTo(int index) {
+    if (index >= 0 && index < state.deck.length) {
+      state = state.copyWith(index: index);
     }
+  }
+
+  void advance() {
+    if (state.deck.isNotEmpty) goTo((state.index + 1) % state.deck.length);
+  }
+
+  void removeCard(String id) {
+    final deck = state.deck.where((e) => e.id != id).toList();
+    state = state.copyWith(
+      deck: deck,
+      index: deck.isEmpty ? 0 : state.index.clamp(0, deck.length - 1),
+    );
   }
 
   void restartDeck() => state = state.copyWith(index: 0);

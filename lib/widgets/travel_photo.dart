@@ -11,23 +11,30 @@ class TravelPhoto extends HookConsumerWidget {
     fit: BoxFit.cover,
     width: double.infinity,
     height: double.infinity,
-    errorBuilder: (_, error, stack) => Container(
-      color: const Color(0xffd9e7df),
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.landscape_outlined,
-                size: 52,
-                color: Color(0xff285c4b),
-              ),
-              Text(experience.area, maxLines: 1),
-              const Text('風景のイメージ', style: TextStyle(fontSize: 11)),
-            ],
-          ),
+    errorBuilder: (_, error, stack) => PhotoPlaceholder(experience),
+  );
+}
+
+class PhotoPlaceholder extends HookConsumerWidget {
+  final Experience experience;
+  const PhotoPlaceholder(this.experience, {super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+    color: const Color(0xffd9e7df),
+    child: Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.landscape_outlined,
+              size: 52,
+              color: Color(0xff285c4b),
+            ),
+            Text(experience.area, maxLines: 1),
+            const Text('風景のイメージ', style: TextStyle(fontSize: 11)),
+          ],
         ),
       ),
     ),

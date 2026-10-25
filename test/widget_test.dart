@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +57,24 @@ void main() {
     expect(container.read(discoveryProvider).answers, isEmpty);
     expect(container.read(discoveryProvider).mood, 1);
   });
+  test('deleting the last and only cards keeps the cursor valid', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(discoveryProvider.notifier);
+    controller.selectMood(0);
+    controller.answer(0);
+    controller.answer(0);
+    var deck = container.read(discoveryProvider).deck;
+    controller.goTo(deck.length - 1);
+    controller.removeCard(deck.last.id);
+    expect(container.read(discoveryProvider).index, deck.length - 2);
+    deck = container.read(discoveryProvider).deck;
+    for (final e in deck) {
+      controller.removeCard(e.id);
+    }
+    expect(container.read(discoveryProvider).deck, isEmpty);
+    expect(container.read(discoveryProvider).index, 0);
+  });
   test('trip settings notify listeners and lists are immutable', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -72,6 +92,149 @@ void main() {
     expect(updates, 3);
     expect(() => trip.saved.add(experiences.first), throwsUnsupportedError);
   });
+  testWidgets(
+    'all six moods fit on a small phone and open questions with one tap',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(360, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(const ProviderScope(child: MyApp()));
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 6; i++) {
+        expect(find.byKey(ValueKey('mood-$i')).hitTestable(), findsOneWidget);
+      }
+      await tester.tap(find.byKey(const ValueKey('mood-5')));
+      await tester.pumpAndSettle();
+      expect(find.text('どちらに惹かれる？'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('horizontal browsing, saving and deleting use prepared photos', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final ready = Completer<Map<String, ImageInfo?>>();
+    var loads = 0;
+    final container = ProviderContainer(
+      overrides: [
+        experiencePhotosProvider.overrideWith((ref) {
+          loads++;
+          return ready.future;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(discoveryProvider.notifier);
+    controller.selectMood(0);
+    controller.answer(0);
+    controller.answer(0);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    ready.complete(
+      {},
+    ); // Failed photos are prepared placeholders, without retrying.
+    await tester.pumpAndSettle();
+    expect(loads, 1);
+    final initial = container.read(discoveryProvider).deck;
+    final pages = find.byKey(const ValueKey('experience-pages'));
+    await tester.drag(pages, const Offset(-340, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 1);
+    await tester.drag(pages, const Offset(340, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 0);
+    await tester.drag(
+      find.byType(Dismissible).hitTestable(),
+      const Offset(0, 700),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      container.read(discoveryProvider).deck.map((e) => e.id),
+      isNot(contains(initial.first.id)),
+    );
+    expect(container.read(discoveryProvider).deck.length, initial.length - 1);
+    expect(container.read(discoveryProvider).index, 0);
+    expect(container.read(tripProvider).saved, isEmpty);
+    await tester.drag(
+      find.byType(Dismissible).hitTestable(),
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+    expect(container.read(tripProvider).saved.single.id, initial[1].id);
+    expect(container.read(discoveryProvider).index, 1);
+    final save = find.byTooltip('体験を保存').hitTestable();
+    final card = find.byType(Dismissible).hitTestable();
+    expect(tester.getRect(card).contains(tester.getCenter(save)), isTrue);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(container.read(tripProvider).saved.length, 2);
+    await tester.drag(pages, const Offset(340, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).deck.first.id, initial[1].id);
+    expect(loads, 1);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('last card loops to first with horizontal and save swipes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final container = ProviderContainer(
+      overrides: [experiencePhotosProvider.overrideWith((ref) async => {})],
+    );
+    addTearDown(container.dispose);
+    final discovery = container.read(discoveryProvider.notifier);
+    discovery.selectMood(0);
+    discovery.answer(0);
+    discovery.answer(0);
+    final deck = container.read(discoveryProvider).deck;
+    discovery.goTo(deck.length - 1);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    );
+    await tester.pumpAndSettle();
+    final pages = find.byKey(const ValueKey('experience-pages'));
+    await tester.drag(pages, const Offset(-340, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 0);
+    await tester.drag(pages, const Offset(340, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, deck.length - 1);
+    await tester.drag(
+      find.byType(Dismissible).hitTestable(),
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 0);
+    expect(container.read(tripProvider).saved.single.id, deck.last.id);
+    expect(container.read(discoveryProvider).deck.length, deck.length);
+    await tester.drag(pages, const Offset(340, 0));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(Dismissible).hitTestable(),
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+    expect(container.read(tripProvider).saved.length, 1);
+    expect(container.read(discoveryProvider).index, 0);
+    // Deleting down to a single card still permits saving and looping.
+    for (final e in deck.skip(1)) {
+      discovery.removeCard(e.id);
+    }
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(Dismissible).hitTestable(),
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 0);
+    expect(container.read(tripProvider).saved.length, 2);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('mood to exploration, detail, save and itinerary demo', (
     tester,
   ) async {
@@ -79,8 +242,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const ProviderScope(child: MyApp()));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('この気分で、出かけよう  →'));
-    await tester.tap(find.text('この気分で、出かけよう  →'));
+    await tester.tap(find.byKey(const ValueKey('mood-0')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('誰もが知る、とびきりおいしいもの'));
     await tester.pumpAndSettle();
@@ -91,7 +253,10 @@ void main() {
     expect(find.text('もう一歩、奥へ。'), findsOneWidget);
     await tester.tap(find.byTooltip('閉じる'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(Dismissible), const Offset(500, 0));
+    await tester.drag(
+      find.byType(Dismissible).hitTestable(),
+      const Offset(0, -800),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('旅を組み立てる'));
     await tester.pumpAndSettle();

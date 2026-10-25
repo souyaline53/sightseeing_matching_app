@@ -1,5 +1,5 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../provider/app_tab_provider.dart';
+import '../state/app_tab.dart';
 import 'package:flutter/material.dart';
 import '../state/trip_state.dart';
 import 'recommendation/recommendation_home.dart';

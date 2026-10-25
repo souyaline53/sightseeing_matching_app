@@ -2,9 +2,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../state/discovery_state.dart';
 import 'package:flutter/material.dart';
 import '../../data/mock_data.dart';
-import '../../state/trip_state.dart';
 import '../../widgets/travel_photo.dart';
-import 'experience_detail.dart';
+import 'experience_deck.dart';
 
 class RecommendationHome extends HookConsumerWidget {
   const RecommendationHome({super.key});
@@ -12,125 +11,116 @@ class RecommendationHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
     final controller = ref.read(discoveryProvider.notifier);
-    final trip = ref.watch(tripProvider);
     final step = discovery.step,
         mood = discovery.mood,
-        question = discovery.question,
-        index = discovery.index;
-    final deck = discovery.deck;
-    void advance(bool save) {
-      if (index >= deck.length) return;
-      if (save) ref.read(tripProvider.notifier).save(deck[index]);
-      controller.advance();
-    }
-
-    Widget moodScreen(BuildContext context) => SingleChildScrollView(
+        question = discovery.question;
+    Widget moodScreen(BuildContext context) => LayoutBuilder(
       key: const ValueKey('moods'),
-      padding: const EdgeInsets.all(22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'いつもの日常に、ちょっと冒険を。',
-            style: TextStyle(color: Color(0xff145c49), fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            '明日、どんな気持ちに\nなりたい？',
-            style: TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.bold,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text('直感でひとつ、選んでみてください。'),
-          const SizedBox(height: 24),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: moods.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              childAspectRatio: .84,
-            ),
-            itemBuilder: (context, i) => Semantics(
-              selected: mood == i,
-              child: InkWell(
-                onTap: () => controller.selectMood(i),
-                borderRadius: BorderRadius.circular(20),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  decoration: BoxDecoration(
+      builder: (context, constraints) {
+        final cardHeight = ((constraints.maxHeight - 140) / 3).clamp(
+          96.0,
+          155.0,
+        );
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'いつもの日常に、ちょっと冒険を。',
+                style: TextStyle(color: Color(0xff145c49), fontSize: 11),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '明日、どこにいきたい？',
+                style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Text('気になる気分をタップして、出かけよう。', style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 14),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: moods.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  mainAxisExtent: cardHeight,
+                ),
+                itemBuilder: (context, i) => Semantics(
+                  button: true,
+                  label: moods[i].$1,
+                  child: Material(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: mood == i
-                          ? const Color(0xff145c49)
-                          : const Color(0xffe3e7e3),
-                      width: mood == i ? 2 : 1,
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            TravelPhoto(
-                              experiences.firstWhere(
-                                (e) => e.category == moods[i].$2,
+                    borderRadius: BorderRadius.circular(16),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      key: ValueKey('mood-$i'),
+                      onTap: () => controller.selectMood(i),
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                TravelPhoto(
+                                  experiences.firstWhere(
+                                    (e) => e.category == moods[i].$2,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 6,
+                                  right: 6,
+                                  child: DecoratedBox(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(5),
+                                      child: Icon(
+                                        [
+                                          Icons.restaurant,
+                                          Icons.explore,
+                                          Icons.spa,
+                                          Icons.people,
+                                          Icons.handyman,
+                                          Icons.landscape,
+                                        ][i],
+                                        size: 18,
+                                        color: const Color(0xff145c49),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 7,
+                            ),
+                            child: Text(
+                              moods[i].$1,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (mood == i)
-                              const Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Icon(
-                                  Icons.check_circle,
-                                  color: Colors.white,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Text(
-                          moods[i].$1,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => controller.startQuestions(),
-              child: const Text('この気分で、出かけよう  →'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Center(
-            child: Text(
-              'まだ知らないワクワクを、自分だけの旅に。',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
     Widget questions(BuildContext context) {
       final food = moods[mood].$2 == '食';
@@ -199,193 +189,6 @@ class RecommendationHome extends HookConsumerWidget {
       );
     }
 
-    Widget explore(BuildContext context) {
-      if (index >= deck.length) {
-        return Center(
-          key: const ValueKey('end'),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.auto_awesome, size: 48),
-                const SizedBox(height: 20),
-                const Text('気になる旅は、見つかりましたか？', textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                Text(
-                  '${trip.saved.length}件の体験を保存しました。\n「旅を組み立てる」から、自分だけの一日へ。',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: () => controller.restartDeck(),
-                  child: const Text('もう一度、体験を見る'),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-      final e = deck[index];
-      final detour = e.category != moods[mood].$2 && index % 3 == 2;
-      return Padding(
-        key: const ValueKey('explore'),
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'あなたの好奇心を、ひとつ先へ。',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Text('${index + 1} / ${deck.length}'),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (detour)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: Text(
-                  '寄り道 ✧ こんな世界も、ちょっと覗いてみませんか？',
-                  style: TextStyle(color: Color(0xff145c49), fontSize: 12),
-                ),
-              ),
-            Expanded(
-              child: Dismissible(
-                key: ValueKey('${e.id}-$index'),
-                direction: DismissDirection.horizontal,
-                onDismissed: (direction) =>
-                    advance(direction == DismissDirection.startToEnd),
-                background: const Center(
-                  child: Icon(
-                    Icons.favorite,
-                    size: 72,
-                    color: Color(0xff145c49),
-                  ),
-                ),
-                secondaryBackground: const Center(
-                  child: Icon(
-                    Icons.arrow_forward,
-                    size: 72,
-                    color: Colors.grey,
-                  ),
-                ),
-                child: GestureDetector(
-                  onLongPress: () => showExperience(context, e),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(26),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        TravelPhoto(e),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Colors.black87],
-                              stops: [.25, 1],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: Chip(
-                            label: Text(
-                              detour
-                                  ? '寄り道の発見'
-                                  : e.category == moods[mood].$2
-                                  ? 'いまの気分に近い体験'
-                                  : '興味がつながる体験',
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 22,
-                          right: 22,
-                          bottom: 24,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '⌖ ${e.area}  ·  #${e.category}',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                e.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 27,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                e.description,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  height: 1.6,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                '写真はイメージ / 体験内容はサンプル',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              '← 次の体験へ  /  右スワイプで保存 →',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton.filledTonal(
-                  tooltip: '次の体験へ',
-                  onPressed: () => advance(false),
-                  icon: const Icon(Icons.close),
-                ),
-                TextButton(
-                  onPressed: () => showExperience(context, e),
-                  child: const Text('詳しく見る'),
-                ),
-                IconButton.filled(
-                  tooltip: '体験を保存',
-                  onPressed: () => advance(true),
-                  icon: Icon(
-                    trip.contains(e) ? Icons.favorite : Icons.favorite_border,
-                  ),
-                ),
-              ],
-            ),
-            const Text(
-              'カードを長押しで詳しく見る',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         leading: step > 0
@@ -421,7 +224,7 @@ class RecommendationHome extends HookConsumerWidget {
             ? moodScreen(context)
             : step == 1
             ? questions(context)
-            : explore(context),
+            : const ExperienceDeck(),
       ),
     );
   }

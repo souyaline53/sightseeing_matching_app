@@ -1,3 +1,5 @@
+import '../model/interest_answers.dart';
+import 'settings_state.dart';
 import 'conditions_step_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../data/mock_data.dart';
@@ -6,17 +8,20 @@ import '../service/recommendation_service.dart';
 
 // step: home=0, conditions=1, questions=2, explore=3.
 class DiscoveryState {
-  final int step, mood, question, index;
-  final List<int> answers;
+  final int step, question, index;
+  final InterestAnswers interests;
+  int get mood => interests.mood;
+  List<int> get answers => interests.choices;
   final List<Experience> deck;
   DiscoveryState({
     this.step = 0,
-    this.mood = 0,
+    int mood = 0,
     this.question = 0,
     this.index = 0,
     List<int> answers = const [],
     List<Experience> deck = const [],
-  }) : answers = List.unmodifiable(answers),
+    InterestAnswers? interests,
+  }) : interests = interests ?? InterestAnswers(mood: mood, choices: answers),
        deck = List.unmodifiable(deck);
   DiscoveryState copyWith({
     int? step,
@@ -43,23 +48,32 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   @override
   DiscoveryState build() => DiscoveryState();
   void reset() => state = state.copyWith(step: 0);
-  void startConditions() {
+  // Existing preset entry point now starts with the three questions too.
+  void startConditions() => beginSearch();
+  void beginSearch() {
+    ref.read(searchDraftProvider.notifier).captureInitial();
+    ref.read(conditionsStepProvider.notifier).reset();
+    state = DiscoveryState(step: 2);
+  }
+
+  void showConditions() {
+    if (!state.interests.complete) return;
     ref.read(conditionsStepProvider.notifier).reset();
     state = state.copyWith(step: 1);
   }
 
   void startQuestions() => state = state.copyWith(step: 2, question: 0);
   void back() {
-    if (state.step == 1 && ref.read(conditionsStepProvider) > 0) {
-      ref.read(conditionsStepProvider.notifier).back();
-      return;
-    }
     if (state.step == 3) {
+      state = state.copyWith(step: 1);
+    } else if (state.step == 1 && ref.read(conditionsStepProvider) > 0) {
+      ref.read(conditionsStepProvider.notifier).back();
+    } else if (state.step == 1) {
       state = state.copyWith(step: 2, question: 2);
     } else if (state.step == 2 && state.question > 0) {
       state = state.copyWith(question: state.question - 1);
     } else {
-      state = state.copyWith(step: state.step > 0 ? state.step - 1 : 0);
+      state = state.copyWith(step: 0);
     }
   }
 
@@ -89,6 +103,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     deck: RecommendationService().recommend(
       moods[state.mood].$2,
       state.answers,
+      filters: ref.read(searchDraftProvider),
     ),
   );
   void goTo(int index) {

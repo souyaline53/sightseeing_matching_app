@@ -76,6 +76,15 @@ class SearchConditions {
     return null;
   }
 
+  // Search execution never requires a travel date. Legacy date fields remain
+  // readable for existing presets and the unchanged preset editor.
+  String? validateFilters() {
+    if (origin.trim().isEmpty) return '出発地を選択してください。';
+    if (maxMinutes < 30 || maxMinutes > 300) return '移動時間を30〜300分で指定してください。';
+    if (budget < 1000 || budget > 100000) return '予算を1,000〜100,000円で指定してください。';
+    return null;
+  }
+
   String get summary =>
       '$origin · ${transport.label} · ${length.label} · 総予算$budget円';
   SearchConditions copyWith({
@@ -188,19 +197,30 @@ class SearchPreset {
   );
 }
 
+// SearchFilters reuses the existing immutable model and its storage format.
+typedef SearchFilters = SearchConditions;
+
 class LastSearch {
-  final SearchConditions conditions;
-  final DateTime executedAt;
-  const LastSearch({required this.conditions, required this.executedAt});
+  final SearchFilters conditions;
+  final DateTime searchedAt;
+  LastSearch({
+    required this.conditions,
+    DateTime? searchedAt,
+    DateTime? executedAt,
+  }) : searchedAt = (searchedAt ?? executedAt ?? DateTime.now()).toUtc();
+  // Compatibility with previously saved data and callers.
+  DateTime get executedAt => searchedAt;
   Map<String, dynamic> toJson() => {
     'conditions': conditions.toJson(),
-    'executedAt': executedAt.toIso8601String(),
+    'searchedAt': searchedAt.toIso8601String(),
   };
   factory LastSearch.fromJson(Map<String, dynamic> json) => LastSearch(
     conditions: SearchConditions.fromJson(
       json['conditions'] as Map<String, dynamic>,
     ),
-    executedAt: DateTime.parse(json['executedAt'] as String),
+    searchedAt: DateTime.parse(
+      (json['searchedAt'] ?? json['executedAt']) as String,
+    ),
   );
 }
 

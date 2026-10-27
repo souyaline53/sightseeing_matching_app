@@ -1,9 +1,6 @@
-import 'package:flutter_hooks/flutter_hooks.dart';
 import '../../state/settings_state.dart';
-import '../../state/trip_state.dart';
 import '../../state/app_tab.dart';
 import '../../service/curiosity_questions.dart';
-import '../../widgets/settings_actions.dart';
 import '../search/search_conditions_screen.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../state/discovery_state.dart';
@@ -16,7 +13,6 @@ class RecommendationHome extends HookConsumerWidget {
   const RecommendationHome({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final busy = useState(false);
     final settings = ref.watch(settingsProvider).requireValue;
     final discovery = ref.watch(discoveryProvider);
     final controller = ref.read(discoveryProvider.notifier);
@@ -170,39 +166,14 @@ class RecommendationHome extends HookConsumerWidget {
                       : null,
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: busy.value
-                        ? null
-                        : () async {
-                            controller.answer(i);
-                            if (question != 2) return;
-                            final conditions = ref.read(searchDraftProvider);
-                            final error = conditions.validate();
-                            if (error != null) {
-                              showMessage(context, error);
-                              controller.back();
-                              return;
-                            }
-                            busy.value = true;
-                            try {
-                              await ref
-                                  .read(settingsProvider.notifier)
-                                  .saveLast(conditions);
-                              if (!context.mounted) return;
-                              ref
-                                  .read(tripProvider.notifier)
-                                  .applyConditions(conditions);
-                              controller.showExplore();
-                            } catch (_) {
-                              if (context.mounted) {
-                                showMessage(
-                                  context,
-                                  '前回条件を保存できませんでした。もう一度選択してください。',
-                                );
-                              }
-                            } finally {
-                              if (context.mounted) busy.value = false;
-                            }
-                          },
+                    onTap: () {
+                      if (ref.read(discoveryProvider).step != 2 ||
+                          ref.read(discoveryProvider).question != question) {
+                        return;
+                      }
+                      controller.answer(i);
+                      if (question == 2) controller.showConditions();
+                    },
                     child: Column(
                       children: [
                         SizedBox(
@@ -235,7 +206,6 @@ class RecommendationHome extends HookConsumerWidget {
       );
     }
 
-    if (step == 1) return const SearchConditionsScreen();
     if (step == 0) {
       return Scaffold(
         appBar: AppBar(title: const Text('TABISAKI')),
@@ -292,13 +262,13 @@ class RecommendationHome extends HookConsumerWidget {
         ),
       );
     }
-    return Scaffold(
+    final questionsOrExplore = Scaffold(
       appBar: AppBar(
         leading: step > 0
             ? IconButton(
                 tooltip: '前の画面へ',
                 icon: const Icon(Icons.arrow_back),
-                onPressed: busy.value ? null : () => controller.back(),
+                onPressed: () => controller.back(),
               )
             : const Icon(Icons.explore_outlined),
         title: const Text(
@@ -336,6 +306,12 @@ class RecommendationHome extends HookConsumerWidget {
                   : questions(context)
             : const ExperienceDeck(),
       ),
+    );
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      child: step == 1
+          ? const SearchConditionsScreen(key: ValueKey('conditions'))
+          : KeyedSubtree(key: ValueKey(step), child: questionsOrExplore),
     );
   }
 }

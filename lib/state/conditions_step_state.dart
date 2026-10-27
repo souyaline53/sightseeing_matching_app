@@ -13,6 +13,10 @@ class ConditionsStepNotifier extends Notifier<int> {
     if (state < 2) state++;
   }
 
+  void nextFrom(int expected) {
+    if (state == expected && state < 2) state++;
+  }
+
   void back() {
     if (state > 0) state--;
   }

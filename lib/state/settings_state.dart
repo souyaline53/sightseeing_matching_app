@@ -33,7 +33,7 @@ class SettingsNotifier extends AsyncNotifier<SavedSettings> {
     (data) => data.copyWith(
       lastSearch: LastSearch(
         conditions: conditions,
-        executedAt: DateTime.now(),
+        searchedAt: DateTime.now().toUtc(),
       ),
     ),
   );
@@ -63,6 +63,11 @@ final searchDraftProvider =
     );
 
 class SearchDraftNotifier extends Notifier<SearchConditions> {
+  SearchConditions _initial = const SearchConditions();
+  void captureInitial() => _initial = state;
+  SearchConditions get initialFilters => _initial;
+  SearchConditions skippedFilters() =>
+      _initial.copyWith(origin: state.origin, transport: state.transport);
   @override
   SearchConditions build() => const SearchConditions();
   void replace(SearchConditions conditions) => state = conditions;

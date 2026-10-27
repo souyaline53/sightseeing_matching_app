@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../model/search_settings.dart';
+import '../../data/departure_places.dart';
 import '../../state/settings_state.dart';
+import '../../state/discovery_state.dart';
+import '../../state/conditions_step_state.dart';
+import '../../widgets/departure_map.dart';
 
 class _StepLayout extends HookConsumerWidget {
   final String title, subtitle;
@@ -14,6 +18,7 @@ class _StepLayout extends HookConsumerWidget {
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) => SingleChildScrollView(
+    key: ValueKey(title),
     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
     padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
     child: Column(
@@ -33,7 +38,7 @@ class _StepLayout extends HookConsumerWidget {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
         ...children,
       ],
     ),
@@ -42,12 +47,14 @@ class _StepLayout extends HookConsumerWidget {
 
 class _SelectionCard extends HookConsumerWidget {
   final String label;
+  final String? description;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
   const _SelectionCard({
     super.key,
     required this.label,
+    this.description,
     required this.icon,
     required this.selected,
     required this.onTap,
@@ -71,22 +78,49 @@ class _SelectionCard extends HookConsumerWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: colors.primary, size: 30),
-                const SizedBox(height: 10),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: colors.onSurface,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 14),
+            child: description == null
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: colors.primary, size: 30),
+                      const SizedBox(height: 10),
+                      Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Icon(icon, color: colors.primary, size: 34),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              label,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              description!,
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -104,61 +138,155 @@ class DepartureStepPage extends HookConsumerWidget {
       if (origin.text != draft.origin) origin.text = draft.origin;
       return null;
     }, [draft.origin]);
-    void update(SearchConditions Function(SearchConditions) change) => ref
-        .read(searchDraftProvider.notifier)
-        .replace(change(ref.read(searchDraftProvider)));
+    void select(String name, {bool confirm = false}) {
+      if (ref.read(discoveryProvider).step != 1 ||
+          ref.read(conditionsStepProvider) != 0) {
+        return;
+      }
+      ref
+          .read(searchDraftProvider.notifier)
+          .replace(ref.read(searchDraftProvider).copyWith(origin: name));
+      if (confirm && name.trim().isNotEmpty) {
+        FocusScope.of(context).unfocus();
+        ref.read(conditionsStepProvider.notifier).nextFrom(0);
+      }
+    }
+
+    final matches = findDepartures(draft.origin);
     return _StepLayout(
-      title: 'どこから、どうやって行く？',
-      subtitle: '出発地と、無理なく行ける範囲を決めましょう。',
+      title: 'どこから旅を始める？',
+      subtitle: '候補はタップで確定。地図のピンは選んでから確認できます。',
       children: [
         TextField(
           key: const ValueKey('search-origin'),
           controller: origin,
           textInputAction: TextInputAction.done,
           decoration: const InputDecoration(
-            labelText: '出発地（駅名・地域名）',
-            prefixIcon: Icon(Icons.trip_origin),
+            labelText: '駅名・地域名を検索',
+            prefixIcon: Icon(Icons.search),
           ),
-          onChanged: (value) => update((c) => c.copyWith(origin: value)),
-          onSubmitted: (_) => FocusScope.of(context).unfocus(),
+          onChanged: (v) => select(v),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        const Text('よく使う出発地', style: TextStyle(fontWeight: FontWeight.bold)),
         Wrap(
           spacing: 8,
           runSpacing: 4,
           children: [
-            for (final name in ['札幌駅', '小樽駅', '新千歳空港'])
+            for (final name in {
+              '札幌駅',
+              '小樽駅',
+              '新千歳空港',
+              ref.read(settingsProvider).requireValue.profile.origin,
+            })
               ActionChip(
+                key: ValueKey('origin-chip-$name'),
                 label: Text(name),
-                onPressed: () => update((c) => c.copyWith(origin: name)),
+                onPressed: () => select(name, confirm: true),
               ),
           ],
         ),
-        const SizedBox(height: 24),
-        const Text('移動手段', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 14),
+        const Text(
+          '検索候補（ローカルのサンプル）',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        for (final p in matches.take(5))
+          ListTile(
+            key: ValueKey('origin-result-${p.id}'),
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              p.bus ? Icons.directions_bus_outlined : Icons.train_outlined,
+            ),
+            title: Text(p.name),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => select(p.name, confirm: true),
+          ),
+        if (draft.origin.trim().isNotEmpty &&
+            !matches.any((p) => p.name == draft.origin.trim()))
+          ListTile(
+            key: const ValueKey('origin-free-text'),
+            contentPadding: EdgeInsets.zero,
+            title: Text('「${draft.origin.trim()}」を出発地にする'),
+            subtitle: const Text('地域名の直接入力（地図座標・経路は未確認）'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => select(draft.origin.trim(), confirm: true),
+          ),
         const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final mode in TravelMode.values) ...[
-              if (mode.index > 0) const SizedBox(width: 8),
-              Expanded(
-                child: _SelectionCard(
-                  key: ValueKey('travel-${mode.name}'),
-                  label: mode.label,
-                  icon: [
-                    Icons.train_outlined,
-                    Icons.directions_car_outlined,
-                    Icons.alt_route,
-                  ][mode.index],
-                  selected: draft.transport == mode,
-                  onTap: () => update((c) => c.copyWith(transport: mode)),
-                ),
-              ),
-            ],
-          ],
+        DepartureMap(selected: draft.origin, onSelect: (p) => select(p.name)),
+        const SizedBox(height: 10),
+        Text(
+          '選択中の出発地：${draft.origin.isEmpty ? '未選択' : draft.origin}',
+          key: const ValueKey('selected-origin'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 8),
+        const Text(
+          'ピンの位置・駅・バス停候補はサンプルです。実際の運行情報ではありません。',
+          style: TextStyle(fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
+class TransportStepPage extends HookConsumerWidget {
+  const TransportStepPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(searchDraftProvider);
+    return _StepLayout(
+      title: 'どうやって旅する？',
+      subtitle: 'いつもの移動手段でも、違う旅のかたちでも。',
+      children: [
+        for (final mode in TravelMode.values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _SelectionCard(
+              key: ValueKey('travel-${mode.name}'),
+              label: ['公共交通で旅する', '車で旅する', 'どちらでもOK'][mode.index],
+              description: [
+                '電車やバスを使って、車がなくても旅へ。',
+                '自分のペースで、寄り道も自由に。',
+                '体験に合わせて、移動の選択肢を広げる。',
+              ][mode.index],
+              icon: [
+                Icons.train_outlined,
+                Icons.directions_car_outlined,
+                Icons.alt_route,
+              ][mode.index],
+              selected: draft.transport == mode,
+              onTap: () {
+                if (ref.read(discoveryProvider).step != 1 ||
+                    ref.read(conditionsStepProvider) != 1) {
+                  return;
+                }
+                ref
+                    .read(searchDraftProvider.notifier)
+                    .replace(
+                      ref.read(searchDraftProvider).copyWith(transport: mode),
+                    );
+                ref.read(conditionsStepProvider.notifier).nextFrom(1);
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class DetailsStepPage extends HookConsumerWidget {
+  const DetailsStepPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(searchDraftProvider);
+    void update(SearchConditions Function(SearchConditions) change) => ref
+        .read(searchDraftProvider.notifier)
+        .replace(change(ref.read(searchDraftProvider)));
+    return _StepLayout(
+      title: '旅の条件を決めよう',
+      subtitle: 'そのままでも大丈夫。スキップすると開始時の詳細条件を使います。',
+      children: [
         Text(
           '片道移動時間の上限：${draft.maxMinutes}分',
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -170,98 +298,16 @@ class DepartureStepPage extends HookConsumerWidget {
           max: 240,
           divisions: 14,
           label: '${draft.maxMinutes}分',
-          onChanged: (value) =>
-              update((c) => c.copyWith(maxMinutes: value.round())),
+          onChanged: (v) => update((c) => c.copyWith(maxMinutes: v.round())),
         ),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Text('30分'), Text('240分')],
-        ),
-        if (draft.maxMinutes > 240 || draft.maxMinutes < 30)
-          const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Text(
-              '保存済みの移動時間が設定範囲外です。30〜240分で選び直してください。',
-              style: TextStyle(color: Colors.red),
-            ),
+        if (draft.maxMinutes > 240)
+          const Text(
+            '保存済みの移動時間を保持しています。変更する場合は30〜240分で選べます。',
+            style: TextStyle(fontSize: 12),
           ),
-        const SizedBox(height: 12),
-        const Text('公共交通では距離よりも移動時間を重視します。', style: TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class ScheduleStepPage extends HookConsumerWidget {
-  const ScheduleStepPage({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final draft = ref.watch(searchDraftProvider);
-    void update(SearchConditions Function(SearchConditions) change) => ref
-        .read(searchDraftProvider.notifier)
-        .replace(change(ref.read(searchDraftProvider)));
-    final today = DateUtils.dateOnly(DateTime.now());
-    final resolved = draft.resolveDate();
-    final lastDay = DateTime(today.year + 10, 12, 31);
-    final calendarDate = resolved.isBefore(today)
-        ? today
-        : resolved.isAfter(lastDay)
-        ? lastDay
-        : resolved;
-    return _StepLayout(
-      title: 'いつ、どのくらい旅する？',
-      subtitle: '過ごせる時間と予算から、旅の輪郭を。',
-      children: [
-        const Text('旅行日', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final choice in DateChoice.values)
-              ChoiceChip(
-                key: ValueKey('date-${choice.name}'),
-                label: Text(['明日', '次の週末', '日付指定'][choice.index]),
-                selected: draft.dateChoice == choice,
-                onSelected: (_) => update(
-                  (c) => c.copyWith(
-                    dateChoice: choice,
-                    fixedDate: choice == DateChoice.fixed && c.fixedDate == null
-                        ? today
-                        : null,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '${resolved.year}年${resolved.month}月${resolved.day}日',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        if (draft.dateChoice == DateChoice.fixed) ...[
-          if (draft.validate()?.contains('日付') == true)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                '過去の日付です。旅行日を選び直してください。',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          CalendarDatePicker(
-            key: ValueKey('calendar-${draft.fixedDate}'),
-            initialDate: calendarDate,
-            firstDate: today,
-            lastDate: lastDay,
-            onDateChanged: (date) => update((c) => c.copyWith(fixedDate: date)),
-          ),
-        ],
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         const Text('旅行期間', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 4,
@@ -274,13 +320,12 @@ class ScheduleStepPage extends HookConsumerWidget {
               ),
           ],
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
         Text(
           '総予算上限：${draft.budget}円',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 6),
-        const Text('交通費・食事・体験・宿泊など、旅行全体の上限です。', style: TextStyle(fontSize: 12)),
+        const Text('交通費・食事・体験・宿泊を含む旅行全体の上限です。', style: TextStyle(fontSize: 12)),
         Slider(
           key: const ValueKey('total-budget'),
           value: draft.budget.toDouble(),
@@ -288,26 +333,11 @@ class ScheduleStepPage extends HookConsumerWidget {
           max: 100000,
           divisions: 99,
           label: '${draft.budget}円',
-          onChanged: (value) =>
-              update((c) => c.copyWith(budget: value.round())),
+          onChanged: (v) => update((c) => c.copyWith(budget: v.round())),
         ),
-      ],
-    );
-  }
-}
-
-class CompanyStepPage extends HookConsumerWidget {
-  const CompanyStepPage({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final draft = ref.watch(searchDraftProvider);
-    void update(SearchConditions Function(SearchConditions) change) => ref
-        .read(searchDraftProvider.notifier)
-        .replace(change(ref.read(searchDraftProvider)));
-    return _StepLayout(
-      title: '誰と、どんな条件で？',
-      subtitle: '一緒に出かける人と、歩くペースを教えてください。',
-      children: [
+        const SizedBox(height: 20),
+        const Text('同行者', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
             spacing: 12,
@@ -318,7 +348,7 @@ class CompanyStepPage extends HookConsumerWidget {
                   width: (constraints.maxWidth - 12) / 2,
                   child: _SelectionCard(
                     key: ValueKey('company-${company.name}'),
-                    label: ['ひとり旅', '友達', 'カップル', '家族'][company.index],
+                    label: ['ひとり', '友達', 'カップル', '家族'][company.index],
                     icon: [
                       Icons.person_outline,
                       Icons.group_outlined,
@@ -356,8 +386,12 @@ class CompanyStepPage extends HookConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
           ],
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          '条件はサンプルの推薦順位に反映します。旅行日は旅程画面で別途指定し、時刻表・料金・利用可否は未検証です。',
+          style: TextStyle(fontSize: 12),
         ),
       ],
     );

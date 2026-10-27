@@ -1,158 +1,196 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/repository/settings_repository.dart';
 import 'package:sightseeing_matching_app/state/conditions_step_state.dart';
+import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/settings_state.dart';
+import 'package:sightseeing_matching_app/state/trip_state.dart';
+import 'package:sightseeing_matching_app/service/recommendation_service.dart';
 import 'test_support.dart';
-import 'widget_test.dart' show boot, reveal;
+import 'widget_test.dart' show boot, reveal, answerQuestions, enterDetails;
 
 void main() {
   testWidgets(
-    'three steps keep all values, support back, save and hand off to questions',
+    'offline map remains interactive; pin requires explicit confirmation',
+    (tester) async {
+      final container = await boot(tester);
+      await tester.tap(find.text('検索を開始する'));
+      await tester.pumpAndSettle();
+      await answerQuestions(tester);
+      final interests = container.read(discoveryProvider).interests;
+      await reveal(tester, find.byType(FlutterMap));
+      expect(find.text('地図画像を表示できません。検索欄・候補からも選択できます。'), findsOneWidget);
+      final controller = tester
+          .widget<FlutterMap>(find.byType(FlutterMap))
+          .mapController!;
+      final oldZoom = controller.camera.zoom;
+      await tester.tap(find.byTooltip('地図を拡大'));
+      await tester.pumpAndSettle();
+      expect(controller.camera.zoom, greaterThan(oldZoom));
+      await tester.tap(find.byTooltip('地図を縮小'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('map-pin-odori-bus')));
+      await tester.pumpAndSettle();
+      expect(container.read(conditionsStepProvider), 0);
+      expect(container.read(searchDraftProvider).origin, contains('バス停'));
+      await tester.tap(find.text('この出発地にする'));
+      await tester.pumpAndSettle();
+      expect(find.text('どうやって旅する？'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('travel-car')));
+      await tester.pumpAndSettle();
+      expect(find.text('旅の条件を決めよう'), findsOneWidget);
+      expect(
+        container.read(discoveryProvider).interests.choices,
+        interests.choices,
+      );
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(container.read(searchDraftProvider).transport, TravelMode.car);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('どこから旅を始める？'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(container.read(discoveryProvider).question, 2);
+      expect(container.read(discoveryProvider).answers, [0, 0]);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'chips and local search candidates confirm once, even with consecutive taps',
+    (tester) async {
+      final container = await boot(tester);
+      await tester.tap(find.text('検索を開始する'));
+      await tester.pumpAndSettle();
+      await answerQuestions(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('search-origin')),
+        'おたる',
+      );
+      await tester.pumpAndSettle();
+      final resultPoint = tester.getCenter(
+        find.byKey(const ValueKey('origin-result-otaru')),
+      );
+      await tester.tapAt(resultPoint);
+      await tester.tapAt(resultPoint);
+      await tester.pumpAndSettle();
+      expect(container.read(conditionsStepProvider), 1);
+      expect(container.read(searchDraftProvider).origin, '小樽駅');
+      final modePoint = tester.getCenter(
+        find.byKey(const ValueKey('travel-either')),
+      );
+      await tester.tapAt(modePoint);
+      await tester.tapAt(modePoint);
+      await tester.pumpAndSettle();
+      expect(container.read(conditionsStepProvider), 2);
+      expect(find.byType(PageView), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('search-origin')),
+        '任意の地域',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('origin-free-text')));
+      await tester.pumpAndSettle();
+      expect(container.read(searchDraftProvider).origin, '任意の地域');
+      expect(container.read(conditionsStepProvider), 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'skip restores initial detail filters, preserves chosen origin and mode, and records UTC',
     (tester) async {
       final storage = MemorySettingsStorage();
+      await LocalSettingsRepository(storage: storage).save(
+        SavedSettings(
+          profile: const UserProfile(
+            origin: '札幌駅',
+            budget: 25000,
+            walking: Walking.plenty,
+          ),
+        ),
+      );
       final container = await boot(tester, storage: storage);
       await tester.tap(find.text('検索を開始する'));
       await tester.pumpAndSettle();
-      expect(find.text('STEP 1/3'), findsOneWidget);
-      expect(find.text('どこから、どうやって行く？'), findsOneWidget);
-      await tester.enterText(
-        find.byKey(const ValueKey('search-origin')),
-        '江別駅',
-      );
-      await tester.tap(find.byKey(const ValueKey('travel-either')));
-      await reveal(tester, find.byKey(const ValueKey('travel-time')));
-      await tester.drag(
-        find.byKey(const ValueKey('travel-time')),
-        const Offset(80, 0),
-      );
-      await tester.pumpAndSettle();
-      final minutes = container.read(searchDraftProvider).maxMinutes;
-      expect(minutes, inInclusiveRange(30, 240));
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 2/3'), findsOneWidget);
-      expect(find.byType(CalendarDatePicker), findsNothing);
-      await tester.tap(find.text('日付指定'));
-      await tester.pumpAndSettle();
-      final calendar = tester.widget<CalendarDatePicker>(
-        find.byType(CalendarDatePicker),
-      );
-      expect(calendar.firstDate, DateUtils.dateOnly(DateTime.now()));
-      await tester.tap(
-        find
-            .descendant(
-              of: find.byType(CalendarDatePicker),
-              matching: find.text('${DateTime.now().day}'),
-            )
-            .last,
-      );
-      await tester.pumpAndSettle();
-      expect(
-        container.read(searchDraftProvider).fixedDate,
-        DateUtils.dateOnly(DateTime.now()),
-      );
-      await tester.tap(find.text('次の週末'));
-      await tester.pumpAndSettle();
-      expect(find.byType(CalendarDatePicker), findsNothing);
-      await tester.tap(find.text('2泊3日以上'));
+      await answerQuestions(tester);
+      final baseline = container.read(searchDraftProvider);
+      await enterDetails(tester, mode: 'either');
+      await tester.tap(find.text('1泊2日'));
       await reveal(tester, find.byKey(const ValueKey('total-budget')));
       await tester.drag(
         find.byKey(const ValueKey('total-budget')),
         const Offset(60, 0),
       );
       await tester.pumpAndSettle();
-      final budget = container.read(searchDraftProvider).budget;
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 3/3'), findsOneWidget);
-      final solo = tester.getRect(find.byKey(const ValueKey('company-solo')));
-      final friends = tester.getRect(
-        find.byKey(const ValueKey('company-friends')),
-      );
-      final couple = tester.getRect(
-        find.byKey(const ValueKey('company-couple')),
-      );
-      final family = tester.getRect(
-        find.byKey(const ValueKey('company-family')),
-      );
-      expect(solo.top, friends.top);
-      expect(couple.top, family.top);
-      expect(couple.top, greaterThan(solo.bottom));
+      await reveal(tester, find.byKey(const ValueKey('company-family')));
       await tester.tap(find.byKey(const ValueKey('company-family')));
       await tester.pumpAndSettle();
-      expect(find.text('少なめ').hitTestable(), findsNothing);
-      await reveal(tester, find.text('さらに細かく設定'));
-      await tester.tap(find.text('さらに細かく設定'));
-      await tester.pumpAndSettle();
-      await reveal(tester, find.text('少なめ'));
-      await tester.tap(find.text('少なめ'));
-      await tester.pumpAndSettle();
-      final entered = container.read(searchDraftProvider);
-      expect(entered.origin, '江別駅');
-      expect(entered.transport, TravelMode.either);
-      expect(entered.length, TripLength.longer);
-      expect(entered.walking, Walking.light);
-      expect(entered.company, Company.family);
-      expect(entered.dateChoice, DateChoice.weekend);
-      expect(entered.maxMinutes, minutes);
-      expect(entered.budget, budget);
+      expect(container.read(searchDraftProvider).company, Company.family);
       await tester.tap(find.text('この条件を保存'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).last, '三段階の旅');
+      await tester.enterText(find.byType(TextField).last, '編集した条件');
       await tester.tap(find.text('保存').last);
       await tester.pumpAndSettle();
-      final saved = await LocalSettingsRepository(storage: storage).load();
-      expect(saved.presets.single.conditions.toJson(), entered.toJson());
-      expect(saved.profile.origin, '札幌駅');
-      expect(saved.lastSearch, isNull);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 2/3'), findsOneWidget);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 1/3'), findsOneWidget);
       expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('search-origin')))
-            .controller!
-            .text,
-        '江別駅',
+        container
+            .read(settingsProvider)
+            .requireValue
+            .presets
+            .single
+            .conditions
+            .company,
+        Company.family,
       );
-      expect(container.read(searchDraftProvider).toJson(), entered.toJson());
-      await tester.tap(find.text('次へ'));
+      expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
+      final before = DateTime.now().toUtc();
+      await tester.tap(find.text('詳細設定をスキップ'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('次へ：好奇心を探す'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
-      expect(container.read(searchDraftProvider).toJson(), entered.toJson());
-      await tester.tap(find.byTooltip('前の画面へ'));
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 3/3'), findsOneWidget);
+      final last = container.read(settingsProvider).requireValue.lastSearch!;
+      expect(last.conditions.origin, '小樽駅');
+      expect(last.conditions.transport, TravelMode.either);
+      expect(last.conditions.budget, baseline.budget);
+      expect(last.conditions.company, baseline.company);
+      expect(last.conditions.walking, baseline.walking);
+      expect(last.conditions.length, baseline.length);
+      expect(last.searchedAt.isUtc, isTrue);
+      expect(last.searchedAt.isBefore(before), isFalse);
+      expect(last.toJson()['searchedAt'], endsWith('Z'));
+      expect(container.read(tripProvider).travelDate, isNull);
+      final d = container.read(discoveryProvider);
+      expect(d.step, 3);
+      final expected = RecommendationService().recommend('食', [
+        0,
+        0,
+      ], filters: last.conditions);
+      expect(d.deck.map((e) => e.id), expected.map((e) => e.id));
+      expect(
+        container.read(settingsProvider).requireValue.profile.budget,
+        25000,
+      );
       expect(tester.takeException(), isNull);
     },
   );
-
   testWidgets(
-    'loaded presets retain fields and legacy travel limits need explicit correction',
+    'preset details are skip defaults and saving failure does not execute search',
     (tester) async {
       final storage = MemorySettingsStorage();
-      const original = SearchConditions(
+      const preset = SearchConditions(
         origin: '千歳駅',
-        maxMinutes: 300,
         budget: 23000,
-        transport: TravelMode.car,
-        length: TripLength.overnight,
-        walking: Walking.plenty,
+        maxMinutes: 300,
         company: Company.couple,
+        walking: Walking.light,
       );
       await LocalSettingsRepository(storage: storage).save(
         SavedSettings(
           presets: const [
-            SearchPreset(id: 'legacy', name: '以前の条件', conditions: original),
+            SearchPreset(id: 'p', name: '以前の条件', conditions: preset),
           ],
         ),
       );
@@ -162,21 +200,31 @@ void main() {
       await reveal(tester, find.text('読み込み'));
       await tester.tap(find.text('読み込み'));
       await tester.pumpAndSettle();
-      expect(find.text('STEP 1/3'), findsOneWidget);
-      expect(container.read(searchDraftProvider).toJson(), original.toJson());
-      await tester.tap(find.text('次へ'));
+      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
+      await answerQuestions(tester);
+      expect(container.read(searchDraftProvider).toJson(), preset.toJson());
+      await tester.tap(find.text('この出発地にする'));
       await tester.pumpAndSettle();
-      expect(container.read(conditionsStepProvider), 0);
-      await reveal(tester, find.byKey(const ValueKey('travel-time')));
-      await tester.drag(
-        find.byKey(const ValueKey('travel-time')),
-        const Offset(-80, 0),
+      await tester.tap(find.byKey(const ValueKey('travel-transit')));
+      await tester.pumpAndSettle();
+      storage.failWrite = true;
+      await tester.tap(find.text('詳細設定をスキップ'));
+      await tester.pumpAndSettle();
+      expect(container.read(discoveryProvider).step, 1);
+      expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
+      expect(find.textContaining('検索条件を保存できませんでした'), findsOneWidget);
+      storage.failWrite = false;
+      await tester.tap(find.text('詳細設定をスキップ'));
+      await tester.pumpAndSettle();
+      expect(
+        container
+            .read(settingsProvider)
+            .requireValue
+            .lastSearch!
+            .conditions
+            .maxMinutes,
+        300,
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      expect(find.text('STEP 2/3'), findsOneWidget);
-      expect(container.read(searchDraftProvider).budget, 23000);
       expect(
         container
             .read(settingsProvider)
@@ -184,42 +232,38 @@ void main() {
             .presets
             .single
             .conditions
-            .maxMinutes,
-        300,
+            .toJson(),
+        preset.toJson(),
       );
       expect(tester.takeException(), isNull);
     },
   );
-
   for (final size in [const Size(320, 568), const Size(390, 844)]) {
     testWidgets(
-      'Android layout with keyboard and fixed actions at $size',
+      'small Android layout and keyboard at $size',
       (tester) async {
         final container = await boot(tester);
         await tester.binding.setSurfaceSize(size);
         await tester.tap(find.text('検索を開始する'));
         await tester.pumpAndSettle();
+        await answerQuestions(tester);
         await tester.tap(find.byKey(const ValueKey('search-origin')));
         tester.view.viewInsets = const FakeViewPadding(bottom: 260);
         addTearDown(tester.view.resetViewInsets);
         await tester.pumpAndSettle();
-        expect(find.text('次へ').hitTestable(), findsOneWidget);
+        expect(find.text('この出発地にする').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
         tester.view.resetViewInsets();
         FocusManager.instance.primaryFocus?.unfocus();
         await tester.pumpAndSettle();
-        await tester.tap(find.text('次へ'));
+        await tester.tap(find.text('この出発地にする'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('日付指定'));
+        await reveal(tester, find.byKey(const ValueKey('travel-either')));
+        await tester.tap(find.byKey(const ValueKey('travel-either')));
         await tester.pumpAndSettle();
-        await reveal(tester, find.byType(CalendarDatePicker));
-        expect(tester.takeException(), isNull);
-        await reveal(tester, find.text('明日'));
-        await tester.tap(find.text('明日'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('次へ'));
-        await tester.pumpAndSettle();
-        expect(find.text('次へ：好奇心を探す').hitTestable(), findsOneWidget);
+        expect(find.text('この条件で探す').hitTestable(), findsOneWidget);
+        expect(find.text('詳細設定をスキップ').hitTestable(), findsOneWidget);
+        expect(find.byType(CalendarDatePicker), findsNothing);
         expect(container.read(conditionsStepProvider), 2);
         expect(tester.takeException(), isNull);
       },

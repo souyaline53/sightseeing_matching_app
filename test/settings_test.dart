@@ -176,6 +176,7 @@ void main() {
       controller.answer(1);
       controller.showExplore();
       controller.back();
+      controller.back();
       expect(container.read(discoveryProvider).question, 2);
       expect(container.read(discoveryProvider).answers, [0, 1]);
       controller.back();
@@ -186,6 +187,55 @@ void main() {
       controller.goTo(9);
       controller.advance();
       expect(container.read(discoveryProvider).index, 0);
+    },
+  );
+  test(
+    'legacy LastSearch migrates UTC metadata and search dates stay independent',
+    () {
+      final raw = {
+        'conditions': const SearchConditions().toJson(),
+        'executedAt': '2026-10-27T09:30:00+09:00',
+      };
+      final migrated = LastSearch.fromJson(raw);
+      expect(migrated.searchedAt, DateTime.utc(2026, 10, 27, 0, 30));
+      expect(migrated.toJson()['searchedAt'], '2026-10-27T00:30:00.000Z');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final trip = container.read(tripProvider.notifier);
+      trip.setDate(DateTime(2027, 1, 3));
+      expect(container.read(tripProvider).travelDate, DateTime(2027, 1, 3));
+      trip.applySearchFilters(const SearchConditions());
+      expect(container.read(tripProvider).travelDate, isNull);
+      trip.save(experiences.first);
+      expect(container.read(tripProvider).saved.length, 1);
+    },
+  );
+  test(
+    'mock filters affect ranking while retaining close, related and surprising genres',
+    () {
+      final service = RecommendationService();
+      final nearby = service.recommend(
+        '食',
+        [0, 0],
+        filters: const SearchConditions(
+          origin: '札幌駅',
+          maxMinutes: 30,
+          budget: 3000,
+        ),
+      );
+      final yubari = service.recommend(
+        '食',
+        [0, 0],
+        filters: const SearchConditions(
+          origin: '新夕張駅',
+          maxMinutes: 30,
+          budget: 3000,
+        ),
+      );
+      expect(nearby.first.id, 'bread');
+      expect(yubari.first.id, 'melon');
+      expect(nearby.map((e) => e.category).toSet().length, greaterThan(3));
+      expect(yubari.length, experiences.length);
     },
   );
   test(

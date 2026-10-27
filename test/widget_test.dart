@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/widgets/departure_map.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +10,6 @@ import 'package:sightseeing_matching_app/state/settings_state.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
-import 'package:sightseeing_matching_app/state/app_tab.dart';
 import 'package:sightseeing_matching_app/service/curiosity_questions.dart';
 import 'test_support.dart';
 
@@ -34,6 +34,7 @@ Future<ProviderContainer> boot(
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final container = ProviderContainer(
     overrides: [
+      mapTilesEnabledProvider.overrideWithValue(false),
       settingsRepositoryProvider.overrideWithValue(
         LocalSettingsRepository(storage: storage ?? MemorySettingsStorage()),
       ),
@@ -50,28 +51,42 @@ Future<ProviderContainer> boot(
   return container;
 }
 
+Future<void> answerQuestions(
+  WidgetTester tester, {
+  int mood = 0,
+  int reason = 0,
+  int broaden = 0,
+}) async {
+  await tester.tap(find.byKey(ValueKey('mood-$mood')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(CuriosityQuestions.reason(mood).choices[reason]));
+  await tester.pumpAndSettle();
+  await tester.tap(
+    find.text(CuriosityQuestions.broaden(mood, reason).choices[broaden]),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> enterDetails(
+  WidgetTester tester, {
+  String origin = '小樽駅',
+  String mode = 'car',
+}) async {
+  await tester.tap(find.byKey(ValueKey('origin-chip-$origin')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('travel-$mode')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets(
-    'home, full-screen conditions, branching questions, cards and itinerary work together',
+    'questions precede conditions; execution, cards and itinerary remain connected',
     (tester) async {
       final container = await boot(tester);
       expect(find.text('前回の条件で探す'), findsNothing);
-      expect(find.text('プロフィール'), findsOneWidget);
       await tester.tap(find.text('検索を開始する'));
       await tester.pumpAndSettle();
-      expect(find.text('旅行条件を設定'), findsOneWidget);
-      expect(find.byType(BottomSheet), findsNothing);
-      await tester.enterText(find.byType(TextField).first, '小樽駅');
-      await tester.tap(find.text('車'));
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('1泊2日'));
-      expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
-      await reveal(tester, find.text('次へ'));
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('次へ：好奇心を探す'));
-      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('mood-0')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('地元の人しか知らない、秘密の味'));
@@ -82,17 +97,22 @@ void main() {
       expect(container.read(discoveryProvider).answers, [1]);
       await tester.tap(find.text('誰もが知る、とびきりおいしいもの'));
       await tester.pumpAndSettle();
-      expect(find.text('おいしさの先に、何を知りたい？'), findsOneWidget);
       await tester.tap(find.text('作り手のこだわりを知ってみたい'));
+      await tester.pumpAndSettle();
+      expect(find.text('どこから旅を始める？'), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
+      await enterDetails(tester);
+      await tester.tap(find.text('1泊2日'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('この条件で探す'));
       await tester.pumpAndSettle();
       final last = container.read(settingsProvider).requireValue.lastSearch!;
       expect(last.conditions.origin, '小樽駅');
       expect(last.conditions.transport, TravelMode.car);
       expect(last.conditions.length, TripLength.overnight);
-      expect(
-        container.read(settingsProvider).requireValue.profile.origin,
-        '札幌駅',
-      );
+      expect(last.searchedAt.isUtc, isTrue);
+      expect(container.read(tripProvider).travelDate, isNull);
       final initial = container.read(discoveryProvider).deck;
       await tester.drag(find.byType(Dismissible), const Offset(-350, 0));
       await tester.pumpAndSettle();
@@ -117,7 +137,7 @@ void main() {
             .text,
         '小樽駅',
       );
-      expect(container.read(tripProvider).stops.length, 2);
+      expect(find.text('旅行日を選択（未確定）'), findsOneWidget);
       final before = container.read(tripProvider).stops.first.id;
       await reveal(tester, find.byType(ReorderableDragStartListener).first);
       await tester.drag(
@@ -131,6 +151,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('マイプラン'), findsOneWidget);
       expect(find.textContaining('サンプル時刻・実際の運行情報ではありません'), findsOneWidget);
+      expect(find.textContaining('旅行日未確定'), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       await reveal(tester, find.text('AIに提案してもらう'));
@@ -147,9 +168,8 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
   testWidgets(
-    'profile save, multiple presets, rename edit load and confirmed deletion',
+    'profile and preset management remain independent of the search flow',
     (tester) async {
       final storage = MemorySettingsStorage();
       final container = await boot(tester, storage: storage);
@@ -159,24 +179,13 @@ void main() {
       await reveal(tester, find.text('基本設定を保存'));
       await tester.tap(find.text('基本設定を保存'));
       await tester.pumpAndSettle();
-      expect(
-        (await LocalSettingsRepository(storage: storage).load()).profile.origin,
-        '旭川駅',
-      );
       await tester.tap(find.text('発見する'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('検索を開始する'));
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-        '旭川駅',
-      );
-      await tester.enterText(find.byType(TextField).first, '小樽駅');
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('次へ'));
-      await tester.pumpAndSettle();
-      await reveal(tester, find.text('この条件を保存'));
+      await answerQuestions(tester);
+      expect(container.read(searchDraftProvider).origin, '旭川駅');
+      await enterDetails(tester);
       await tester.tap(find.text('この条件を保存'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, '小樽の休日');
@@ -193,7 +202,6 @@ void main() {
       await tester.enterText(find.byType(TextField).last, '名前を変更');
       await tester.tap(find.text('保存').last);
       await tester.pumpAndSettle();
-      // Renamed preset is appended, locate its card rather than relying on list order.
       final card = find.ancestor(
         of: find.text('名前を変更'),
         matching: find.byType(Card),
@@ -208,18 +216,15 @@ void main() {
       await reveal(tester, find.text('上書き保存'));
       await tester.tap(find.text('上書き保存'));
       await tester.pumpAndSettle();
-      expect(
-        container.read(settingsProvider).requireValue.profile.origin,
-        '旭川駅',
-      );
-      expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
       await reveal(tester, find.text('名前を変更'));
       await tester.tap(find.descendant(of: card, matching: find.text('読み込み')));
       await tester.pumpAndSettle();
-      expect(container.read(appTabProvider), AppTab.recommendation);
+      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
+      await answerQuestions(tester);
+      expect(container.read(searchDraftProvider).origin, '江別駅');
       expect(
-        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-        '江別駅',
+        container.read(settingsProvider).requireValue.profile.origin,
+        '旭川駅',
       );
       expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
       await tester.tap(find.text('プロフィール'));
@@ -244,9 +249,8 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
   testWidgets(
-    'last search is reused while ordinary start uses profile and expired dates are blocked',
+    'LastSearch starts with new questions and legacy dates never block searching',
     (tester) async {
       final storage = MemorySettingsStorage();
       await LocalSettingsRepository(storage: storage).save(
@@ -258,80 +262,55 @@ void main() {
               dateChoice: DateChoice.fixed,
               fixedDate: DateTime(2020),
             ),
-            executedAt: DateTime(2020),
+            searchedAt: DateTime(2020),
           ),
         ),
       );
       final container = await boot(tester, storage: storage);
       await tester.tap(find.text('前回の条件で探す'));
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-        '函館駅',
-      );
-      await tester.tap(find.text('次へ'));
+      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
+      await answerQuestions(tester);
+      expect(container.read(searchDraftProvider).origin, '函館駅');
+      expect(find.byType(CalendarDatePicker), findsNothing);
+      await tester.tap(find.text('この出発地にする'));
       await tester.pumpAndSettle();
-      expect(find.text('過去の日付です。旅行日を選び直してください。'), findsOneWidget);
-      await reveal(tester, find.text('次へ'));
-      await tester.tap(find.text('次へ'));
+      await tester.tap(find.byKey(const ValueKey('travel-transit')));
       await tester.pumpAndSettle();
-      expect(container.read(discoveryProvider).step, 1);
-      await tester.tap(find.byType(BackButton));
+      await tester.tap(find.text('詳細設定をスキップ'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(BackButton));
+      expect(container.read(discoveryProvider).step, 3);
+      expect(container.read(tripProvider).travelDate, isNull);
+      container.read(discoveryProvider.notifier).reset();
       await tester.pumpAndSettle();
       await tester.tap(find.text('検索を開始する'));
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-        '旭川駅',
-      );
-      expect(
-        container.read(searchDraftProvider).dateChoice,
-        DateChoice.tomorrow,
-      );
-      expect(
-        container
-            .read(settingsProvider)
-            .requireValue
-            .lastSearch!
-            .conditions
-            .origin,
-        '函館駅',
-      );
-    },
-  );
-
-  testWidgets(
-    'all moods fit on a small phone and all questions retain valid branches',
-    (tester) async {
-      final container = await boot(tester);
-      await tester.binding.setSurfaceSize(const Size(360, 640));
-      final flow = container.read(discoveryProvider.notifier);
-      flow.startQuestions();
-      await tester.pumpAndSettle();
-      for (var i = 0; i < 6; i++) {
-        expect(find.byKey(ValueKey('mood-$i')).hitTestable(), findsOneWidget);
-      }
-      for (var i = 0; i < 6; i++) {
-        flow.startQuestions();
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(ValueKey('mood-$i')));
-        await tester.pumpAndSettle();
-        expect(find.text(CuriosityQuestions.reason(i).title), findsOneWidget);
-        await tester.tap(find.text(CuriosityQuestions.reason(i).choices.first));
-        await tester.pumpAndSettle();
-        expect(
-          find.text(CuriosityQuestions.broaden(i, 0).title),
-          findsOneWidget,
-        );
-      }
+      await answerQuestions(tester);
+      expect(container.read(searchDraftProvider).origin, '旭川駅');
       expect(tester.takeException(), isNull);
     },
   );
-
+  testWidgets('all six moods and question branches remain intact', (
+    tester,
+  ) async {
+    final container = await boot(tester);
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    final flow = container.read(discoveryProvider.notifier);
+    for (var i = 0; i < 6; i++) {
+      flow.startQuestions();
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('mood-$i')).hitTestable(), findsOneWidget);
+      await tester.tap(find.byKey(ValueKey('mood-$i')));
+      await tester.pumpAndSettle();
+      expect(find.text(CuriosityQuestions.reason(i).title), findsOneWidget);
+      await tester.tap(find.text(CuriosityQuestions.reason(i).choices.first));
+      await tester.pumpAndSettle();
+      expect(find.text(CuriosityQuestions.broaden(i, 0).title), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
-    'photos are prepared once and horizontal swipes save or skip without loading',
+    'photos are prepared once and unchanged horizontal swipes save or skip',
     (tester) async {
       final ready = Completer<Map<String, ImageInfo?>>();
       var loads = 0;
@@ -364,8 +343,7 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
-  testWidgets('load and save failures keep data and editable input', (
+  testWidgets('load and save failures keep profile data and editable input', (
     tester,
   ) async {
     final storage = MemorySettingsStorage()..failRead = true;

@@ -65,7 +65,7 @@ class ItineraryHome extends HookConsumerWidget {
           builder: (context) => PlanScreen(
             stops: stops,
             origin: trip.origin.trim().isEmpty ? '札幌駅' : trip.origin.trim(),
-            date: trip.date,
+            date: trip.travelDate,
             publicTransport: trip.publicTransport,
             demo: demo,
             conditions: trip.conditions,
@@ -123,7 +123,9 @@ class ItineraryHome extends HookConsumerWidget {
             },
             icon: const Icon(Icons.calendar_today_outlined),
             label: Text(
-              '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · ${trip.conditions.length.label}',
+              trip.travelDate == null
+                  ? '旅行日を選択（未確定）'
+                  : '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · ${trip.conditions.length.label}',
             ),
           ),
           const SizedBox(height: 16),
@@ -265,7 +267,7 @@ class ItineraryHome extends HookConsumerWidget {
 class PlanScreen extends HookConsumerWidget {
   final List<Experience> stops;
   final String origin;
-  final DateTime date;
+  final DateTime? date;
   final bool publicTransport, demo;
   final SearchConditions conditions;
   const PlanScreen({
@@ -286,7 +288,9 @@ class PlanScreen extends HookConsumerWidget {
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
           Text(
-            '${date.month}月${date.day}日 · $origin 発',
+            date == null
+                ? '旅行日未確定 · $origin 発'
+                : '${date!.month}月${date!.day}日 · $origin 発',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
@@ -304,7 +308,7 @@ class PlanScreen extends HookConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'サンプル時刻・実際の運行情報ではありません\n移動時間・料金・訪問可否を含む、画面確認用の旅程です。',
+                'サンプル時刻・実際の運行情報ではありません\n旅行日と当日の運休・季節運行を確認するまで、利用可能な便は確定しません。',
                 style: TextStyle(fontSize: 12),
               ),
             ),

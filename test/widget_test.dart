@@ -63,10 +63,14 @@ void main() {
       expect(find.byType(BottomSheet), findsNothing);
       await tester.enterText(find.byType(TextField).first, '小樽駅');
       await tester.tap(find.text('車'));
+      await tester.tap(find.text('次へ'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('1泊2日'));
       expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
       await reveal(tester, find.text('次へ'));
       await tester.tap(find.text('次へ'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('次へ：好奇心を探す'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('mood-0')));
       await tester.pumpAndSettle();
@@ -168,6 +172,10 @@ void main() {
         '旭川駅',
       );
       await tester.enterText(find.byType(TextField).first, '小樽駅');
+      await tester.tap(find.text('次へ'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('次へ'));
+      await tester.pumpAndSettle();
       await reveal(tester, find.text('この条件を保存'));
       await tester.tap(find.text('この条件を保存'));
       await tester.pumpAndSettle();
@@ -261,11 +269,15 @@ void main() {
         tester.widget<TextField>(find.byType(TextField).first).controller!.text,
         '函館駅',
       );
+      await tester.tap(find.text('次へ'));
+      await tester.pumpAndSettle();
       expect(find.text('過去の日付です。旅行日を選び直してください。'), findsOneWidget);
       await reveal(tester, find.text('次へ'));
       await tester.tap(find.text('次へ'));
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).step, 1);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       await tester.tap(find.text('検索を開始する'));

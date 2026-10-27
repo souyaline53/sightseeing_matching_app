@@ -18,7 +18,7 @@ flutter run -d web-server --web-port 7357
 ## 操作
 
 1. ホームの「検索を開始する」でプロフィールの基本設定を使って条件設定へ進みます。「前回の条件で探す」は前回の検索がある場合のみ表示します。
-2. 条件は独立した全画面で編集します。出発地、旅行日、移動手段、期間、交通費を含む総予算、片道時間、徒歩負担、同行者を設定できます。「この条件を保存」で名前付きプリセットを追加できます。空の名前は「いつもの旅」になります。
+2. 条件は全画面の3ステップで編集します。STEP 1は出発地・移動手段・片道時間（30〜240分）、STEP 2は旅行日・期間・交通費を含む総予算、STEP 3は同行者と折りたたみの徒歩負担です。日付指定の場合だけカレンダーを表示します。各ページの「次へ」は下部固定で、画面上部の戻る・Androidの戻る操作でも入力を保持します。STEP 3の「この条件を保存」で全条件を名前付きプリセットに保存できます。空の名前は「いつもの旅」になります。旧プリセットの片道時間が240分を超える場合は、自動変更せず選び直しを促します。
 3. 質問1は写真付きの6つの気分、質問2は気分別の二択、質問3はさらに質問2の結果で変わる二択です。戻る操作で回答と入力を保持し、前の回答を変更した場合は影響する後続回答を更新します。
 4. 質問3に答えて探索に進む時点で、LastSearchを自動保存し、旅行条件を旅程へ引き継ぎます。条件画面を開いただけではLastSearchを更新しません。
 5. 探索画面は全10件の写真を事前に読み込みます。最大12秒で個々の失敗をプレースホルダーに確定し、スワイプ中には読み込み直しません。**左スワイプは次へ、右スワイプは保存して次へ**。ハートは保存のみ。最後の次は先頭へ循環します。上下スワイプには操作を割り当てていません。詳細は長押しまたは画像上のボタンで表示します。
@@ -49,7 +49,9 @@ flutter run -d web-server --web-port 7357
 | `lib/service/curiosity_questions.dart` | 気分別6分岐・質問2の回答別12分岐 |
 | `lib/service/recommendation_service.dart` | 好みに近い・隣接・意外な体験を混ぜる推薦 |
 | `lib/screen/recommendation/recommendation_home.dart` | ホームと3問のフロー |
-| `lib/screen/search/search_conditions_screen.dart` | 全画面の条件設定 |
+| `lib/screen/search/search_conditions_screen.dart` | 3ステップの進捗・固定ボタン・保存 |
+| `lib/screen/search/conditions_step_pages.dart` | 検索専用の出発・日程・同行者ページ（共通フォームやプロフィールは変更なし） |
+| `lib/state/conditions_step_state.dart` | 条件入力ステップの表示位置。編集値は既存のsearchDraftProviderで共通保持 |
 | `lib/screen/profile/profile_home.dart` | プロフィールとプリセットの管理・編集 |
 | `lib/widgets/conditions_form.dart` | プロフィール・条件・プリセット共通の入力UI |
 | `lib/widgets/settings_actions.dart` | プリセット名ダイアログ・結果通知 |
@@ -81,7 +83,7 @@ flutter pub get
 dart format .
 flutter analyze
 flutter test
-flutter test --platform chrome test/browser_storage_test.dart
+flutter test --platform chrome test/browser_storage_test.dart test/conditions_steps_test.dart
 flutter build web
 ```
 

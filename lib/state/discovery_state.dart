@@ -1,3 +1,4 @@
+import 'conditions_step_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../data/mock_data.dart';
 import '../model/experience.dart';
@@ -42,9 +43,17 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   @override
   DiscoveryState build() => DiscoveryState();
   void reset() => state = state.copyWith(step: 0);
-  void startConditions() => state = state.copyWith(step: 1);
+  void startConditions() {
+    ref.read(conditionsStepProvider.notifier).reset();
+    state = state.copyWith(step: 1);
+  }
+
   void startQuestions() => state = state.copyWith(step: 2, question: 0);
   void back() {
+    if (state.step == 1 && ref.read(conditionsStepProvider) > 0) {
+      ref.read(conditionsStepProvider.notifier).back();
+      return;
+    }
     if (state.step == 3) {
       state = state.copyWith(step: 2, question: 2);
     } else if (state.step == 2 && state.question > 0) {

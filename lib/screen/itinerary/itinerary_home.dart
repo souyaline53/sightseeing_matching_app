@@ -1,3 +1,6 @@
+import 'package:flutter_hooks/flutter_hooks.dart';
+import '../../model/search_settings.dart';
+import '../../state/app_tab.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../../data/mock_data.dart';
@@ -12,6 +15,11 @@ class ItineraryHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final trip = ref.watch(tripProvider);
     final controller = ref.read(tripProvider.notifier);
+    final originInput = useTextEditingController(text: trip.origin);
+    useEffect(() {
+      if (originInput.text != trip.origin) originInput.text = trip.origin;
+      return null;
+    }, [trip.origin]);
     void addDestination() => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -60,15 +68,22 @@ class ItineraryHome extends HookConsumerWidget {
             date: trip.date,
             publicTransport: trip.publicTransport,
             demo: demo,
+            conditions: trip.conditions,
           ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('自分だけの旅を')),
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () =>
+              ref.read(appTabProvider.notifier).select(AppTab.recommendation),
+        ),
+        title: const Text('自分だけの旅を'),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
           const Text(
             '気になる、をつないで。',
@@ -76,14 +91,30 @@ class ItineraryHome extends HookConsumerWidget {
           ),
           const SizedBox(height: 8),
           const Text('明日の小さな冒険を、ここから。'),
+          const SizedBox(height: 16),
+          Text(
+            '${trip.conditions.length.label} · 総予算${trip.conditions.budget}円以内（交通費込み）',
+          ),
+          Text(
+            '片道${trip.conditions.maxMinutes}分以内 · 徒歩${trip.conditions.walking.label} · ${trip.conditions.company.label}',
+            style: const TextStyle(fontSize: 12),
+          ),
+          if (trip.conditions.transport == TravelMode.either)
+            const Text(
+              'どちらでも：サンプル旅程では公共交通を仮表示します。',
+              style: TextStyle(fontSize: 12),
+            ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: () async {
               final date = await showDatePicker(
                 context: context,
-                initialDate: trip.date,
+                initialDate:
+                    trip.date.isBefore(DateUtils.dateOnly(DateTime.now()))
+                    ? DateTime.now()
+                    : trip.date,
                 firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                lastDate: DateTime.now().add(const Duration(days: 730)),
+                lastDate: DateTime(DateTime.now().year + 10, 12, 31),
                 helpText: '旅行日を選択',
                 cancelText: 'キャンセル',
                 confirmText: '決定',
@@ -92,12 +123,12 @@ class ItineraryHome extends HookConsumerWidget {
             },
             icon: const Icon(Icons.calendar_today_outlined),
             label: Text(
-              '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · 日帰り',
+              '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · ${trip.conditions.length.label}',
             ),
           ),
           const SizedBox(height: 16),
           TextFormField(
-            initialValue: trip.origin,
+            controller: originInput,
             decoration: const InputDecoration(
               labelText: '出発地',
               prefixIcon: Icon(Icons.trip_origin),
@@ -105,21 +136,16 @@ class ItineraryHome extends HookConsumerWidget {
             onChanged: controller.setOrigin,
           ),
           const SizedBox(height: 16),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(
-                value: true,
-                icon: Icon(Icons.train_outlined),
-                label: Text('公共交通'),
-              ),
-              ButtonSegment(
-                value: false,
-                icon: Icon(Icons.directions_car_outlined),
-                label: Text('車'),
-              ),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final mode in TravelMode.values)
+                ChoiceChip(
+                  label: Text(mode.label),
+                  selected: trip.conditions.transport == mode,
+                  onSelected: (_) => controller.setTravelMode(mode),
+                ),
             ],
-            selected: {trip.publicTransport},
-            onSelectionChanged: (value) => controller.setTransport(value.first),
           ),
           const SizedBox(height: 28),
           Row(
@@ -241,6 +267,7 @@ class PlanScreen extends HookConsumerWidget {
   final String origin;
   final DateTime date;
   final bool publicTransport, demo;
+  final SearchConditions conditions;
   const PlanScreen({
     super.key,
     required this.stops,
@@ -248,6 +275,7 @@ class PlanScreen extends HookConsumerWidget {
     required this.date,
     required this.publicTransport,
     required this.demo,
+    required this.conditions,
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -255,13 +283,23 @@ class PlanScreen extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(demo ? 'デモ用の旅程' : 'マイプラン')),
       body: ListView(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
           Text(
             '${date.month}月${date.day}日 · $origin 発',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
+          Text(
+            '${conditions.length.label} · 総予算${conditions.budget}円以内 · ${conditions.transport.label}',
+          ),
+          Text(
+            '片道${conditions.maxMinutes}分以内 · 徒歩${conditions.walking.label} · ${conditions.company.label}',
+          ),
+          const Text(
+            '下記は訪問順のサンプルです。予算・移動上限・旅行期間を満たすかは未検証です。複数日でも宿泊や日別の割当は行いません。',
+            style: TextStyle(fontSize: 12),
+          ),
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),

@@ -1,33 +1,28 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../model/experience.dart';
+import '../model/search_settings.dart';
 
 class TripState {
   final List<Experience> saved, stops;
-  final DateTime date;
-  final String origin;
-  final bool publicTransport;
+  final SearchConditions conditions;
   TripState({
     List<Experience> saved = const [],
     List<Experience> stops = const [],
-    DateTime? date,
-    this.origin = '札幌駅',
-    this.publicTransport = true,
+    this.conditions = const SearchConditions(),
   }) : saved = List.unmodifiable(saved),
-       stops = List.unmodifiable(stops),
-       date = date ?? DateTime.now().add(const Duration(days: 1));
+       stops = List.unmodifiable(stops);
+  String get origin => conditions.origin;
+  DateTime get date => conditions.resolveDate();
+  bool get publicTransport => conditions.transport != TravelMode.car;
   bool contains(Experience e) => saved.any((x) => x.id == e.id);
   TripState copyWith({
     List<Experience>? saved,
     List<Experience>? stops,
-    DateTime? date,
-    String? origin,
-    bool? publicTransport,
+    SearchConditions? conditions,
   }) => TripState(
     saved: saved ?? this.saved,
     stops: stops ?? this.stops,
-    date: date ?? this.date,
-    origin: origin ?? this.origin,
-    publicTransport: publicTransport ?? this.publicTransport,
+    conditions: conditions ?? this.conditions,
   );
 }
 
@@ -38,6 +33,8 @@ final tripProvider = NotifierProvider<TripNotifier, TripState>(
 class TripNotifier extends Notifier<TripState> {
   @override
   TripState build() => TripState();
+  void applyConditions(SearchConditions conditions) =>
+      state = state.copyWith(conditions: conditions);
   void save(Experience e) {
     if (!state.contains(e)) {
       state = state.copyWith(
@@ -74,8 +71,13 @@ class TripNotifier extends Notifier<TripState> {
     state = state.copyWith(stops: stops);
   }
 
-  void setDate(DateTime date) => state = state.copyWith(date: date);
-  void setOrigin(String origin) => state = state.copyWith(origin: origin);
+  void setDate(DateTime date) => applyConditions(
+    state.conditions.copyWith(dateChoice: DateChoice.fixed, fixedDate: date),
+  );
+  void setOrigin(String origin) =>
+      applyConditions(state.conditions.copyWith(origin: origin));
   void setTransport(bool publicTransport) =>
-      state = state.copyWith(publicTransport: publicTransport);
+      setTravelMode(publicTransport ? TravelMode.transit : TravelMode.car);
+  void setTravelMode(TravelMode mode) =>
+      applyConditions(state.conditions.copyWith(transport: mode));
 }

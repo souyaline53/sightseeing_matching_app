@@ -26,88 +26,95 @@ class ExperienceDetail extends HookConsumerWidget {
     return Material(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       clipBehavior: Clip.antiAlias,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 320, child: TravelPhoto(experience)),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: IconButton.filledTonal(
-                    tooltip: '閉じる',
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${experience.area}  /  ${experience.category}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        experience.title,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        experience.story,
+                        style: const TextStyle(height: 1.9),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'もう一歩、奥へ。',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        experience.surprise,
+                        style: const TextStyle(height: 1.8),
+                      ),
+                      const SizedBox(height: 16),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: SizedBox(
+                          height: 140,
+                          child: TravelPhoto(experiencesCompanion(experience)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text('所要時間の目安：約${experience.minutes}分'),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '写真はイメージです。体験内容・営業状況は未確認のサンプルです。',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => ref
+                              .read(tripProvider.notifier)
+                              .toggle(experience),
+                          icon: Icon(
+                            trip.contains(experience)
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                          ),
+                          label: Text(
+                            trip.contains(experience) ? '保存済み・解除する' : 'この体験を保存',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${experience.area}  /  ${experience.category}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    experience.title,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(experience.story, style: const TextStyle(height: 1.9)),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'もう一歩、奥へ。',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    experience.surprise,
-                    style: const TextStyle(height: 1.8),
-                  ),
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: SizedBox(
-                      height: 140,
-                      child: TravelPhoto(experiencesCompanion(experience)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('所要時間の目安：約${experience.minutes}分'),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '写真はイメージです。体験内容・営業状況は未確認のサンプルです。',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () =>
-                          ref.read(tripProvider.notifier).toggle(experience),
-                      icon: Icon(
-                        trip.contains(experience)
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                      ),
-                      label: Text(
-                        trip.contains(experience) ? '保存済み・解除する' : 'この体験を保存',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: IconButton.filledTonal(
+              tooltip: '閉じる',
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

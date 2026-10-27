@@ -37,9 +37,11 @@ dependencies:
   # Used by Flutter standard adaptive icons.
   cupertino_icons: ^1.0.8
   flutter_hooks: ^0.21.3+1
+  shared_preferences: ^2.5.3
   hooks_riverpod: ^3.3.2
 
 dev_dependencies:
+  shared_preferences_web: ^2.4.3
   flutter_test:
     sdk: flutter
 

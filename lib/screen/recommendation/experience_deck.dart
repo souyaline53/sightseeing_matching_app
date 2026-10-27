@@ -53,14 +53,14 @@ class ExperienceDeck extends HookConsumerWidget {
                   FilledButton(
                     onPressed: () =>
                         ref.read(discoveryProvider.notifier).reset(),
-                    child: const Text('気分を選び直す'),
+                    child: const Text('ホームへ戻る'),
                   ),
                 ],
               ),
             ),
           );
         }
-        return _PagedExperienceCards(
+        return _SwipeExperienceCards(
           key: ValueKey(discovery.deck.map((e) => e.id).join(',')),
           images: images,
         );
@@ -69,17 +69,13 @@ class ExperienceDeck extends HookConsumerWidget {
   }
 }
 
-class _PagedExperienceCards extends HookConsumerWidget {
+class _SwipeExperienceCards extends HookConsumerWidget {
   final Map<String, ImageInfo?> images;
-  const _PagedExperienceCards({super.key, required this.images});
+  const _SwipeExperienceCards({super.key, required this.images});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
     final trip = ref.watch(tripProvider);
-    // Start well inside the virtual sequence so both directions can loop.
-    final controller = usePageController(
-      initialPage: discovery.deck.length * 10000 + discovery.index,
-    );
     final dismissalVersion = useState(0);
     Widget card(int index) {
       final e = discovery.deck[index];
@@ -94,54 +90,40 @@ class _PagedExperienceCards extends HookConsumerWidget {
         closeToMood: e.category == moods[discovery.mood].$2,
         saved: trip.contains(e),
         onSave: () => ref.read(tripProvider.notifier).save(e),
-        onSkip: () => ref.read(discoveryProvider.notifier).removeCard(e.id),
+        onSkip: () => ref.read(discoveryProvider.notifier).advance(),
       );
     }
 
+    final index = discovery.index;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: PageView.builder(
-          key: const ValueKey('experience-pages'),
-          controller: controller,
-          onPageChanged: (page) => ref
-              .read(discoveryProvider.notifier)
-              .goTo(page % discovery.deck.length),
-          itemBuilder: (context, page) {
-            final index = page % discovery.deck.length;
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                // Vertical dismissal reveals a photo directly, without an intermediate panel.
-                if (discovery.deck.length > 1)
-                  ExcludeSemantics(
-                    child: IgnorePointer(
-                      child: card((index + 1) % discovery.deck.length),
-                    ),
-                  ),
-                Dismissible(
-                  key: ValueKey('experience-$page-${dismissalVersion.value}'),
-                  direction: DismissDirection.vertical,
-                  resizeDuration: null,
-                  onDismissed: (direction) {
-                    if (direction == DismissDirection.up) {
-                      ref
-                          .read(tripProvider.notifier)
-                          .save(discovery.deck[index]);
-                      dismissalVersion.value++;
-                      controller.jumpToPage(page + 1);
-                    } else {
-                      ref
-                          .read(discoveryProvider.notifier)
-                          .removeCard(discovery.deck[index].id);
-                    }
-                  },
-                  child: card(index),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (discovery.deck.length > 1)
+              ExcludeSemantics(
+                child: IgnorePointer(
+                  child: card((index + 1) % discovery.deck.length),
                 ),
-              ],
-            );
-          },
+              ),
+            Dismissible(
+              key: ValueKey(
+                'experience-$index-${dismissalVersion.value}-${trip.saved.length}',
+              ),
+              direction: DismissDirection.horizontal,
+              resizeDuration: null,
+              onDismissed: (direction) {
+                if (direction == DismissDirection.startToEnd) {
+                  ref.read(tripProvider.notifier).save(discovery.deck[index]);
+                }
+                dismissalVersion.value++;
+                ref.read(discoveryProvider.notifier).advance();
+              },
+              child: card(index),
+            ),
+          ],
         ),
       ),
     );
@@ -253,9 +235,9 @@ class _ExperienceCard extends HookConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    tooltip: 'このカードを削除',
+                    tooltip: '次の体験へ',
                     onPressed: onSkip,
-                    icon: const Icon(Icons.delete_outline, color: Colors.white),
+                    icon: const Icon(Icons.arrow_forward, color: Colors.white),
                   ),
                   TextButton(
                     onPressed: () => showExperience(context, experience),
@@ -273,7 +255,7 @@ class _ExperienceCard extends HookConsumerWidget {
               ),
               const Center(
                 child: Text(
-                  '← 前へ  /  次へ →    ↑ 保存して次へ  /  削除 ↓',
+                  '← 次の体験  /  右スワイプで保存 →',
                   style: TextStyle(color: Colors.white70, fontSize: 10),
                 ),
               ),

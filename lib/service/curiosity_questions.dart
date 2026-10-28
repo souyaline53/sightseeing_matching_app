@@ -1,98 +1,280 @@
+import '../model/interest_answers.dart';
+
+class MoodChoice {
+  final String id, label, photoId;
+  final List<String> genres;
+  const MoodChoice(this.id, this.label, this.photoId, this.genres);
+}
+
+class QuestionOption {
+  final String id, title, photoId;
+  final String? description;
+  final List<String> genres;
+  const QuestionOption(
+    this.id,
+    this.title,
+    this.photoId,
+    this.genres, {
+    this.description,
+  });
+}
+
+class ReasonOption extends QuestionOption {
+  final String tendencyId, questSetId, questPrompt;
+  const ReasonOption(
+    super.id,
+    super.title,
+    super.photoId,
+    super.genres,
+    this.tendencyId,
+    this.questSetId,
+    this.questPrompt,
+  );
+}
+
 class ChoiceQuestion {
   final String title;
-  final List<String> choices;
-  final List<int> photos;
-  const ChoiceQuestion(this.title, this.choices, this.photos);
+  final List<QuestionOption> options;
+  const ChoiceQuestion(this.title, this.options);
+  List<String> get choices =>
+      options.map((o) => o.title).toList(growable: false);
 }
 
 class CuriosityQuestions {
-  static ChoiceQuestion reason(int mood) => switch (mood) {
-    0 => const ChoiceQuestion(
-      'どちらに惹かれる？',
-      ['誰もが知る、とびきりおいしいもの', '地元の人しか知らない、秘密の味'],
-      [0, 6],
-    ),
-    1 => const ChoiceQuestion(
-      'どんな驚きに出会いたい？',
-      ['街を支えた、大きな歴史', '路地に隠れた、小さな物語'],
-      [1, 3],
-    ),
-    2 => const ChoiceQuestion(
-      'どんな時間が心地いい？',
-      ['水辺で静かに深呼吸', '森を歩きながらリフレッシュ'],
-      [2, 5],
-    ),
-    3 => const ChoiceQuestion(
-      'どんな思い出を残したい？',
-      ['みんなでおいしいものを囲む', '初めての景色を一緒に探す'],
-      [6, 7],
-    ),
-    4 => const ChoiceQuestion(
-      'どんな初めてに惹かれる？',
-      ['自分の手で何かを作る', '知らない土地を探検する'],
-      [4, 9],
-    ),
-    _ => const ChoiceQuestion(
-      'どんな景色に心が動く？',
-      ['どこまでも広がる空と大地', '水面に映る静かな世界'],
-      [7, 2],
-    ),
+  static const moods = [
+    MoodChoice('food', 'おいしいものを食べて幸せになりたい', 'melon', ['食']),
+    MoodChoice('discovery', '知らない世界にワクワクしたい', 'coal', ['歴史', 'ものづくり']),
+    MoodChoice('relax', '日常を忘れてリフレッシュしたい', 'lake', ['自然', '絶景']),
+    MoodChoice('fun', '思いっきり楽しみたい', 'craft', ['街歩き', 'ものづくり']),
+  ];
+  static const _reasons = {
+    'food': ChoiceQuestion('どんな出会いが一番うれしい？', [
+      ReasonOption(
+        'food_luxury',
+        '一度は食べたい、とびきり贅沢な一品',
+        'melon',
+        ['食', '絶景'],
+        'senses',
+        'senses',
+        '特別なおいしさの余韻に、何を加えたい？',
+      ),
+      ReasonOption(
+        'food_hidden',
+        '地元の人だけが知る、隠れた名物',
+        'bread',
+        ['食', '街歩き'],
+        'roots',
+        'roots',
+        'その街にもう一つ秘密があるとしたら？',
+      ),
+      ReasonOption(
+        'food_maker',
+        '作り手のこだわりが詰まった、特別な味',
+        'melon',
+        ['食', 'ものづくり'],
+        'craftsmanship',
+        'stories',
+        'そのこだわりの先に、何があると思う？',
+      ),
+    ]),
+    'discovery': ChoiceQuestion('どんな発見に惹かれる？', [
+      ReasonOption(
+        'discovery_space',
+        '普段は入れない、不思議な空間',
+        'coal',
+        ['歴史'],
+        'mystery',
+        'hidden',
+        '不思議な空間の向こうに、何を探したい？',
+      ),
+      ReasonOption(
+        'discovery_story',
+        '昔の人々が残した、知られざる物語',
+        'rail',
+        ['歴史', '街歩き'],
+        'story',
+        'stories',
+        '昔の物語が、今の暮らしにつながるなら？',
+      ),
+      ReasonOption(
+        'discovery_landscape',
+        '自然が生み出した、想像を超える景色',
+        'hill',
+        ['自然', '絶景'],
+        'senses',
+        'senses',
+        '驚く景色の奥に、何を見つけたい？',
+      ),
+    ]),
+    'relax': ChoiceQuestion('どんな時間を過ごしたい？', [
+      ReasonOption(
+        'relax_quiet',
+        '静かな場所で、景色を眺める',
+        'lake',
+        ['自然', '絶景'],
+        'senses',
+        'senses',
+        '静かな景色から、小さく寄り道するなら？',
+      ),
+      ReasonOption(
+        'relax_warm',
+        '温かい場所で、ゆっくりくつろぐ',
+        'bread',
+        ['食', '街歩き'],
+        'story',
+        'stories',
+        'くつろぐ時間に、もう一つ物語を添えるなら？',
+      ),
+      ReasonOption(
+        'relax_wander',
+        '自然の中で、気の向くまま歩く',
+        'b walk',
+        ['自然', '街歩き'],
+        'adventure',
+        'adventure',
+        '気の向くまま歩いた先で、何に出会いたい？',
+      ),
+    ]),
+    'fun': ChoiceQuestion('どんな楽しさを求める？', [
+      ReasonOption(
+        'fun_active',
+        '体を動かして、思いきり遊ぶ',
+        'b walk',
+        ['自然', '街歩き'],
+        'adventure',
+        'adventure',
+        '体を動かす楽しさを、別の冒険にも広げるなら？',
+      ),
+      ReasonOption(
+        'fun_together',
+        '誰かと一緒に、新しいことに挑戦する',
+        'craft',
+        ['ものづくり', '街歩き'],
+        'craftsmanship',
+        'stories',
+        '一緒に挑戦するなら、どんな世界を覗いてみたい？',
+      ),
+      ReasonOption(
+        'fun_photo',
+        '思わず写真を撮りたくなる場所に行く',
+        'hill',
+        ['絶景', '街歩き'],
+        'mystery',
+        'hidden',
+        '写真の奥に隠れた物語も探すなら？',
+      ),
+    ]),
   };
+  // Five reusable sets cover all twelve Q1×Q2 branches. These are prompts,
+  // never promises of bookable activities or generated destination records.
+  static const _quests = {
+    'roots': [
+      QuestionOption('roots_origin', '作り手の秘密を探る', 'melon', [
+        '食',
+        '自然',
+      ], description: '食べ物が育つ場所を見てみたい'),
+      QuestionOption('roots_history', '街の意外な歴史を探る', 'coal', [
+        '歴史',
+      ], description: 'その街の意外な歴史を知りたい'),
+      QuestionOption('roots_view', '地元だけの景色を探す', 'lake', [
+        '自然',
+        '絶景',
+      ], description: '地元の人しか知らない景色を探したい'),
+    ],
+    'hidden': [
+      QuestionOption(
+        'hidden_underground',
+        '地下に眠る世界を探る',
+        'coal',
+        ['歴史'],
+        description: '暗闇の先に残る、人々の記憶に触れてみたい',
+      ),
+      QuestionOption('hidden_hands', '光をつくる手仕事を探る', 'craft', [
+        'ものづくり',
+      ], description: 'ふだん見過ごす技と素材の秘密を知りたい'),
+      QuestionOption('hidden_water', 'まだ知らない水辺を探す', 'river', [
+        '自然',
+        '絶景',
+      ], description: '日常から少し離れた、水の風景を見つけたい'),
+    ],
+    'stories': [
+      QuestionOption('stories_craft', '受け継がれる技を探る', 'craft', [
+        'ものづくり',
+      ], description: '作る楽しさと、職人のこだわりに触れてみたい'),
+      QuestionOption('stories_taste', '暮らしに残る味を探す', 'bread', [
+        '食',
+      ], description: 'その土地で愛される味の背景を知りたい'),
+      QuestionOption('stories_land', '風景に隠れた記憶を探る', 'lake', [
+        '自然',
+        '歴史',
+      ], description: '景色の向こうにあった暮らしを想像したい'),
+    ],
+    'senses': [
+      QuestionOption('senses_water', '水の風景を見つける', 'river', [
+        '自然',
+        '絶景',
+      ], description: '音や光に目を向けて、いつもと違う景色を探したい'),
+      QuestionOption('senses_craft', '土地の光を手仕事に探す', 'craft', [
+        'ものづくり',
+      ], description: 'きれいなものが生まれる過程を知りたい'),
+      QuestionOption('senses_memory', '静かな街の記憶を探る', 'rail', [
+        '歴史',
+        '街歩き',
+      ], description: 'にぎわいの跡をたどって、意外な物語に出会いたい'),
+    ],
+    'adventure': [
+      QuestionOption('adventure_craft', '初めての手仕事に近づく', 'craft', [
+        'ものづくり',
+      ], description: '自分の手で形にする楽しさを覗いてみたい'),
+      QuestionOption('adventure_lanes', '路地の向こうを探検する', 'otaru', [
+        '街歩き',
+        '歴史',
+      ], description: '歩くほどに見えてくる、街の秘密を探したい'),
+      QuestionOption('adventure_flavor', '旅先の味で冒険する', 'melon', [
+        '食',
+      ], description: '知らなかった味から、土地の物語を見つけたい'),
+    ],
+  };
+
+  static MoodChoice? moodFor(String? id) =>
+      moods.where((m) => m.id == id).firstOrNull;
+  static ChoiceQuestion reasonFor(String? moodId) =>
+      _reasons[moodId] ?? const ChoiceQuestion('', []);
+  static ReasonOption? reasonOption(String? moodId, String? reasonId) =>
+      reasonFor(moodId).options
+          .whereType<ReasonOption>()
+          .where((r) => r.id == reasonId)
+          .firstOrNull;
+  static ChoiceQuestion questsFor(String? moodId, String? reasonId) {
+    final reason = reasonOption(moodId, reasonId);
+    return reason == null
+        ? const ChoiceQuestion('', [])
+        : ChoiceQuestion(reason.questPrompt, _quests[reason.questSetId]!);
+  }
+
+  static QuestionOption? questOption(InterestAnswers answers) => questsFor(
+    answers.moodId,
+    answers.reasonId,
+  ).options.where((q) => q.id == answers.questId).firstOrNull;
+  static bool valid(InterestAnswers answers) =>
+      moodFor(answers.moodId) != null &&
+      reasonOption(answers.moodId, answers.reasonId) != null &&
+      questOption(answers) != null;
+  static InterestHints hints(InterestAnswers answers) => InterestHints(
+    moodId: answers.moodId ?? '',
+    tendencyId:
+        reasonOption(answers.moodId, answers.reasonId)?.tendencyId ?? '',
+    closeGenres: moodFor(answers.moodId)?.genres ?? const [],
+    adjacentGenres:
+        reasonOption(answers.moodId, answers.reasonId)?.genres ?? const [],
+    questGenres: questOption(answers)?.genres ?? const [],
+  );
+
+  // Index adapters retain compatibility for older callers; IDs are authoritative.
+  static ChoiceQuestion reason(int mood) =>
+      reasonFor(moods.elementAtOrNull(mood)?.id);
   static ChoiceQuestion broaden(int mood, int reason) {
-    const branches = [
-      [
-        ChoiceQuestion(
-          'おいしさの先に、何を知りたい？',
-          ['作り手のこだわりを知ってみたい', '食を育てた街の歴史を歩きたい'],
-          [4, 1],
-        ),
-        ChoiceQuestion(
-          '秘密の味から、もう一歩。',
-          ['土地の手仕事にも触れてみたい', 'その街の知られざる風景を探したい'],
-          [4, 3],
-        ),
-      ],
-      [
-        ChoiceQuestion(
-          '歴史の先に、何を見つけたい？',
-          ['今につながる職人の技', '産業が生まれた自然の風景'],
-          [4, 2],
-        ),
-        ChoiceQuestion('小さな物語の続きを探すなら？', ['暮らしに根付いた食文化', '人々が歩いた森や水辺'], [6, 8]),
-      ],
-      [
-        ChoiceQuestion(
-          '水辺の静けさから、もう一歩。',
-          ['湖と街の記憶を知りたい', '旅先の手仕事に癒やされたい'],
-          [1, 4],
-        ),
-        ChoiceQuestion('森の散歩の後は？', ['土地の味をゆっくり楽しむ', '森と人の暮らしの歴史を知る'], [6, 9]),
-      ],
-      [
-        ChoiceQuestion(
-          '食卓の楽しさを、別の体験にも。',
-          ['みんなで手仕事に挑戦', '食を育む風景を見に行く'],
-          [4, 7],
-        ),
-        ChoiceQuestion(
-          '景色を見つけた、その先は？',
-          ['その土地の味を分かち合う', '街の意外な歴史を一緒に探す'],
-          [0, 1],
-        ),
-      ],
-      [
-        ChoiceQuestion('作る楽しさから、もう一歩。', ['材料が生まれる自然へ', '技が伝わった街の歴史へ'], [5, 9]),
-        ChoiceQuestion(
-          '探検の途中で寄り道するなら？',
-          ['土地ならではの味に出会う', 'ものづくりの文化に触れる'],
-          [0, 4],
-        ),
-      ],
-      [
-        ChoiceQuestion('大地の風景の奥にあるものは？', ['土地を耕す人の物語', '風景を変えた鉄道の歴史'], [0, 9]),
-        ChoiceQuestion('水面の向こうを知るなら？', ['街と湖がつながる歴史', '土地の光を映す手仕事'], [1, 4]),
-      ],
-    ];
-    return branches[mood][reason];
+    final id = moods.elementAtOrNull(mood)?.id;
+    return questsFor(id, reasonFor(id).options.elementAtOrNull(reason)?.id);
   }
 }

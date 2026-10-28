@@ -1,12 +1,11 @@
 import '../model/experience.dart';
 
+// Representative genres for legacy card labels. Recommendation uses ID hints.
 const moods = [
   ('おいしいものを食べて幸せになりたい', '食'),
-  ('知らない世界に驚きたい', '歴史'),
-  ('のんびり癒やされたい', '自然'),
-  ('誰かと楽しい思い出を作りたい', '街歩き'),
-  ('普段できない体験をしたい', 'ものづくり'),
-  ('美しい景色に感動したい', '絶景'),
+  ('知らない世界にワクワクしたい', '歴史'),
+  ('日常を忘れてリフレッシュしたい', '自然'),
+  ('思いっきり楽しみたい', '街歩き'),
 ];
 const experiences = [
   Experience(

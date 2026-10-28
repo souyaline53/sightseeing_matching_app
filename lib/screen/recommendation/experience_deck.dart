@@ -1,7 +1,7 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/mock_data.dart';
+import '../../service/curiosity_questions.dart';
 import '../../model/experience.dart';
 import '../../state/discovery_state.dart';
 import '../../state/experience_photos.dart';
@@ -76,6 +76,7 @@ class _SwipeExperienceCards extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
     final trip = ref.watch(tripProvider);
+    final hints = CuriosityQuestions.hints(discovery.interests);
     final dismissalVersion = useState(0);
     Widget card(int index) {
       final e = discovery.deck[index];
@@ -86,8 +87,8 @@ class _SwipeExperienceCards extends HookConsumerWidget {
             ? PhotoPlaceholder(e)
             : RawImage(image: image.image, fit: BoxFit.cover),
         number: '${index + 1} / ${discovery.deck.length}',
-        detour: e.category != moods[discovery.mood].$2 && index % 3 == 2,
-        closeToMood: e.category == moods[discovery.mood].$2,
+        detour: !hints.closeGenres.contains(e.category) && index % 3 == 2,
+        closeToMood: hints.closeGenres.contains(e.category),
         saved: trip.contains(e),
         onSave: () => ref.read(tripProvider.notifier).save(e),
         onSkip: () => ref.read(discoveryProvider.notifier).advance(),

@@ -2,7 +2,7 @@ import '../model/interest_answers.dart';
 import 'settings_state.dart';
 import 'conditions_step_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../data/mock_data.dart';
+import '../service/curiosity_questions.dart';
 import '../model/experience.dart';
 import '../service/recommendation_service.dart';
 
@@ -10,41 +10,39 @@ import '../service/recommendation_service.dart';
 class DiscoveryState {
   final int step, question, index;
   final InterestAnswers interests;
-  int get mood => interests.mood;
-  List<int> get answers => interests.choices;
+  int get mood => CuriosityQuestions.moods
+      .indexWhere((m) => m.id == interests.moodId)
+      .clamp(0, 3);
+  List<int> get answers => [
+    if (interests.reasonId != null)
+      CuriosityQuestions.reasonFor(
+        interests.moodId,
+      ).options.indexWhere((r) => r.id == interests.reasonId),
+    if (interests.questId != null)
+      CuriosityQuestions.questsFor(
+        interests.moodId,
+        interests.reasonId,
+      ).options.indexWhere((q) => q.id == interests.questId),
+  ];
   final List<Experience> deck;
   DiscoveryState({
     this.step = 0,
-    int mood = 0,
-    bool moodSelected = false,
     this.question = 0,
     this.index = 0,
-    List<int> answers = const [],
+    this.interests = const InterestAnswers(),
     List<Experience> deck = const [],
-    InterestAnswers? interests,
-  }) : interests =
-           interests ??
-           InterestAnswers(
-             mood: mood,
-             moodSelected: moodSelected,
-             choices: answers,
-           ),
-       deck = List.unmodifiable(deck);
+  }) : deck = List.unmodifiable(deck);
   DiscoveryState copyWith({
     int? step,
-    int? mood,
-    bool? moodSelected,
     int? question,
     int? index,
-    List<int>? answers,
+    InterestAnswers? interests,
     List<Experience>? deck,
   }) => DiscoveryState(
     step: step ?? this.step,
-    mood: mood ?? this.mood,
-    moodSelected: moodSelected ?? interests.moodSelected,
     question: question ?? this.question,
     index: index ?? this.index,
-    answers: answers ?? this.answers,
+    interests: interests ?? this.interests,
     deck: deck ?? this.deck,
   );
 }
@@ -66,7 +64,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   }
 
   void showConditions() {
-    if (!state.interests.complete) return;
+    if (!CuriosityQuestions.valid(state.interests)) return;
     ref.read(conditionsStepProvider.notifier).reset();
     state = state.copyWith(step: 1);
   }
@@ -86,33 +84,59 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     }
   }
 
-  void selectMood(int mood) => state = state.copyWith(
-    mood: mood,
-    moodSelected: true,
-    question: 1,
-    answers: mood == state.mood ? state.answers : [],
-  );
-  void answer(int choice) {
-    final position = state.question - 1;
-    if (position < 0) return;
-    final answers = [...state.answers];
-    if (answers.length > position) {
-      if (answers[position] != choice) {
-        answers.removeRange(position, answers.length);
-        answers.add(choice);
+  void selectMoodId(String id) {
+    if (CuriosityQuestions.moodFor(id) == null) return;
+    state = state.copyWith(
+      interests: state.interests.selectMood(id),
+      question: 1,
+    );
+  }
+
+  bool answerId(String id) {
+    if (state.question == 1) {
+      if (CuriosityQuestions.reasonOption(state.interests.moodId, id) == null) {
+        return false;
       }
-    } else {
-      answers.add(choice);
+      state = state.copyWith(
+        interests: state.interests.selectReason(id),
+        question: 2,
+      );
+      return true;
     }
-    state = state.copyWith(answers: answers, question: 2);
+    if (state.question == 2) {
+      if (!CuriosityQuestions.questsFor(
+        state.interests.moodId,
+        state.interests.reasonId,
+      ).options.any((q) => q.id == id)) {
+        return false;
+      }
+      state = state.copyWith(interests: state.interests.selectQuest(id));
+      return true;
+    }
+    return false;
+  }
+
+  void selectMood(int index) {
+    final mood = CuriosityQuestions.moods.elementAtOrNull(index);
+    if (mood != null) selectMoodId(mood.id);
+  }
+
+  void answer(int index) {
+    final question = state.question == 1
+        ? CuriosityQuestions.reasonFor(state.interests.moodId)
+        : CuriosityQuestions.questsFor(
+            state.interests.moodId,
+            state.interests.reasonId,
+          );
+    final option = question.options.elementAtOrNull(index);
+    if (option != null) answerId(option.id);
   }
 
   void showExplore() => state = state.copyWith(
     step: 3,
     index: 0,
-    deck: RecommendationService().recommend(
-      moods[state.mood].$2,
-      state.answers,
+    deck: RecommendationService().recommendFor(
+      state.interests,
       filters: ref.read(searchDraftProvider),
     ),
   );

@@ -5,7 +5,7 @@ import '../../model/search_settings.dart';
 import '../../state/app_tab.dart';
 import '../../state/discovery_state.dart';
 import '../../state/settings_state.dart';
-import '../../widgets/conditions_form.dart';
+import 'widgets/conditions_form.dart';
 import '../../widgets/settings_actions.dart';
 
 class ProfileHome extends HookConsumerWidget {
@@ -77,7 +77,7 @@ class ProfileHome extends HookConsumerWidget {
           if (settings.presets.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
-              child: Text('旅行条件の「この条件を保存」から追加できます。'),
+              child: Text('旅行条件の「条件を保存して検索」から追加できます。'),
             ),
           for (final preset in settings.presets)
             Card(

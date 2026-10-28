@@ -1,3 +1,4 @@
+import '../../state/search_selection_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -22,6 +23,9 @@ class SearchConditionsScreen extends HookConsumerWidget {
     }, const []);
     final step = ref.watch(conditionsStepProvider);
     final busy = useState(false);
+    final companyChosen = ref
+        .watch(searchSelectionProvider)
+        .contains(SearchSelection.company);
     final pages = usePageController(initialPage: step);
     ref.listen(conditionsStepProvider, (_, next) {
       if (pages.hasClients) {
@@ -35,13 +39,22 @@ class SearchConditionsScreen extends HookConsumerWidget {
     return ScaffoldMessenger(
       child: Builder(
         builder: (pageContext) {
-          Future<void> execute(bool skip) async {
+          Future<void> execute({bool save = false}) async {
             if (busy.value) return;
+            final filters = ref.read(searchDraftProvider);
+            final error = filters.validateFilters();
+            if (error != null) {
+              showMessage(pageContext, error);
+              return;
+            }
             busy.value = true;
             try {
-              await ref
-                  .read(searchExecutionProvider)
-                  .execute(skipDetails: skip);
+              String? name;
+              if (save) {
+                name = await askPresetName(pageContext);
+                if (name == null || !context.mounted) return;
+              }
+              await ref.read(searchExecutionProvider).execute(presetName: name);
             } catch (_) {
               if (pageContext.mounted) {
                 showMessage(pageContext, '検索条件を保存できませんでした。入力を確認してもう一度お試しください。');
@@ -70,7 +83,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'STEP ${step + 1}/3',
+                        'STEP ${step + 1}/4',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
@@ -78,7 +91,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: (step + 1) / 3,
+                        value: (step + 1) / 4,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
@@ -86,14 +99,18 @@ class SearchConditionsScreen extends HookConsumerWidget {
                 ),
               ),
             ),
-            body: PageView(
-              controller: pages,
-              physics: const NeverScrollableScrollPhysics(),
-              children: const [
-                DepartureStepPage(),
-                TransportStepPage(),
-                DetailsStepPage(),
-              ],
+            body: AbsorbPointer(
+              absorbing: busy.value,
+              child: PageView(
+                controller: pages,
+                physics: const NeverScrollableScrollPhysics(),
+                children: const [
+                  DepartureStepPage(),
+                  TransportStepPage(),
+                  TripLengthStepPage(),
+                  CompanionStepPage(),
+                ],
+              ),
             ),
             bottomNavigationBar: SafeArea(
               top: false,
@@ -115,6 +132,9 @@ class SearchConditionsScreen extends HookConsumerWidget {
                             showMessage(pageContext, '出発地を選択してください。');
                             return;
                           }
+                          ref
+                              .read(searchSelectionProvider.notifier)
+                              .choose(SearchSelection.origin);
                           FocusScope.of(context).unfocus();
                           ref.read(conditionsStepProvider.notifier).nextFrom(0);
                         },
@@ -126,52 +146,40 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       '移動手段をタップして、次へ進みます。',
                       style: TextStyle(fontSize: 12),
                     ),
-                  if (step == 2) ...[
+                  if (step == 2)
+                    const Text(
+                      '旅行期間をタップして、次へ進みます。',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  if (step == 3) ...[
+                    if (!companyChosen)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '同行者を選択してください。',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
-                        onPressed: busy.value ? null : () => execute(false),
-                        child: const Text('この条件で探す'),
+                      child: FilledButton.icon(
+                        onPressed: busy.value || !companyChosen
+                            ? null
+                            : () => execute(),
+                        icon: const Icon(Icons.search),
+                        label: const Text('この条件で探す'),
                       ),
                     ),
-                    TextButton(
-                      onPressed: busy.value ? null : () => execute(true),
-                      child: const Text('詳細設定をスキップ'),
-                    ),
-                    TextButton.icon(
-                      onPressed: busy.value
-                          ? null
-                          : () async {
-                              if (busy.value) return;
-                              final filters = ref.read(searchDraftProvider);
-                              final error = filters.validateFilters();
-                              if (error != null) {
-                                showMessage(pageContext, error);
-                                return;
-                              }
-                              busy.value = true;
-                              try {
-                                final name = await askPresetName(pageContext);
-                                if (name == null || !context.mounted) return;
-                                await ref
-                                    .read(settingsProvider.notifier)
-                                    .savePreset(filters, name);
-                                if (pageContext.mounted) {
-                                  showMessage(pageContext, '検索条件を保存しました。');
-                                }
-                              } catch (_) {
-                                if (pageContext.mounted) {
-                                  showMessage(
-                                    pageContext,
-                                    '保存できませんでした。もう一度お試しください。',
-                                  );
-                                }
-                              } finally {
-                                if (context.mounted) busy.value = false;
-                              }
-                            },
-                      icon: const Icon(Icons.bookmark_add_outlined),
-                      label: const Text('この条件を保存'),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonalIcon(
+                        onPressed: busy.value || !companyChosen
+                            ? null
+                            : () => execute(save: true),
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: const Text('条件を保存して検索'),
+                      ),
                     ),
                   ],
                 ],

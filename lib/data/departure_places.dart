@@ -34,13 +34,6 @@ const departurePlaces = [
     bus: true,
   ),
 ];
-List<DeparturePlace> findDepartures(String query) {
-  final needle = query.trim().toLowerCase();
-  return departurePlaces
-      .where((p) => p.name.contains(needle) || p.reading.contains(needle))
-      .toList();
-}
-
 DeparturePlace? departureNamed(String name) {
   for (final place in departurePlaces) {
     if (place.name == name) return place;

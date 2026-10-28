@@ -71,10 +71,16 @@ Future<void> enterDetails(
   WidgetTester tester, {
   String origin = '小樽駅',
   String mode = 'car',
+  String length = 'day',
+  String company = 'solo',
 }) async {
   await tester.tap(find.byKey(ValueKey('origin-chip-$origin')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(ValueKey('travel-$mode')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('length-$length')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('company-$company')));
   await tester.pumpAndSettle();
 }
 
@@ -102,8 +108,7 @@ void main() {
       expect(find.text('どこから旅を始める？'), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
       expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
-      await enterDetails(tester);
-      await tester.tap(find.text('1泊2日'));
+      await enterDetails(tester, length: 'overnight');
       await tester.pumpAndSettle();
       await tester.tap(find.text('この条件で探す'));
       await tester.pumpAndSettle();
@@ -186,7 +191,7 @@ void main() {
       await answerQuestions(tester);
       expect(container.read(searchDraftProvider).origin, '旭川駅');
       await enterDetails(tester);
-      await tester.tap(find.text('この条件を保存'));
+      await tester.tap(find.text('条件を保存して検索'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, '小樽の休日');
       await tester.tap(find.text('保存').last);
@@ -226,7 +231,15 @@ void main() {
         container.read(settingsProvider).requireValue.profile.origin,
         '旭川駅',
       );
-      expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
+      expect(
+        container
+            .read(settingsProvider)
+            .requireValue
+            .lastSearch!
+            .conditions
+            .origin,
+        '小樽駅',
+      );
       await tester.tap(find.text('プロフィール'));
       await tester.pumpAndSettle();
       await reveal(
@@ -277,7 +290,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('travel-transit')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('詳細設定をスキップ'));
+      await tester.tap(find.byKey(const ValueKey('length-day')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('company-solo')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('この条件で探す'));
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).step, 3);
       expect(container.read(tripProvider).travelDate, isNull);

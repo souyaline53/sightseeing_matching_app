@@ -16,16 +16,24 @@ class DiscoveryState {
   DiscoveryState({
     this.step = 0,
     int mood = 0,
+    bool moodSelected = false,
     this.question = 0,
     this.index = 0,
     List<int> answers = const [],
     List<Experience> deck = const [],
     InterestAnswers? interests,
-  }) : interests = interests ?? InterestAnswers(mood: mood, choices: answers),
+  }) : interests =
+           interests ??
+           InterestAnswers(
+             mood: mood,
+             moodSelected: moodSelected,
+             choices: answers,
+           ),
        deck = List.unmodifiable(deck);
   DiscoveryState copyWith({
     int? step,
     int? mood,
+    bool? moodSelected,
     int? question,
     int? index,
     List<int>? answers,
@@ -33,6 +41,7 @@ class DiscoveryState {
   }) => DiscoveryState(
     step: step ?? this.step,
     mood: mood ?? this.mood,
+    moodSelected: moodSelected ?? interests.moodSelected,
     question: question ?? this.question,
     index: index ?? this.index,
     answers: answers ?? this.answers,
@@ -51,7 +60,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   // Existing preset entry point now starts with the three questions too.
   void startConditions() => beginSearch();
   void beginSearch() {
-    ref.read(searchDraftProvider.notifier).captureInitial();
+    ref.read(searchDraftProvider.notifier).prepareSearch();
     ref.read(conditionsStepProvider.notifier).reset();
     state = DiscoveryState(step: 2);
   }
@@ -79,6 +88,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
 
   void selectMood(int mood) => state = state.copyWith(
     mood: mood,
+    moodSelected: true,
     question: 1,
     answers: mood == state.mood ? state.answers : [],
   );
@@ -114,13 +124,5 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
 
   void advance() {
     if (state.deck.isNotEmpty) goTo((state.index + 1) % state.deck.length);
-  }
-
-  void removeCard(String id) {
-    final deck = state.deck.where((e) => e.id != id).toList();
-    state = state.copyWith(
-      deck: deck,
-      index: deck.isEmpty ? 0 : state.index.clamp(0, deck.length - 1),
-    );
   }
 }

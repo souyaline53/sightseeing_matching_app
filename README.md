@@ -19,8 +19,9 @@ flutter run -d web-server --web-port 7357
 
 1. ホームの「検索を開始する」でプロフィールを初期条件として読み込み、まず3つの好奇心質問へ進みます。「前回の条件で探す」やプロフィールのプリセット読み込みも、質問から始まります。
 2. 質問1は写真付きの6つの気分、質問2・3の既存の分岐は維持しています。質問3の回答後に条件設定へ進み、質問の回答は条件の編集や戻る操作でも保持します。
-3. 全画面の条件設定は、STEP 1「どこから旅を始める？」→STEP 2「どうやって旅する？」→STEP 3「旅の条件を決めよう」の順です。出発地のチップ・ローカル検索候補はワンタップで確定し、地図のピンは選択後「この出発地にする」で確定します。移動手段もカードを1回タップするだけで次へ進みます。
-4. STEP 3は片道時間、旅行期間、総予算、同行者、折りたたみの徒歩負担を編集できます。「この条件で探す」で編集値を確定し、「詳細設定をスキップ」では検索開始時の初期詳細条件を使います。スキップでもSTEP 1・2で選んだ出発地・移動手段は保持します。「この条件を保存」は編集値を名前付きプリセットに保存します。探索へ進む時点だけLastSearchを更新し、`searchedAt`をUTCで記録します。検索フローでは旅行日を聞きません。
+3. 全画面の条件設定は、STEP 1「どこから旅を始める？」→STEP 2「どうやって旅する？」→STEP 3「どのくらい旅する？」→STEP 4「誰と旅する？」の順です。出発地は「札幌駅」「新千歳空港」「小樽駅」「旭川駅」の2列×2行の4択で、ワンタップで確定します。検索欄はありません。地図は「地図から選ぶ」を開いたときだけ表示・読み込みし、同じ4地点のピンを選択後「この出発地にする」で確定します。移動手段もカードを1回タップするだけで次へ進みます。
+4. 旅行期間は「半日・日帰り・1泊2日・2泊3日以上」の4択をタップすると同行者画面へ進みます。同行者は「ひとり・友達・カップル・家族」の4択。下の折りたたみには片道時間・総予算・徒歩負担をまとめています。最後に「この条件で探す」または「条件を保存して検索」を選びます。後者は任意のプリセット名を入力でき、プリセットとLastSearchを1回の保存処理で更新してから探索へ進みます。キャンセル・保存失敗時は探索を開始しません。スキップ操作はありません。検索フローでは旅行日を聞きません。
+
 5. 探索画面は全10件の写真を事前に読み込みます。最大12秒で個々の失敗をプレースホルダーに確定し、スワイプ中には読み込み直しません。**左スワイプは次へ、右スワイプは保存して次へ**。ハートは保存のみ。最後の次は先頭へ循環します。上下スワイプには操作を割り当てていません。詳細は長押しまたは画像上のボタンで表示します。
 6. 「旅行計画へ」または「旅を組み立てる」タブから、保存した体験を追加・削除・ドラッグ並べ替えします。自分で組み立てた旅程とAIのデモ用旅程を表示できます。タブを切り替えても編集中の旅程を保持します。
 7. プロフィールでは普段の出発地・交通手段・予算・徒歩希望を保存します。プリセットの読み込み、名前変更、内容編集、上書き、確認付き削除もここから行います。
@@ -32,6 +33,7 @@ flutter run -d web-server --web-port 7357
 - `InterestAnswers`：今回の気分と二択2問の回答。検索条件とは別のモデルとして保持します。
 - `SearchFilters`：既存の不変モデル`SearchConditions`を再利用する型名。出発地・交通・予算などを保持します。
 - `LastSearch`：最後に探索へ進んだ条件とUTCの`searchedAt`。旧JSONの`executedAt`も読み込み可能です。
+- 検索画面の選択ボタンは初期状態では未選択です。値の初期値は内部に保持し、実際にタップした項目だけ選択表示します。戻る操作では表示を保持し、新しい検索ではリセットします。旅行期間・同行者は明示選択して検索へ進みます。
 - 初期値は明示選択プリセット、明示選択した前回条件、通常検索時のプロフィール、デフォルト値の順です。
 - 検索実行日時を旅行日には使いません。旅程側の`travelDate`は別のnullable値で、新しい検索では未確定に戻します。旅行日選択は既存の旅程画面で行います。旧プリセットの`dateChoice`/`fixedDate`は互換性のため保持しますが、新しい検索では参照・検証しません。
 - [`SharedPreferencesAsync`](https://pub.dev/packages/shared_preferences) とバージョン付きJSONを使用します。WebはlocalStorage、Android・iOSはプラットフォームの設定ストアを利用します。
@@ -45,6 +47,7 @@ flutter run -d web-server --web-port 7357
 | `lib/model/search_settings.dart` | 条件・UserProfile・SearchPreset・LastSearch、UTC保存と旧日時の互換読み込み |
 | `lib/model/interest_answers.dart` | 3問の回答を検索条件から分離 |
 | `lib/repository/settings_repository.dart` | 保存RepositoryとSharedPreferencesAsyncアダプター |
+| `lib/state/search_selection_state.dart` | 初期値と独立した、ユーザーが明示選択した項目の表示状態 |
 | `lib/state/settings_state.dart` | 復元・保存・検索条件の編集状態 |
 | `lib/state/discovery_state.dart` | 検索画面遷移・質問回答・探索位置 |
 | `lib/state/trip_state.dart` | 保存体験・訪問順・旅程条件 |
@@ -52,13 +55,13 @@ flutter run -d web-server --web-port 7357
 | `lib/service/curiosity_questions.dart` | 気分別6分岐・質問2の回答別12分岐 |
 | `lib/service/recommendation_service.dart` | 好みに近い・隣接・意外な体験を混ぜる推薦 |
 | `lib/service/mock_access_ranking.dart` | 条件からサンプルのアクセスしやすさを算出し、ジャンル内を並べ替え |
-| `lib/service/search_execution_service.dart` | 入力確定・スキップ・LastSearch保存・旅程引継ぎ・探索開始を一括処理 |
+| `lib/service/search_execution_service.dart` | 入力確定・プリセットとLastSearchの一括保存・旅程引継ぎ・探索開始 |
 | `lib/screen/recommendation/recommendation_home.dart` | ホームと3問のフロー |
-| `lib/screen/search/search_conditions_screen.dart` | 3ステップの進捗・固定ボタン・保存 |
-| `lib/screen/search/conditions_step_pages.dart` | 検索専用の出発地・移動手段・詳細条件ページ（共通フォームやプロフィールは変更なし） |
+| `lib/screen/search/search_conditions_screen.dart` | 4画面の進捗・固定ボタン・保存して検索 |
+| `lib/screen/search/conditions_step_pages.dart` | 検索専用の出発地・移動手段・期間・同行者ページ（共通フォームやプロフィールは変更なし） |
 | `lib/state/conditions_step_state.dart` | 条件入力ステップの表示位置。編集値は既存のsearchDraftProviderで共通保持 |
 | `lib/screen/profile/profile_home.dart` | プロフィールとプリセットの管理・編集 |
-| `lib/widgets/conditions_form.dart` | プロフィール・条件・プリセット共通の入力UI |
+| `lib/screen/profile/widgets/conditions_form.dart` | プロフィール基本設定・保存プリセット編集用の共通入力UI（検索フローとは別） |
 | `lib/data/departure_places.dart` | 駅・バス停のローカル候補と概略座標 |
 | `lib/widgets/departure_map.dart` | flutter_map・OpenStreetMap地図、選択ピン、障害時の案内 |
 | `lib/widgets/settings_actions.dart` | プリセット名ダイアログ・結果通知 |
@@ -78,7 +81,7 @@ flutter run -d web-server --web-port 7357
 
 - AI・交通API・Firebase・認証・課金は追加していません。
 - 出発地・交通手段・予算・移動時間などはサンプル推薦のジャンル内順位に反映します。実経路や料金の検索ではなく、条件を満たす保証・除外判定は行いません。
-- [flutter_map](https://pub.dev/packages/flutter_map)でパン・ズームできる地図を表示します。地図画像はOpenStreetMapから取得しますが、駅・バス停候補と座標はローカルのサンプルです。外部ジオコーディングや全国の駅検索はありません。任意の地域名は直接入力できます。画像取得失敗時も候補・直接入力・ピン選択を利用できます。地図には出典リンクを表示しています。
+- [flutter_map](https://pub.dev/packages/flutter_map)でパン・ズームできる地図を表示します。地図画像はOpenStreetMapから取得しますが、駅・バス停候補と座標はローカルのサンプルです。外部ジオコーディングや全国の駅検索はありません。検索フローで新しく選べる地点は暫定の4地点です。画像取得失敗時も4択ボタンを利用できます。保存済み条件に別の出発地がある場合は、自動変更せず保持します。地図には出典リンクを表示しています。
 - 時刻・乗換・徒歩・交通費・車の所要時間はすべてダミー。帰路や最終便、実際の日帰り可否も検索しません。
 - 旅行期間は保存・引継ぎ・表示する段階です。複数日の割当や宿泊施設の予約・検索は実装していません。AI提案も固定の夕張3件を使う「デモ用の旅程」です。
 - 観光体験の提供状況・営業時間は未確認。Unsplashの写真も場所を特定しないイメージです。
@@ -96,4 +99,4 @@ flutter test --platform chrome test/browser_storage_test.dart test/conditions_st
 flutter build web
 ```
 
-通常テストではJSON保存層をメモリストアに差し替え、復元・独立性・保存失敗・旧日時の移行・UTC・全24通りの推薦・質問先行フロー・スキップ・プロフィールとプリセットCRUDを検証します。画面テストでは地図タイルを無効にし、画像がない場合の候補選択・ピンの明示確認・ズーム・連続タップ・小型Android相当画面のキーボード表示も検証します。Chrome専用テストでは実際のWebアダプターで保存・復元を確認します（通常のVMテストでは1件スキップ）。
+通常テストではJSON保存層をメモリストアに差し替え、復元・独立性・保存失敗・旧日時の移行・UTC・全24通りの推薦・質問先行フロー・期間のワンタップ遷移・保存して検索・プロフィールとプリセットCRUDを検証します。画面テストでは地図タイルを無効にし、2×2の4択・地図の初期非表示と開閉・画像がない場合のピンの明示確認・ズーム・連続タップ・小型Android相当画面も検証します。Chrome専用テストでは実際のWebアダプターで保存・復元を確認します（通常のVMテストでは1件スキップ）。

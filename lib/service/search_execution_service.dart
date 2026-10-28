@@ -1,3 +1,4 @@
+import '../state/search_selection_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
@@ -9,21 +10,25 @@ class SearchExecutionService {
   final Ref ref;
   bool _running = false;
   SearchExecutionService(this.ref);
-  Future<void> execute({bool skipDetails = false}) async {
+  Future<void> execute({String? presetName}) async {
     if (_running) return;
     _running = true;
     try {
       if (!ref.read(discoveryProvider).interests.complete) {
         throw StateError('先に3つの質問に回答してください。');
       }
-      final draft = ref.read(searchDraftProvider.notifier);
-      final filters = skipDetails
-          ? draft.skippedFilters()
-          : ref.read(searchDraftProvider);
+      final selections = ref.read(searchSelectionProvider);
+      if (!selections.contains(SearchSelection.length) ||
+          !selections.contains(SearchSelection.company)) {
+        throw StateError('旅行期間と同行者を選択してください。');
+      }
+      final filters = ref.read(searchDraftProvider);
       final error = filters.validateFilters();
       if (error != null) throw StateError(error);
-      await ref.read(settingsProvider.notifier).saveLast(filters);
-      draft.replace(filters);
+      await ref
+          .read(settingsProvider.notifier)
+          .saveSearch(filters, presetName: presetName);
+      ref.read(searchDraftProvider.notifier).replace(filters);
       ref.read(tripProvider.notifier).applySearchFilters(filters);
       ref.read(discoveryProvider.notifier).showExplore();
     } finally {

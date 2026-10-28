@@ -88,8 +88,6 @@ class TripNotifier extends Notifier<TripState> {
   );
   void setOrigin(String origin) =>
       applyConditions(state.conditions.copyWith(origin: origin));
-  void setTransport(bool publicTransport) =>
-      setTravelMode(publicTransport ? TravelMode.transit : TravelMode.car);
   void setTravelMode(TravelMode mode) =>
       applyConditions(state.conditions.copyWith(transport: mode));
 }

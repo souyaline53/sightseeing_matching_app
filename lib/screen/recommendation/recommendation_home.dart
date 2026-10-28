@@ -55,10 +55,10 @@ class RecommendationHome extends HookConsumerWidget {
                 ),
                 itemBuilder: (context, i) => Semantics(
                   button: true,
-                  selected: mood == i,
+                  selected: discovery.interests.moodSelected && mood == i,
                   label: moods[i].$1,
                   child: Material(
-                    color: mood == i
+                    color: discovery.interests.moodSelected && mood == i
                         ? Theme.of(context).colorScheme.primaryContainer
                         : Colors.white,
                     borderRadius: BorderRadius.circular(16),

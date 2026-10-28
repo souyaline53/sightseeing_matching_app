@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../model/search_settings.dart';
+import '../../../model/search_settings.dart';
 
+/// Shared editor for profile defaults and saved presets, not the search wizard.
 class ConditionsForm extends HookConsumerWidget {
   final SearchConditions value;
   final ValueChanged<SearchConditions> onChanged;

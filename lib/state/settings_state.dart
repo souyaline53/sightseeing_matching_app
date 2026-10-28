@@ -1,3 +1,4 @@
+import 'search_selection_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../model/search_settings.dart';
 import '../repository/settings_repository.dart';
@@ -29,14 +30,28 @@ class SettingsNotifier extends AsyncNotifier<SavedSettings> {
 
   Future<void> saveProfile(UserProfile profile) =>
       _update((data) => data.copyWith(profile: profile));
-  Future<void> saveLast(SearchConditions conditions) => _update(
-    (data) => data.copyWith(
-      lastSearch: LastSearch(
-        conditions: conditions,
-        searchedAt: DateTime.now().toUtc(),
-      ),
-    ),
-  );
+  Future<void> saveLast(SearchConditions conditions) => saveSearch(conditions);
+  // One repository write keeps a new preset and LastSearch atomic.
+  Future<void> saveSearch(SearchConditions conditions, {String? presetName}) =>
+      _update((data) {
+        final presets = [...data.presets];
+        if (presetName != null) {
+          presets.add(
+            SearchPreset(
+              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              name: presetName.trim().isEmpty ? 'いつもの旅' : presetName.trim(),
+              conditions: conditions,
+            ),
+          );
+        }
+        return data.copyWith(
+          presets: presets,
+          lastSearch: LastSearch(
+            conditions: conditions,
+            searchedAt: DateTime.now().toUtc(),
+          ),
+        );
+      });
   Future<void> savePreset(
     SearchConditions conditions,
     String name, {
@@ -63,11 +78,7 @@ final searchDraftProvider =
     );
 
 class SearchDraftNotifier extends Notifier<SearchConditions> {
-  SearchConditions _initial = const SearchConditions();
-  void captureInitial() => _initial = state;
-  SearchConditions get initialFilters => _initial;
-  SearchConditions skippedFilters() =>
-      _initial.copyWith(origin: state.origin, transport: state.transport);
+  void prepareSearch() => ref.read(searchSelectionProvider.notifier).reset();
   @override
   SearchConditions build() => const SearchConditions();
   void replace(SearchConditions conditions) => state = conditions;

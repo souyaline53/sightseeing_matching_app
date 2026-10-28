@@ -10,11 +10,15 @@ final mapTilesEnabledProvider = Provider<bool>((ref) => true);
 
 class DepartureMap extends HookConsumerWidget {
   final String selected;
+  final bool highlightSelected;
   final ValueChanged<DeparturePlace> onSelect;
+  final List<DeparturePlace> places;
   const DepartureMap({
     super.key,
     required this.selected,
+    this.highlightSelected = true,
     required this.onSelect,
+    this.places = departurePlaces,
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +65,7 @@ class DepartureMap extends HookConsumerWidget {
                   ),
                 MarkerLayer(
                   markers: [
-                    for (final p in departurePlaces)
+                    for (final p in places)
                       Marker(
                         point: p.point,
                         width: 48,
@@ -74,10 +78,12 @@ class DepartureMap extends HookConsumerWidget {
                             p.bus
                                 ? Icons.directions_bus_filled
                                 : Icons.location_on,
-                            color: p.name == selected
+                            color: highlightSelected && p.name == selected
                                 ? const Color(0xff145c49)
                                 : Colors.blueGrey,
-                            size: p.name == selected ? 40 : 32,
+                            size: highlightSelected && p.name == selected
+                                ? 40
+                                : 32,
                           ),
                         ),
                       ),
@@ -98,7 +104,7 @@ class DepartureMap extends HookConsumerWidget {
                   child: Padding(
                     padding: EdgeInsets.all(8),
                     child: Text(
-                      '地図画像を表示できません。検索欄・候補からも選択できます。',
+                      '地図画像を表示できません。出発地の選択ボタンをご利用ください。',
                       style: TextStyle(fontSize: 11),
                     ),
                   ),

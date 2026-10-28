@@ -1,3 +1,4 @@
+import '../../state/search_selection_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -133,16 +134,15 @@ class DepartureStepPage extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final draft = ref.watch(searchDraftProvider);
-    final origin = useTextEditingController(text: draft.origin);
-    useEffect(() {
-      if (origin.text != draft.origin) origin.text = draft.origin;
-      return null;
-    }, [draft.origin]);
+    final selections = ref.watch(searchSelectionProvider);
+    final mapExpanded = useState(false);
+    const origins = ['札幌駅', '新千歳空港', '小樽駅', '旭川駅'];
     void select(String name, {bool confirm = false}) {
       if (ref.read(discoveryProvider).step != 1 ||
           ref.read(conditionsStepProvider) != 0) {
         return;
       }
+      ref.read(searchSelectionProvider.notifier).choose(SearchSelection.origin);
       ref
           .read(searchDraftProvider.notifier)
           .replace(ref.read(searchDraftProvider).copyWith(origin: name));
@@ -152,77 +152,62 @@ class DepartureStepPage extends HookConsumerWidget {
       }
     }
 
-    final matches = findDepartures(draft.origin);
     return _StepLayout(
       title: 'どこから旅を始める？',
-      subtitle: '候補はタップで確定。地図のピンは選んでから確認できます。',
+      subtitle: '出発地をタップすると、移動手段の選択へ進みます。',
       children: [
-        TextField(
-          key: const ValueKey('search-origin'),
-          controller: origin,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(
-            labelText: '駅名・地域名を検索',
-            prefixIcon: Icon(Icons.search),
+        LayoutBuilder(
+          builder: (context, constraints) => Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final name in origins)
+                SizedBox(
+                  width: (constraints.maxWidth - 12) / 2,
+                  child: _SelectionCard(
+                    key: ValueKey('origin-chip-$name'),
+                    label: name,
+                    icon: name == '新千歳空港'
+                        ? Icons.flight_takeoff
+                        : Icons.train_outlined,
+                    selected:
+                        selections.contains(SearchSelection.origin) &&
+                        draft.origin == name,
+                    onTap: () => select(name, confirm: true),
+                  ),
+                ),
+            ],
           ),
-          onChanged: (v) => select(v),
         ),
-        const SizedBox(height: 12),
-        const Text('よく使う出発地', style: TextStyle(fontWeight: FontWeight.bold)),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
+        const SizedBox(height: 20),
+        ExpansionTile(
+          key: const ValueKey('departure-map-dropdown'),
+          initiallyExpanded: false,
+          tilePadding: EdgeInsets.zero,
+          title: const Text('地図から選ぶ'),
+          subtitle: const Text('ピンを選んだ後、下のボタンで確定します。'),
+          onExpansionChanged: (expanded) => mapExpanded.value = expanded,
           children: [
-            for (final name in {
-              '札幌駅',
-              '小樽駅',
-              '新千歳空港',
-              ref.read(settingsProvider).requireValue.profile.origin,
-            })
-              ActionChip(
-                key: ValueKey('origin-chip-$name'),
-                label: Text(name),
-                onPressed: () => select(name, confirm: true),
+            if (mapExpanded.value)
+              DepartureMap(
+                selected: draft.origin,
+                highlightSelected: selections.contains(SearchSelection.origin),
+                places: departurePlaces
+                    .where((p) => origins.contains(p.name))
+                    .toList(),
+                onSelect: (p) => select(p.name),
               ),
           ],
         ),
-        const SizedBox(height: 14),
-        const Text(
-          '検索候補（ローカルのサンプル）',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        for (final p in matches.take(5))
-          ListTile(
-            key: ValueKey('origin-result-${p.id}'),
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              p.bus ? Icons.directions_bus_outlined : Icons.train_outlined,
-            ),
-            title: Text(p.name),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => select(p.name, confirm: true),
-          ),
-        if (draft.origin.trim().isNotEmpty &&
-            !matches.any((p) => p.name == draft.origin.trim()))
-          ListTile(
-            key: const ValueKey('origin-free-text'),
-            contentPadding: EdgeInsets.zero,
-            title: Text('「${draft.origin.trim()}」を出発地にする'),
-            subtitle: const Text('地域名の直接入力（地図座標・経路は未確認）'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => select(draft.origin.trim(), confirm: true),
-          ),
-        const SizedBox(height: 12),
-        DepartureMap(selected: draft.origin, onSelect: (p) => select(p.name)),
         const SizedBox(height: 10),
         Text(
-          '選択中の出発地：${draft.origin.isEmpty ? '未選択' : draft.origin}',
+          '${selections.contains(SearchSelection.origin) ? '選択中の出発地' : '出発地の初期値'}：${draft.origin.isEmpty ? '未選択' : draft.origin}',
           key: const ValueKey('selected-origin'),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         const Text(
-          'ピンの位置・駅・バス停候補はサンプルです。実際の運行情報ではありません。',
+          '地図上の位置はサンプルです。実際の運行情報ではありません。',
           style: TextStyle(fontSize: 11),
         ),
       ],
@@ -235,6 +220,7 @@ class TransportStepPage extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final draft = ref.watch(searchDraftProvider);
+    final selections = ref.watch(searchSelectionProvider);
     return _StepLayout(
       title: 'どうやって旅する？',
       subtitle: 'いつもの移動手段でも、違う旅のかたちでも。',
@@ -255,12 +241,17 @@ class TransportStepPage extends HookConsumerWidget {
                 Icons.directions_car_outlined,
                 Icons.alt_route,
               ][mode.index],
-              selected: draft.transport == mode,
+              selected:
+                  selections.contains(SearchSelection.transport) &&
+                  draft.transport == mode,
               onTap: () {
                 if (ref.read(discoveryProvider).step != 1 ||
                     ref.read(conditionsStepProvider) != 1) {
                   return;
                 }
+                ref
+                    .read(searchSelectionProvider.notifier)
+                    .choose(SearchSelection.transport);
                 ref
                     .read(searchDraftProvider.notifier)
                     .replace(
@@ -275,69 +266,76 @@ class TransportStepPage extends HookConsumerWidget {
   }
 }
 
-class DetailsStepPage extends HookConsumerWidget {
-  const DetailsStepPage({super.key});
+class TripLengthStepPage extends HookConsumerWidget {
+  const TripLengthStepPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final draft = ref.watch(searchDraftProvider);
+    final selections = ref.watch(searchSelectionProvider);
+    return _StepLayout(
+      title: 'どのくらい旅する？',
+      subtitle: '旅行期間をタップして、同行者の選択へ。',
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) => Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final length in TripLength.values)
+                SizedBox(
+                  width: (constraints.maxWidth - 12) / 2,
+                  child: _SelectionCard(
+                    key: ValueKey('length-${length.name}'),
+                    label: length.label,
+                    icon: [
+                      Icons.wb_twilight,
+                      Icons.wb_sunny_outlined,
+                      Icons.nights_stay_outlined,
+                      Icons.luggage_outlined,
+                    ][length.index],
+                    selected:
+                        selections.contains(SearchSelection.length) &&
+                        draft.length == length,
+                    onTap: () {
+                      if (ref.read(discoveryProvider).step != 1 ||
+                          ref.read(conditionsStepProvider) != 2) {
+                        return;
+                      }
+                      ref
+                          .read(searchSelectionProvider.notifier)
+                          .choose(SearchSelection.length);
+                      ref
+                          .read(searchDraftProvider.notifier)
+                          .replace(
+                            ref
+                                .read(searchDraftProvider)
+                                .copyWith(length: length),
+                          );
+                      ref.read(conditionsStepProvider.notifier).nextFrom(2);
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class CompanionStepPage extends HookConsumerWidget {
+  const CompanionStepPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(searchDraftProvider);
+    final selections = ref.watch(searchSelectionProvider);
     void update(SearchConditions Function(SearchConditions) change) => ref
         .read(searchDraftProvider.notifier)
         .replace(change(ref.read(searchDraftProvider)));
     return _StepLayout(
-      title: '旅の条件を決めよう',
-      subtitle: 'そのままでも大丈夫。スキップすると開始時の詳細条件を使います。',
+      title: '誰と旅する？',
+      subtitle: '同行者を選んで、旅の条件を仕上げましょう。',
       children: [
-        Text(
-          '片道移動時間の上限：${draft.maxMinutes}分',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        Slider(
-          key: const ValueKey('travel-time'),
-          value: draft.maxMinutes.clamp(30, 240).toDouble(),
-          min: 30,
-          max: 240,
-          divisions: 14,
-          label: '${draft.maxMinutes}分',
-          onChanged: (v) => update((c) => c.copyWith(maxMinutes: v.round())),
-        ),
-        if (draft.maxMinutes > 240)
-          const Text(
-            '保存済みの移動時間を保持しています。変更する場合は30〜240分で選べます。',
-            style: TextStyle(fontSize: 12),
-          ),
-        const SizedBox(height: 20),
-        const Text('旅行期間', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final length in TripLength.values)
-              ChoiceChip(
-                label: Text(length.label),
-                selected: draft.length == length,
-                onSelected: (_) => update((c) => c.copyWith(length: length)),
-              ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Text(
-          '総予算上限：${draft.budget}円',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const Text('交通費・食事・体験・宿泊を含む旅行全体の上限です。', style: TextStyle(fontSize: 12)),
-        Slider(
-          key: const ValueKey('total-budget'),
-          value: draft.budget.toDouble(),
-          min: 1000,
-          max: 100000,
-          divisions: 99,
-          label: '${draft.budget}円',
-          onChanged: (v) => update((c) => c.copyWith(budget: v.round())),
-        ),
-        const SizedBox(height: 20),
-        const Text('同行者', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
             spacing: 12,
@@ -355,8 +353,15 @@ class DetailsStepPage extends HookConsumerWidget {
                       Icons.favorite_outline,
                       Icons.family_restroom,
                     ][company.index],
-                    selected: draft.company == company,
-                    onTap: () => update((c) => c.copyWith(company: company)),
+                    selected:
+                        selections.contains(SearchSelection.company) &&
+                        draft.company == company,
+                    onTap: () {
+                      ref
+                          .read(searchSelectionProvider.notifier)
+                          .choose(SearchSelection.company);
+                      update((c) => c.copyWith(company: company));
+                    },
                   ),
                 ),
             ],
@@ -364,12 +369,59 @@ class DetailsStepPage extends HookConsumerWidget {
         ),
         const SizedBox(height: 20),
         ExpansionTile(
-          key: const ValueKey('walking-options'),
+          key: const ValueKey('detail-options'),
           initiallyExpanded: false,
           tilePadding: EdgeInsets.zero,
           title: const Text('さらに細かく設定'),
-          subtitle: Text('徒歩負担：${['少なめ', '普通', '多め'][draft.walking.index]}'),
+          subtitle: Text(
+            '片道${draft.maxMinutes}分 · 総予算${draft.budget}円 · 徒歩${['少なめ', '普通', '多め'][draft.walking.index]}',
+          ),
           children: [
+            Text(
+              '片道移動時間の上限：${draft.maxMinutes}分',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Slider(
+              key: const ValueKey('travel-time'),
+              value: draft.maxMinutes.clamp(30, 240).toDouble(),
+              min: 30,
+              max: 240,
+              divisions: 14,
+              label: '${draft.maxMinutes}分',
+              onChanged: (v) =>
+                  update((c) => c.copyWith(maxMinutes: v.round())),
+            ),
+            if (draft.maxMinutes > 240)
+              const Text(
+                '保存済みの移動時間を保持しています。変更する場合は30〜240分で選べます。',
+                style: TextStyle(fontSize: 12),
+              ),
+            const SizedBox(height: 20),
+            Text(
+              '総予算上限：${draft.budget}円',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              '交通費・食事・体験・宿泊を含む旅行全体の上限です。',
+              style: TextStyle(fontSize: 12),
+            ),
+            Slider(
+              key: const ValueKey('total-budget'),
+              value: draft.budget.toDouble(),
+              min: 1000,
+              max: 100000,
+              divisions: 99,
+              label: '${draft.budget}円',
+              onChanged: (v) => update((c) => c.copyWith(budget: v.round())),
+            ),
+            const SizedBox(height: 20),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '徒歩負担',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: Wrap(
@@ -379,20 +431,23 @@ class DetailsStepPage extends HookConsumerWidget {
                   for (final walking in Walking.values)
                     ChoiceChip(
                       label: Text(['少なめ', '普通', '多め'][walking.index]),
-                      selected: draft.walking == walking,
-                      onSelected: (_) =>
-                          update((c) => c.copyWith(walking: walking)),
+                      selected:
+                          selections.contains(SearchSelection.walking) &&
+                          draft.walking == walking,
+                      onSelected: (_) {
+                        ref
+                            .read(searchSelectionProvider.notifier)
+                            .choose(SearchSelection.walking);
+                        update((c) => c.copyWith(walking: walking));
+                      },
                     ),
                 ],
               ),
             ),
+            const SizedBox(height: 12),
           ],
         ),
         const SizedBox(height: 14),
-        const Text(
-          '条件はサンプルの推薦順位に反映します。旅行日は旅程画面で別途指定し、時刻表・料金・利用可否は未検証です。',
-          style: TextStyle(fontSize: 12),
-        ),
       ],
     );
   }

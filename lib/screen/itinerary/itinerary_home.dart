@@ -1,4 +1,4 @@
-import 'package:flutter_hooks/flutter_hooks.dart';
+import '../../state/discovery_state.dart';
 import '../../model/search_settings.dart';
 import '../../state/app_tab.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -15,11 +15,6 @@ class ItineraryHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final trip = ref.watch(tripProvider);
     final controller = ref.read(tripProvider.notifier);
-    final originInput = useTextEditingController(text: trip.origin);
-    useEffect(() {
-      if (originInput.text != trip.origin) originInput.text = trip.origin;
-      return null;
-    }, [trip.origin]);
     void addDestination() => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -77,8 +72,10 @@ class ItineraryHome extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(
-          onPressed: () =>
-              ref.read(appTabProvider.notifier).select(AppTab.recommendation),
+          onPressed: () {
+            ref.read(discoveryProvider.notifier).reset();
+            ref.read(appTabProvider.notifier).select(AppTab.recommendation);
+          },
         ),
         title: const Text('自分だけの旅を'),
       ),
@@ -86,14 +83,18 @@ class ItineraryHome extends HookConsumerWidget {
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
           const Text(
-            '気になる、をつないで。',
+            '旅を組み立てよう！',
             style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          const Text('明日の小さな冒険を、ここから。'),
           const SizedBox(height: 16),
           Text(
+            '出発地：${trip.origin} · 移動：${trip.conditions.transport.label}',
+            key: const ValueKey('trip-search-summary'),
+            style: TextStyle(fontSize: 12),
+          ),
+          Text(
             '${trip.conditions.length.label} · 総予算${trip.conditions.budget}円以内（交通費込み）',
+            style: const TextStyle(fontSize: 12),
           ),
           Text(
             '片道${trip.conditions.maxMinutes}分以内 · 徒歩${trip.conditions.walking.label} · ${trip.conditions.company.label}',
@@ -128,27 +129,6 @@ class ItineraryHome extends HookConsumerWidget {
                   : '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · ${trip.conditions.length.label}',
             ),
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: originInput,
-            decoration: const InputDecoration(
-              labelText: '出発地',
-              prefixIcon: Icon(Icons.trip_origin),
-            ),
-            onChanged: controller.setOrigin,
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final mode in TravelMode.values)
-                ChoiceChip(
-                  label: Text(mode.label),
-                  selected: trip.conditions.transport == mode,
-                  onSelected: (_) => controller.setTravelMode(mode),
-                ),
-            ],
-          ),
           const SizedBox(height: 28),
           Row(
             children: [
@@ -162,15 +142,11 @@ class ItineraryHome extends HookConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            '右端をドラッグして、好きな順番に。',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
           if (trip.stops.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Text(
-                'まだ訪問先がありません。\n「発見する」で保存するか、下のボタンから追加しましょう。',
+                'まだ訪問先がありません。\n「ホーム」から新しい旅を探して保存しましょう。',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -235,13 +211,13 @@ class ItineraryHome extends HookConsumerWidget {
               );
             },
           ),
-          const SizedBox(height: 12),
+          /*const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: addDestination,
             icon: const Icon(Icons.add),
             label: const Text('体験を追加する'),
-          ),
-          const SizedBox(height: 22),
+          ),*/
+          const SizedBox(height: 10),
           FilledButton(
             onPressed: () => showPlan(false),
             child: const Text('自分で組み立てる'),
@@ -251,12 +227,6 @@ class ItineraryHome extends HookConsumerWidget {
             onPressed: () => showPlan(true),
             icon: const Icon(Icons.auto_awesome),
             label: const Text('AIに提案してもらう'),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'AI提案はモックの3件を使ったデモ用の旅程です。\n保存や設定はアプリ起動中のみ保持されます。',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: Colors.grey),
           ),
         ],
       ),

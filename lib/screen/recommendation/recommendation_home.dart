@@ -1,4 +1,4 @@
-import '../../state/settings_state.dart';
+import '../home/home_screen.dart';
 import '../../state/app_tab.dart';
 import '../../service/curiosity_questions.dart';
 import '../search/search_conditions_screen.dart';
@@ -13,7 +13,6 @@ class RecommendationHome extends HookConsumerWidget {
   const RecommendationHome({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider).requireValue;
     final discovery = ref.watch(discoveryProvider);
     final controller = ref.read(discoveryProvider.notifier);
     final step = discovery.step,
@@ -206,62 +205,7 @@ class RecommendationHome extends HookConsumerWidget {
       );
     }
 
-    if (step == 0) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('TABISAKI')),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.explore_outlined,
-                  size: 80,
-                  color: Color(0xff145c49),
-                ),
-                const SizedBox(height: 30),
-                const Text(
-                  'まだ知らないワクワクを、\n自分だけの旅に。',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    height: 1.5,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('いつもの興味から、思いがけない北海道へ。', textAlign: TextAlign.center),
-                const SizedBox(height: 36),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(searchDraftProvider.notifier)
-                          .replace(settings.profile.defaults());
-                      controller.startConditions();
-                    },
-                    icon: const Icon(Icons.search),
-                    label: const Text('検索を開始する'),
-                  ),
-                ),
-                if (settings.lastSearch != null)
-                  TextButton(
-                    onPressed: () {
-                      ref
-                          .read(searchDraftProvider.notifier)
-                          .replace(settings.lastSearch!.conditions);
-                      controller.startConditions();
-                    },
-                    child: const Text('前回の条件で探す'),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+    if (step == 0) return const HomeScreen();
     final questionsOrExplore = Scaffold(
       appBar: AppBar(
         leading: step > 0

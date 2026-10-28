@@ -1,3 +1,4 @@
+import '../state/trip_library_state.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
 import 'profile/profile_home.dart';
@@ -13,10 +14,11 @@ class BasePage extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    if (settings.isLoading) {
+    final trips = ref.watch(tripLibraryProvider);
+    if (settings.isLoading || trips.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (settings.hasError) {
+    if (settings.hasError || trips.hasError) {
       return Scaffold(
         body: Center(
           child: Padding(
@@ -25,11 +27,14 @@ class BasePage extends HookConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  '保存済み設定を読み込めませんでした。データを保護するため、読み込みが完了するまで編集を停止しています。',
+                  '保存済みデータを読み込めませんでした。データを保護するため、読み込みが完了するまで編集を停止しています。',
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () => ref.invalidate(settingsProvider),
+                  onPressed: () {
+                    if (settings.hasError) ref.invalidate(settingsProvider);
+                    if (trips.hasError) ref.invalidate(tripLibraryProvider);
+                  },
                   child: const Text('再読み込み'),
                 ),
               ],
@@ -39,6 +44,7 @@ class BasePage extends HookConsumerWidget {
       );
     }
     final trip = ref.watch(tripProvider);
+    final saveFailed = ref.watch(tripSaveErrorProvider);
     final tab = ref.watch(appTabProvider).index;
     final searchStep = ref.watch(
       discoveryProvider.select((state) => state.step),
@@ -51,23 +57,44 @@ class BasePage extends HookConsumerWidget {
         }
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: tab,
+        body: Column(
           children: [
-            const RecommendationHome(),
-            const ItineraryHome(),
-            const ProfileHome(),
+            if (saveFailed)
+              MaterialBanner(
+                content: const Text('旅程を端末に保存できませんでした。再試行してください。'),
+                actions: [
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(tripLibraryProvider.notifier).retrySave(),
+                    child: const Text('再試行'),
+                  ),
+                ],
+              ),
+            Expanded(
+              child: IndexedStack(
+                index: tab,
+                children: [
+                  const RecommendationHome(),
+                  const ItineraryHome(),
+                  const ProfileHome(),
+                ],
+              ),
+            ),
           ],
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: tab,
-          onDestinationSelected: (value) =>
-              ref.read(appTabProvider.notifier).select(AppTab.values[value]),
+          onDestinationSelected: (value) {
+            if (value == AppTab.recommendation.index) {
+              ref.read(discoveryProvider.notifier).reset();
+            }
+            ref.read(appTabProvider.notifier).select(AppTab.values[value]);
+          },
           destinations: [
             const NavigationDestination(
-              icon: Icon(Icons.explore_outlined),
-              selectedIcon: Icon(Icons.explore),
-              label: '発見する',
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'ホーム',
             ),
             NavigationDestination(
               icon: Badge(

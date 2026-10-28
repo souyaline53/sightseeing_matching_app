@@ -135,13 +135,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('旅行計画へ'));
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextFormField>(find.byType(TextFormField))
-            .controller!
-            .text,
-        '小樽駅',
-      );
+      expect(find.text('出発地：小樽駅 · 移動：車'), findsOneWidget);
       expect(find.text('旅行日を選択（未確定）'), findsOneWidget);
       final before = container.read(tripProvider).stops.first.id;
       await reveal(tester, find.byType(ReorderableDragStartListener).first);

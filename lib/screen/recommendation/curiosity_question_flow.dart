@@ -62,7 +62,7 @@ class CuriosityQuestionFlow extends HookConsumerWidget {
         children: [
           _QuestionHeader(
             number: number + 1,
-            title: content?.title ?? '明日、どんな気持ちになりたい？',
+            title: content?.title ?? 'どんな気持ちになりたい？',
             hint: number == 0
                 ? '直感でひとつ、心が動く気分を。'
                 : quest

@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import '../../data/mock_data.dart';
 import '../../model/experience.dart';
 import '../../state/trip_state.dart';
+import '../../state/trip_library_state.dart';
 import '../../widgets/travel_photo.dart';
 import '../recommendation/experience_detail.dart';
+import 'add_experience_button.dart';
 
 class ItineraryHome extends HookConsumerWidget {
   const ItineraryHome({super.key});
@@ -28,6 +30,7 @@ class ItineraryHome extends HookConsumerWidget {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (context) => PlanScreen(
+            tripId: trip.id,
             stops: stops,
             origin: trip.origin.trim().isEmpty ? '札幌駅' : trip.origin.trim(),
             date: trip.travelDate,
@@ -116,7 +119,7 @@ class ItineraryHome extends HookConsumerWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Text(
-                'まだ訪問先がありません。\n「ホーム」から新しい旅を探して保存しましょう。',
+                'まだ訪問先がありません。\n「体験を追加する」から気になる体験を保存しましょう。',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -183,6 +186,8 @@ class ItineraryHome extends HookConsumerWidget {
           ),
 
           const SizedBox(height: 10),
+          AddExperienceButton(tripId: trip.id),
+          const SizedBox(height: 10),
           FilledButton(
             onPressed: trip.saved.isEmpty ? null : () => showPlan(false),
             child: const Text('自分で組み立てる'),
@@ -200,6 +205,7 @@ class ItineraryHome extends HookConsumerWidget {
 }
 
 class PlanScreen extends HookConsumerWidget {
+  final String? tripId;
   final List<Experience> stops;
   final String origin;
   final DateTime? date;
@@ -207,6 +213,7 @@ class PlanScreen extends HookConsumerWidget {
   final SearchConditions conditions;
   const PlanScreen({
     super.key,
+    this.tripId,
     required this.stops,
     required this.origin,
     required this.date,
@@ -216,16 +223,41 @@ class PlanScreen extends HookConsumerWidget {
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref
+        .watch(tripLibraryProvider)
+        .value
+        ?.plans
+        .where((p) => p.id == tripId)
+        .firstOrNull;
+    final livePlan = demo ? null : plan;
+    final stops = livePlan?.stops ?? this.stops;
+    final origin = livePlan?.origin ?? this.origin;
+    final date = livePlan == null ? this.date : livePlan.travelDate;
+    final publicTransport = livePlan?.publicTransport ?? this.publicTransport;
+    final conditions = livePlan?.conditions ?? this.conditions;
     final legs = sampleTransit(origin, stops);
     return Scaffold(
       appBar: AppBar(title: Text(demo ? 'デモ用の旅程' : 'マイプラン')),
+      floatingActionButton: demo
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () {
+                if (tripId != null) {
+                  ref.read(tripProvider.notifier).openPlan(tripId!);
+                }
+                ref.read(appTabProvider.notifier).select(AppTab.itinerary);
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              icon: const Icon(Icons.route_outlined),
+              label: const Text('旅を組み立てる'),
+            ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
           Text(
             date == null
                 ? '旅行日未確定 · $origin 発'
-                : '${date!.month}月${date!.day}日 · $origin 発',
+                : '${date.month}月${date.day}日 · $origin 発',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),

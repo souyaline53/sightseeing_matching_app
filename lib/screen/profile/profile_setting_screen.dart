@@ -60,32 +60,42 @@ class ProfileSettingTile extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      dense: true,
+      minTileHeight: 70,
+      minLeadingWidth: 32,
+      horizontalTitleGap: 12,
+      visualDensity: const VisualDensity(vertical: -2),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
-        width: 44,
-        height: 44,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: colors.primary.withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(setting.icon, color: colors.primary, size: 23),
+        child: Icon(setting.icon, color: colors.primary, size: 18),
       ),
       title: Text(
         setting.title,
-        style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+        style: TextStyle(
+          fontSize: 14,
+          height: 1.2,
+          color: colors.onSurfaceVariant,
+        ),
       ),
       subtitle: Padding(
-        padding: const EdgeInsets.only(top: 5),
+        padding: const EdgeInsets.only(top: 2),
         child: Text(
           value,
           style: TextStyle(
             color: colors.onSurface,
             fontSize: 16,
+            height: 1.3,
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
-      trailing: Icon(Icons.chevron_right, color: colors.primary, size: 22),
+      trailing: Icon(Icons.chevron_right, color: colors.primary, size: 18),
       onTap: onTap,
     );
   }

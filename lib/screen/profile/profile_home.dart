@@ -36,7 +36,7 @@ class ProfileHome extends HookConsumerWidget {
         children: [
           const Text(
             '基本設定',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 2),
           for (final setting in ProfileSetting.values)

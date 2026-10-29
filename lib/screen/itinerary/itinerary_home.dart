@@ -15,36 +15,6 @@ class ItineraryHome extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final trip = ref.watch(tripProvider);
     final controller = ref.read(tripProvider.notifier);
-    void addDestination() => showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      constraints: const BoxConstraints(maxWidth: 480),
-      builder: (context) => ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            '旅に体験を追加',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const Text('保存した体験を先に表示しています。'),
-          for (final e in [
-            ...trip.saved,
-            ...experiences.where((e) => !trip.contains(e)),
-          ])
-            ListTile(
-              title: Text(e.title),
-              subtitle: Text(
-                '${e.area} · ${trip.contains(e) ? '保存済み' : e.category}',
-              ),
-              trailing: Icon(trip.stops.contains(e) ? Icons.check : Icons.add),
-              onTap: () {
-                controller.addStop(e);
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-    );
     void showPlan(bool demo) {
       final stops = List<Experience>.of(
         demo ? experiences.take(3) : trip.stops,
@@ -125,7 +95,7 @@ class ItineraryHome extends HookConsumerWidget {
             icon: const Icon(Icons.calendar_today_outlined),
             label: Text(
               trip.travelDate == null
-                  ? '旅行日を選択（未確定）'
+                  ? '出発日を選択（未確定）'
                   : '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · ${trip.conditions.length.label}',
             ),
           ),
@@ -211,20 +181,15 @@ class ItineraryHome extends HookConsumerWidget {
               );
             },
           ),
-          /*const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: addDestination,
-            icon: const Icon(Icons.add),
-            label: const Text('体験を追加する'),
-          ),*/
+
           const SizedBox(height: 10),
           FilledButton(
-            onPressed: () => showPlan(false),
+            onPressed: trip.saved.isEmpty ? null : () => showPlan(false),
             child: const Text('自分で組み立てる'),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
-            onPressed: () => showPlan(true),
+            onPressed: trip.saved.isEmpty ? null : () => showPlan(true),
             icon: const Icon(Icons.auto_awesome),
             label: const Text('AIに提案してもらう'),
           ),

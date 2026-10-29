@@ -90,12 +90,21 @@ class _SwipeExperienceCards extends HookConsumerWidget {
         detour: !hints.closeGenres.contains(e.category) && index % 3 == 2,
         closeToMood: hints.closeGenres.contains(e.category),
         saved: trip.contains(e),
-        onSave: () => ref.read(tripProvider.notifier).save(e),
+        onSave: () => ref.read(tripProvider.notifier).toggle(e),
         onSkip: () => ref.read(discoveryProvider.notifier).advance(),
       );
     }
 
     final index = discovery.index;
+    void dismiss(DismissDirection direction) {
+      if (direction == DismissDirection.up ||
+          direction == DismissDirection.startToEnd) {
+        ref.read(tripProvider.notifier).save(discovery.deck[index]);
+      }
+      dismissalVersion.value++;
+      ref.read(discoveryProvider.notifier).advance();
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: ClipRRect(
@@ -111,18 +120,20 @@ class _SwipeExperienceCards extends HookConsumerWidget {
               ),
             Dismissible(
               key: ValueKey(
-                'experience-$index-${dismissalVersion.value}-${trip.saved.length}',
+                'save-up-$index-${dismissalVersion.value}-${trip.saved.length}',
               ),
-              direction: DismissDirection.horizontal,
+              direction: DismissDirection.up,
               resizeDuration: null,
-              onDismissed: (direction) {
-                if (direction == DismissDirection.startToEnd) {
-                  ref.read(tripProvider.notifier).save(discovery.deck[index]);
-                }
-                dismissalVersion.value++;
-                ref.read(discoveryProvider.notifier).advance();
-              },
-              child: card(index),
+              onDismissed: dismiss,
+              child: Dismissible(
+                key: ValueKey(
+                  'experience-$index-${dismissalVersion.value}-${trip.saved.length}',
+                ),
+                direction: DismissDirection.horizontal,
+                resizeDuration: null,
+                onDismissed: dismiss,
+                child: card(index),
+              ),
             ),
           ],
         ),
@@ -248,7 +259,7 @@ class _ExperienceCard extends HookConsumerWidget {
                     ),
                   ),
                   IconButton.filled(
-                    tooltip: '体験を保存',
+                    tooltip: saved ? '保存を取り消す' : '体験を保存',
                     onPressed: onSave,
                     icon: Icon(saved ? Icons.favorite : Icons.favorite_border),
                   ),
@@ -256,7 +267,7 @@ class _ExperienceCard extends HookConsumerWidget {
               ),
               const Center(
                 child: Text(
-                  '← 次の体験  /  右スワイプで保存 →',
+                  '← 次の体験  /  ↑・右スワイプで保存',
                   style: TextStyle(color: Colors.white70, fontSize: 10),
                 ),
               ),

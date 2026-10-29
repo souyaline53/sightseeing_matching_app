@@ -15,9 +15,11 @@ class LocalTripsRepository implements TripsRepository {
   @override
   Future<TripLibrary> load() async {
     final raw = await storage.read();
-    return raw == null
-        ? TripLibrary.empty()
-        : TripLibrary.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    if (raw == null) return TripLibrary.empty();
+    final data = jsonDecode(raw) as Map<String, dynamic>;
+    final library = TripLibrary.fromJson(data);
+    if (data['activeId'] != library.activeId) await save(library);
+    return library;
   }
 
   @override

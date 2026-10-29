@@ -4,6 +4,7 @@ import 'curiosity_question_flow.dart';
 import '../search/search_conditions_screen.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../state/discovery_state.dart';
+import '../../state/trip_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'experience_deck.dart';
@@ -13,6 +14,9 @@ class RecommendationHome extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
+    final hasSavedCards = ref.watch(
+      tripProvider.select((trip) => trip.saved.isNotEmpty),
+    );
     final controller = ref.read(discoveryProvider.notifier);
     final step = discovery.step, question = discovery.question;
     final stage = switch (step) {
@@ -45,13 +49,6 @@ class RecommendationHome extends HookConsumerWidget {
           ),
         ),
         actions: [
-          if (step == 3)
-            IconButton(
-              tooltip: '旅行計画へ',
-              onPressed: () =>
-                  ref.read(appTabProvider.notifier).select(AppTab.itinerary),
-              icon: const Icon(Icons.route),
-            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -69,6 +66,29 @@ class RecommendationHome extends HookConsumerWidget {
             ? const CuriosityQuestionFlow()
             : const ExperienceDeck(),
       ),
+      bottomNavigationBar: step == 3
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: SizedBox(
+                  height: 50,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      disabledForegroundColor: Colors.grey.shade600,
+                    ),
+                    onPressed: hasSavedCards
+                        ? () => ref
+                              .read(appTabProvider.notifier)
+                              .select(AppTab.itinerary)
+                        : null,
+                    child: const Text('旅を組み立てる'),
+                  ),
+                ),
+              ),
+            )
+          : null,
     );
     final page = step == 1
         ? const SearchConditionsScreen(key: ValueKey('conditions'))

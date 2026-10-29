@@ -79,28 +79,55 @@ typedef TripPlan = TripState;
 
 class TripLibrary {
   final List<TripState> plans;
-  final String activeId;
-  TripLibrary({required List<TripState> plans, required this.activeId})
-    : plans = List.unmodifiable(plans);
-  factory TripLibrary.empty() {
-    final draft = TripState();
-    return TripLibrary(plans: [draft], activeId: draft.id);
+  final String? activeId;
+  TripLibrary({required List<TripState> plans, String? activeId})
+    : plans = List.unmodifiable(plans),
+      activeId = plans.any((p) => p.id == activeId)
+          ? activeId
+          : fallback(plans)?.id;
+  factory TripLibrary.empty() => TripLibrary(plans: const []);
+  TripState? get activeTrip => plans.where((p) => p.id == activeId).firstOrNull;
+
+  static TripState? fallback(List<TripState> plans, [DateTime? now]) {
+    final time = now ?? DateTime.now();
+    final today = DateTime(time.year, time.month, time.day);
+    final future =
+        plans
+            .where(
+              (p) =>
+                  p.travelDate != null &&
+                  !DateTime(
+                    p.travelDate!.year,
+                    p.travelDate!.month,
+                    p.travelDate!.day,
+                  ).isBefore(today),
+            )
+            .toList()
+          ..sort((a, b) {
+            final date = a.travelDate!.compareTo(b.travelDate!);
+            return date == 0 ? b.updatedAt.compareTo(a.updatedAt) : date;
+          });
+    if (future.isNotEmpty) return future.first;
+    final undated = plans.where((p) => p.travelDate == null).toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    if (undated.isNotEmpty) return undated.first;
+    final others = [...plans]
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return others.firstOrNull;
   }
-  TripState get activeTrip =>
-      plans.firstWhere((p) => p.id == activeId, orElse: () => plans.first);
+
   List<TripState> upcoming([DateTime? now]) {
     final time = now ?? DateTime.now();
     final today = DateTime(time.year, time.month, time.day);
     final eligible = plans
         .where(
           (p) =>
-              p.stops.isNotEmpty &&
               (p.travelDate == null ||
-                  !DateTime(
-                    p.travelDate!.year,
-                    p.travelDate!.month,
-                    p.travelDate!.day,
-                  ).isBefore(today)),
+              !DateTime(
+                p.travelDate!.year,
+                p.travelDate!.month,
+                p.travelDate!.day,
+              ).isBefore(today)),
         )
         .toList();
     eligible.sort((a, b) {
@@ -127,13 +154,9 @@ class TripLibrary {
     final plans = (json['plans'] as List)
         .map((p) => TripState.fromJson(p as Map<String, dynamic>))
         .toList();
-    if (plans.isEmpty) return TripLibrary.empty();
     if (plans.map((p) => p.id).toSet().length != plans.length) {
       throw const FormatException('Duplicate trip ids');
     }
-    return TripLibrary(
-      plans: plans,
-      activeId: json['activeId'] as String? ?? plans.first.id,
-    );
+    return TripLibrary(plans: plans, activeId: json['activeId'] as String?);
   }
 }

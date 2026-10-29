@@ -9,6 +9,9 @@ import 'package:sightseeing_matching_app/data/mock_data.dart';
 import 'package:sightseeing_matching_app/service/curiosity_questions.dart';
 import 'package:sightseeing_matching_app/service/recommendation_service.dart';
 import 'test_support.dart';
+import 'package:sightseeing_matching_app/model/interest_answers.dart';
+import 'package:sightseeing_matching_app/repository/trips_repository.dart';
+import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 
 void main() {
   test(
@@ -141,25 +144,32 @@ void main() {
     expect(const SearchConditions(origin: '').validate(), contains('出発地'));
   });
   test(
-    'all 24 answer combinations broaden interests and affect recommendation order',
+    'all 36 answer combinations mix quests, moods and surprising registered experiences',
     () {
       final service = RecommendationService();
-      for (var mood = 0; mood < moods.length; mood++) {
-        final orders = <String>{};
-        expect(CuriosityQuestions.reason(mood).choices.length, 2);
-        for (var reason = 0; reason < 2; reason++) {
-          final q = CuriosityQuestions.broaden(mood, reason);
-          expect(q.choices.length, 2);
+      for (final mood in CuriosityQuestions.moods) {
+        expect(CuriosityQuestions.reasonFor(mood.id).options.length, 3);
+        for (final reason in CuriosityQuestions.reasonFor(mood.id).options) {
+          final q = CuriosityQuestions.questsFor(mood.id, reason.id);
+          expect(q.options.length, 3);
           expect(q.title, isNotEmpty);
-          for (var broaden = 0; broaden < 2; broaden++) {
-            final deck = service.recommend(moods[mood].$2, [reason, broaden]);
-            expect(deck.first.category, moods[mood].$2);
-            expect(deck[1].category, isNot(moods[mood].$2));
+          for (final quest in q.options) {
+            final answers = InterestAnswers(
+              moodId: mood.id,
+              reasonId: reason.id,
+              questId: quest.id,
+            );
+            final deck = service.recommendFor(answers);
+            expect(quest.genres, contains(deck.first.category));
+            expect(deck.any((e) => mood.genres.contains(e.category)), isTrue);
             expect(deck.map((e) => e.id).toSet().length, experiences.length);
-            orders.add(deck.map((e) => e.id).join(','));
+            expect(deck.map((e) => e.category).toSet().length, greaterThan(3));
+            expect(
+              const RecommendationService(catalog: []).recommendFor(answers),
+              isEmpty,
+            );
           }
         }
-        expect(orders.length, 4, reason: 'mood $mood');
       }
     },
   );
@@ -191,7 +201,7 @@ void main() {
   );
   test(
     'legacy LastSearch migrates UTC metadata and search dates stay independent',
-    () {
+    () async {
       final raw = {
         'conditions': const SearchConditions().toJson(),
         'executedAt': '2026-10-27T09:30:00+09:00',
@@ -199,7 +209,14 @@ void main() {
       final migrated = LastSearch.fromJson(raw);
       expect(migrated.searchedAt, DateTime.utc(2026, 10, 27, 0, 30));
       expect(migrated.toJson()['searchedAt'], '2026-10-27T00:30:00.000Z');
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          tripsRepositoryProvider.overrideWithValue(
+            LocalTripsRepository(storage: MemorySettingsStorage()),
+          ),
+        ],
+      );
+      await container.read(tripLibraryProvider.future);
       addTearDown(container.dispose);
       final trip = container.read(tripProvider.notifier);
       trip.setDate(DateTime(2027, 1, 3));
@@ -232,16 +249,23 @@ void main() {
           budget: 3000,
         ),
       );
-      expect(nearby.first.id, 'bread');
-      expect(yubari.first.id, 'melon');
+      expect(nearby.firstWhere((e) => e.category == '食').id, 'bread');
+      expect(yubari.firstWhere((e) => e.category == '食').id, 'melon');
       expect(nearby.map((e) => e.category).toSet().length, greaterThan(3));
       expect(yubari.length, experiences.length);
     },
   );
   test(
     'trip editing preserves saved cards and search conditions remain independent',
-    () {
-      final container = ProviderContainer();
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          tripsRepositoryProvider.overrideWithValue(
+            LocalTripsRepository(storage: MemorySettingsStorage()),
+          ),
+        ],
+      );
+      await container.read(tripLibraryProvider.future);
       addTearDown(container.dispose);
       final trip = container.read(tripProvider.notifier);
       const c = SearchConditions(

@@ -17,7 +17,7 @@ void main() {
     'offline map remains interactive; pin requires explicit confirmation',
     (tester) async {
       final container = await boot(tester);
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
       await answerQuestions(tester);
       final interests = container.read(discoveryProvider).interests;
@@ -69,7 +69,7 @@ void main() {
     tester,
   ) async {
     final container = await boot(tester);
-    await tester.tap(find.text('検索を開始する'));
+    await tester.tap(find.text('新しい旅を探す'));
     await tester.pumpAndSettle();
     await answerQuestions(tester);
     const names = ['札幌駅', '新千歳空港', '小樽駅', '旭川駅'];
@@ -118,7 +118,7 @@ void main() {
     (tester) async {
       final storage = MemorySettingsStorage();
       final container = await boot(tester, storage: storage);
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
       await answerQuestions(tester);
       await tester.tap(find.byKey(const ValueKey('origin-chip-小樽駅')));
@@ -256,7 +256,7 @@ void main() {
       (tester) async {
         final container = await boot(tester);
         await tester.binding.setSurfaceSize(size);
-        await tester.tap(find.text('検索を開始する'));
+        await tester.tap(find.text('新しい旅を探す'));
         await tester.pumpAndSettle();
         await answerQuestions(tester);
         for (final name in ['札幌駅', '新千歳空港', '小樽駅', '旭川駅']) {

@@ -50,10 +50,38 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
       TripLibrary(
         plans: remaining,
         activeId: library.activeId == id
-            ? remaining.first.id
+            ? TripLibrary.fallback(remaining)?.id
             : library.activeId,
       ),
     );
+  }
+
+  void rename(String id, String title) {
+    final name = title.trim();
+    if (name.isEmpty) throw ArgumentError('旅行タイトルを入力してください。');
+    final library = state.requireValue;
+    _replace(
+      TripLibrary(
+        plans: [
+          for (final p in library.plans)
+            p.id == id ? p.copyWith(title: name) : p,
+        ],
+        activeId: library.activeId,
+      ),
+    );
+  }
+
+  void duplicate(String id) {
+    final original = state.requireValue.plans
+        .where((p) => p.id == id)
+        .firstOrNull;
+    if (original == null) return;
+    // JSON round-trip also copies nested lists and experience records.
+    final data = original.toJson();
+    data['id'] = TripState().id;
+    data['title'] = '${original.displayTitle}（コピー）';
+    data['updatedAt'] = DateTime.now().toUtc().toIso8601String();
+    upsert(TripState.fromJson(data));
   }
 
   void _replace(TripLibrary next) {

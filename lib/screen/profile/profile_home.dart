@@ -6,6 +6,7 @@ import '../../state/app_tab.dart';
 import '../../state/discovery_state.dart';
 import '../../state/settings_state.dart';
 import 'widgets/conditions_form.dart';
+import 'profile_setting_screen.dart';
 import '../../widgets/settings_actions.dart';
 
 class ProfileHome extends HookConsumerWidget {
@@ -13,7 +14,6 @@ class ProfileHome extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider).requireValue;
-    final profileDraft = useState(settings.profile.defaults());
     final busy = useState(false);
     Future<void> perform(Future<void> Function() action) async {
       busy.value = true;
@@ -35,40 +35,51 @@ class ProfileHome extends HookConsumerWidget {
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
           const Text(
-            'いつもの旅の、基本設定。',
+            '基本設定',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
-          const Text('登録なしで使えます。検索中の変更は、ここには反映されません。'),
-          const SizedBox(height: 24),
-          ConditionsForm(
-            value: profileDraft.value,
-            onChanged: (v) => profileDraft.value = v,
-            profileOnly: true,
-          ),
-          FilledButton(
-            onPressed: busy.value
-                ? null
-                : () {
-                    if (profileDraft.value.origin.trim().isEmpty) {
-                      showMessage(context, '普段の出発地を入力してください。');
-                      return;
-                    }
-                    perform(
-                      () => ref
-                          .read(settingsProvider.notifier)
-                          .saveProfile(
-                            UserProfile(
-                              origin: profileDraft.value.origin.trim(),
-                              transport: profileDraft.value.transport,
-                              budget: profileDraft.value.budget,
-                              walking: profileDraft.value.walking,
+          const SizedBox(height: 2),
+          for (final setting in ProfileSetting.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 1),
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                clipBehavior: Clip.antiAlias,
+                child: ProfileSettingTile(
+                  setting: setting,
+                  value: setting.summary(settings.profile),
+                  onTap: busy.value
+                      ? null
+                      : () async {
+                          final saved = await Navigator.of(context).push<bool>(
+                            PageRouteBuilder<bool>(
+                              pageBuilder: (_, animation, secondaryAnimation) =>
+                                  ProfileSettingScreen(setting: setting),
+                              transitionsBuilder:
+                                  (_, animation, secondaryAnimation, child) =>
+                                      SlideTransition(
+                                        position:
+                                            Tween<Offset>(
+                                              begin: const Offset(1, 0),
+                                              end: Offset.zero,
+                                            ).animate(
+                                              CurvedAnimation(
+                                                parent: animation,
+                                                curve: Curves.easeInOutCubic,
+                                              ),
+                                            ),
+                                        child: child,
+                                      ),
                             ),
-                          ),
-                    );
-                  },
-            child: const Text('基本設定を保存'),
-          ),
+                          );
+                          if (saved == true && context.mounted) {
+                            showMessage(context, '基本設定を保存しました。');
+                          }
+                        },
+                ),
+              ),
+            ),
           const SizedBox(height: 32),
           const Text(
             '保存した検索条件',

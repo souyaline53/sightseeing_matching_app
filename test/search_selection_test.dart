@@ -31,7 +31,7 @@ void main() {
         ),
       );
       final container = await boot(tester, storage: storage);
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).interests.moodSelected, isFalse);
       expect(
@@ -98,7 +98,7 @@ void main() {
       expect(selectedCards(tester, DepartureStepPage).length, 1);
       container.read(discoveryProvider.notifier).reset();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
       expect(container.read(searchSelectionProvider), isEmpty);
       expect(container.read(discoveryProvider).interests.moodSelected, isFalse);

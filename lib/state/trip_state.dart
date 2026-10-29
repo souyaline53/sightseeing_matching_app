@@ -11,11 +11,15 @@ final tripProvider = NotifierProvider<TripNotifier, TripState>(
 
 class TripNotifier extends Notifier<TripState> {
   @override
-  TripState build() =>
-      ref.watch(
-        tripLibraryProvider.select((value) => value.value?.activeTrip),
-      ) ??
-      TripState(id: 'loading');
+  TripState build() {
+    ref.listen(tripLibraryProvider, (previous, next) {
+      if (previous?.value?.activeTrip != next.value?.activeTrip) {
+        state = next.value?.activeTrip ?? TripState();
+      }
+    });
+    return ref.read(tripLibraryProvider).value?.activeTrip ?? TripState();
+  }
+
   void _commit(TripState next) {
     if (next.title.isEmpty && next.stops.isNotEmpty) {
       next = next.copyWith(title: '${next.stops.first.area}の小さな旅');
@@ -25,11 +29,22 @@ class TripNotifier extends Notifier<TripState> {
 
   void applyConditions(SearchConditions conditions) =>
       _commit(state.copyWith(conditions: conditions));
+
+  void openPlan(String id) {
+    final plan = ref
+        .read(tripLibraryProvider)
+        .requireValue
+        .plans
+        .where((p) => p.id == id)
+        .firstOrNull;
+    if (plan == null) return;
+    ref.read(tripLibraryProvider.notifier).select(id);
+    state = plan;
+  }
+
   void applySearchFilters(SearchConditions filters) {
-    final next = state.stops.isEmpty && state.saved.isEmpty
-        ? state.copyWith(conditions: filters, clearDate: true)
-        : TripState(conditions: filters);
-    _commit(next);
+    // Keep the current saved plan intact until the new search saves a card.
+    state = TripState(conditions: filters);
   }
 
   void save(Experience e) {

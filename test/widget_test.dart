@@ -12,6 +12,9 @@ import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'package:sightseeing_matching_app/service/curiosity_questions.dart';
 import 'test_support.dart';
+import 'package:sightseeing_matching_app/repository/trips_repository.dart';
+import 'package:sightseeing_matching_app/state/trip_library_state.dart';
+import 'package:sightseeing_matching_app/screen/profile/profile_setting_screen.dart';
 
 Future<void> reveal(WidgetTester tester, Finder finder) async {
   FocusManager.instance.primaryFocus?.unfocus();
@@ -28,6 +31,7 @@ Future<void> reveal(WidgetTester tester, Finder finder) async {
 Future<ProviderContainer> boot(
   WidgetTester tester, {
   MemorySettingsStorage? storage,
+  MemorySettingsStorage? tripStorage,
   Future<Map<String, ImageInfo?>> Function()? photos,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -35,6 +39,9 @@ Future<ProviderContainer> boot(
   final container = ProviderContainer(
     overrides: [
       mapTilesEnabledProvider.overrideWithValue(false),
+      tripsRepositoryProvider.overrideWithValue(
+        LocalTripsRepository(storage: tripStorage ?? MemorySettingsStorage()),
+      ),
       settingsRepositoryProvider.overrideWithValue(
         LocalSettingsRepository(storage: storage ?? MemorySettingsStorage()),
       ),
@@ -57,10 +64,20 @@ Future<void> answerQuestions(
   int reason = 0,
   int broaden = 0,
 }) async {
-  await tester.tap(find.byKey(ValueKey('mood-$mood')));
+  final moodId = CuriosityQuestions.moods[mood].id;
+  await reveal(tester, find.byKey(ValueKey('mood-$moodId')));
+  await tester.tap(find.byKey(ValueKey('mood-$moodId')));
   await tester.pumpAndSettle();
+  await reveal(
+    tester,
+    find.text(CuriosityQuestions.reason(mood).choices[reason]),
+  );
   await tester.tap(find.text(CuriosityQuestions.reason(mood).choices[reason]));
   await tester.pumpAndSettle();
+  await reveal(
+    tester,
+    find.text(CuriosityQuestions.broaden(mood, reason).choices[broaden]),
+  );
   await tester.tap(
     find.text(CuriosityQuestions.broaden(mood, reason).choices[broaden]),
   );
@@ -90,20 +107,20 @@ void main() {
     (tester) async {
       final container = await boot(tester);
       expect(find.text('前回の条件で探す'), findsNothing);
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('mood-0')));
+      expect(find.byKey(const ValueKey('mood-food')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('mood-food')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('地元の人しか知らない、秘密の味'));
+      await tester.tap(find.text('地元の人だけが知る、隠れた名物'));
       await tester.pumpAndSettle();
-      expect(find.text('秘密の味から、もう一歩。'), findsOneWidget);
+      expect(find.text('その街にもう一つ秘密があるとしたら？'), findsOneWidget);
       await tester.tap(find.byTooltip('前の画面へ'));
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).answers, [1]);
-      await tester.tap(find.text('誰もが知る、とびきりおいしいもの'));
+      await tester.tap(find.text('一度は食べたい、とびきり贅沢な一品'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('作り手のこだわりを知ってみたい'));
+      await tester.tap(find.text('土地の光を手仕事に探す'));
       await tester.pumpAndSettle();
       expect(find.text('どこから旅を始める？'), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
@@ -119,10 +136,10 @@ void main() {
       expect(last.searchedAt.isUtc, isTrue);
       expect(container.read(tripProvider).travelDate, isNull);
       final initial = container.read(discoveryProvider).deck;
-      await tester.drag(find.byType(Dismissible), const Offset(-350, 0));
+      await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved, isEmpty);
-      await tester.drag(find.byType(Dismissible), const Offset(350, 0));
+      await tester.drag(find.byType(Dismissible).last, const Offset(350, 0));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved.single.id, initial[1].id);
       await tester.longPress(find.text(initial[2].title));
@@ -133,10 +150,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('閉じる'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('旅行計画へ'));
+      await tester.tap(find.widgetWithText(FilledButton, '旅を組み立てる'));
       await tester.pumpAndSettle();
       expect(find.text('出発地：小樽駅 · 移動：車'), findsOneWidget);
-      expect(find.text('旅行日を選択（未確定）'), findsOneWidget);
+      expect(find.text('出発日を選択（未確定）'), findsOneWidget);
       final before = container.read(tripProvider).stops.first.id;
       await reveal(tester, find.byType(ReorderableDragStartListener).first);
       await tester.drag(
@@ -174,13 +191,14 @@ void main() {
       final container = await boot(tester, storage: storage);
       await tester.tap(find.text('プロフィール'));
       await tester.pumpAndSettle();
+      await tester.tap(find.byType(ProfileSettingTile).first);
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).first, '旭川駅');
-      await reveal(tester, find.text('基本設定を保存'));
-      await tester.tap(find.text('基本設定を保存'));
+      await tester.tap(find.text('保存する'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('発見する'));
+      await tester.tap(find.text('ホーム'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
       await answerQuestions(tester);
       expect(container.read(searchDraftProvider).origin, '旭川駅');
@@ -218,7 +236,7 @@ void main() {
       await reveal(tester, find.text('名前を変更'));
       await tester.tap(find.descendant(of: card, matching: find.text('読み込み')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mood-food')), findsOneWidget);
       await answerQuestions(tester);
       expect(container.read(searchDraftProvider).origin, '江別駅');
       expect(
@@ -257,7 +275,7 @@ void main() {
     },
   );
   testWidgets(
-    'LastSearch starts with new questions and legacy dates never block searching',
+    'empty home omits search history and new searches use profile defaults',
     (tester) async {
       final storage = MemorySettingsStorage();
       await LocalSettingsRepository(storage: storage).save(
@@ -274,13 +292,23 @@ void main() {
         ),
       );
       final container = await boot(tester, storage: storage);
-      await tester.tap(find.text('前回の条件で探す'));
+      expect(find.text('前回の条件で探す'), findsNothing);
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('mood-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mood-food')), findsOneWidget);
       await answerQuestions(tester);
-      expect(container.read(searchDraftProvider).origin, '函館駅');
+      expect(container.read(searchDraftProvider).origin, '旭川駅');
+      expect(
+        container
+            .read(settingsProvider)
+            .requireValue
+            .lastSearch!
+            .conditions
+            .origin,
+        '函館駅',
+      );
       expect(find.byType(CalendarDatePicker), findsNothing);
-      await tester.tap(find.text('この出発地にする'));
+      await tester.tap(find.byKey(const ValueKey('origin-chip-旭川駅')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('travel-transit')));
       await tester.pumpAndSettle();
@@ -294,24 +322,25 @@ void main() {
       expect(container.read(tripProvider).travelDate, isNull);
       container.read(discoveryProvider.notifier).reset();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('検索を開始する'));
+      await tester.tap(find.text('新しい旅を探す'));
       await tester.pumpAndSettle();
       await answerQuestions(tester);
       expect(container.read(searchDraftProvider).origin, '旭川駅');
       expect(tester.takeException(), isNull);
     },
   );
-  testWidgets('all six moods and question branches remain intact', (
+  testWidgets('all four moods and question branches remain intact', (
     tester,
   ) async {
     final container = await boot(tester);
     await tester.binding.setSurfaceSize(const Size(360, 640));
     final flow = container.read(discoveryProvider.notifier);
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 4; i++) {
       flow.startQuestions();
       await tester.pumpAndSettle();
-      expect(find.byKey(ValueKey('mood-$i')).hitTestable(), findsOneWidget);
-      await tester.tap(find.byKey(ValueKey('mood-$i')));
+      final key = ValueKey('mood-${CuriosityQuestions.moods[i].id}');
+      await reveal(tester, find.byKey(key));
+      await tester.tap(find.byKey(key));
       await tester.pumpAndSettle();
       expect(find.text(CuriosityQuestions.reason(i).title), findsOneWidget);
       await tester.tap(find.text(CuriosityQuestions.reason(i).choices.first));
@@ -343,11 +372,11 @@ void main() {
       ready.complete({});
       await tester.pumpAndSettle();
       for (var i = 0; i < 10; i++) {
-        await tester.drag(find.byType(Dismissible), const Offset(-350, 0));
+        await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
         await tester.pumpAndSettle();
       }
       expect(container.read(discoveryProvider).index, 0);
-      await tester.drag(find.byType(Dismissible), const Offset(350, 0));
+      await tester.drag(find.byType(Dismissible).last, const Offset(350, 0));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved.length, 1);
       expect(loads, 1);
@@ -365,14 +394,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('プロフィール'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byType(ProfileSettingTile).first);
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '入力は残す');
-    await reveal(tester, find.text('基本設定を保存'));
     storage.failWrite = true;
-    await tester.tap(find.text('基本設定を保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
     expect(find.textContaining('保存できませんでした'), findsOneWidget);
     storage.failWrite = false;
-    await tester.tap(find.text('基本設定を保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
     expect(
       (await LocalSettingsRepository(storage: storage).load()).profile.origin,

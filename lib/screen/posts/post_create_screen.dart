@@ -140,8 +140,8 @@ class PostCreateScreen extends HookConsumerWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Text(
-                'この端末に保存されます。ほかのユーザーには公開されません。',
-                style: TextStyle(fontSize: 12, height: 1.5),
+                '※これはデモ版です。この端末に保存されます。ほかのユーザーには公開されません。',
+                style: TextStyle(fontSize: 25, height: 1.5, color: Colors.redAccent, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 24),

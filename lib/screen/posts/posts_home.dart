@@ -191,8 +191,9 @@ class PostsHome extends HookConsumerWidget {
                               ? 'この端末内のフォロー・投稿のデモです'
                               : 'おすすめはデモです · 質問の回答を参考に表示',
                           style: TextStyle(
-                            fontSize: 10,
-                            color: colors.onSurfaceVariant,
+                            fontSize: 20,
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       )

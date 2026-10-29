@@ -28,7 +28,7 @@ const departurePlaces = [
   DeparturePlace('yubari', '新夕張駅', 'しんゆうばり yubari', LatLng(42.9369, 142.0345)),
   DeparturePlace(
     'odori-bus',
-    '大通（バス停・サンプル）',
+    '大通',
     'おおどおり odori bus',
     LatLng(43.06, 141.356),
     bus: true,

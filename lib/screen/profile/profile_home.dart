@@ -7,6 +7,7 @@ import '../../state/discovery_state.dart';
 import '../../state/settings_state.dart';
 import 'widgets/conditions_form.dart';
 import 'profile_setting_screen.dart';
+import 'account/account_card.dart';
 import '../../widgets/settings_actions.dart';
 
 class ProfileHome extends HookConsumerWidget {
@@ -34,6 +35,8 @@ class ProfileHome extends HookConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
+          const AccountCard(),
+          const SizedBox(height: 24),
           const Text(
             '基本設定',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),

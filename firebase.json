@@ -12,5 +12,49 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "sightseeing-matching-prototype",
+          "configurations": {
+            "android": "1:632153461452:android:8258d3c8735f0dc0972869",
+            "ios": "1:632153461452:ios:5bf7ccc5fd6505dd972869",
+            "web": "1:632153461452:web:da0d7a0372e80fb4972869"
+          }
+        }
+      },
+      "android": {
+        "default": {
+          "projectId": "sightseeing-matching-prototype",
+          "appId": "1:632153461452:android:8258d3c8735f0dc0972869",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "sightseeing-matching-prototype",
+          "appId": "1:632153461452:ios:5bf7ccc5fd6505dd972869",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
+    },
+    "singleProjectMode": true
   }
 }

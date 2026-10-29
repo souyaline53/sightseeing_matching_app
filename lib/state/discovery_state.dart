@@ -1,4 +1,5 @@
 import '../model/interest_answers.dart';
+import '../data/mock_data.dart';
 import 'settings_state.dart';
 import 'conditions_step_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -135,10 +136,9 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   void showExplore() => state = state.copyWith(
     step: 3,
     index: 0,
-    deck: RecommendationService().recommendFor(
-      state.interests,
-      filters: ref.read(searchDraftProvider),
-    ),
+    deck: RecommendationService(
+      catalog: ref.read(mockCatalogProvider).requireValue.experiences,
+    ).recommendFor(state.interests, filters: ref.read(searchDraftProvider)),
   );
   void goTo(int index) {
     if (index >= 0 && index < state.deck.length) {

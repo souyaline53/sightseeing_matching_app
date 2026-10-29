@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sightseeing_matching_app/data/mock_data.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
@@ -13,6 +12,7 @@ import 'test_support.dart';
 import 'widget_test.dart' show boot, reveal;
 
 void main() {
+  initializeMockCatalogTests();
   testWidgets(
     'empty home gallery opens the matching detail sheet without creating a trip',
     (tester) async {

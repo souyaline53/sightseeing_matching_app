@@ -16,6 +16,7 @@ class ItineraryHome extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trip = ref.watch(tripProvider);
+    final experiences = ref.watch(mockCatalogProvider).requireValue.experiences;
     final controller = ref.read(tripProvider.notifier);
     void showPlan(bool demo) {
       final stops = List<Experience>.of(
@@ -235,7 +236,10 @@ class PlanScreen extends HookConsumerWidget {
     final date = livePlan == null ? this.date : livePlan.travelDate;
     final publicTransport = livePlan?.publicTransport ?? this.publicTransport;
     final conditions = livePlan?.conditions ?? this.conditions;
-    final legs = sampleTransit(origin, stops);
+    final legs = ref
+        .watch(mockCatalogProvider)
+        .requireValue
+        .sampleTransit(origin, stops);
     return Scaffold(
       appBar: AppBar(title: Text(demo ? 'デモ用の旅程' : 'マイプラン')),
       floatingActionButton: demo
@@ -353,6 +357,10 @@ class TransitCard extends HookConsumerWidget {
             '${leg.transfer}\n${leg.walking}\n推定交通費：${leg.fare}',
             style: const TextStyle(fontSize: 12, height: 1.7),
           ),
+          if (leg.note.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(leg.note, style: const TextStyle(fontSize: 11)),
+          ],
         ],
       ),
     ),

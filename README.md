@@ -15,6 +15,20 @@ flutter run -d chrome --web-port 7357
 flutter run -d web-server --web-port 7357
 ```
 
+## アカウント登録（任意）
+
+プロフィールタブからメール／パスワードで登録・ログインできます。年代・ニックネーム・地方／都道府県・市町村をFirestoreの本人専用ドキュメントへ保存し、個人IDにはFirebase AuthのUIDを使用します。未登録時は「ゲストさん」として全タブを利用できます。
+
+Firebaseのアプリ接続設定は生成済みです。**利用前にAuthenticationのメール／パスワード方式の有効化、Firestore作成、セキュリティルール反映が必要です。** 詳しい手順とエミュレーターの使い方は [Firebase設定ガイド](docs/firebase_setup.md) を参照してください。既存の旅行の基本設定や旅程・投稿は端末内保存を維持しています。
+
+## 観光地・交通データの追加
+
+観光地は `assets/mock_data/sightseeing_spot/`、交通サンプルは `assets/mock_data/transit/` に1件1ファイルのMarkdownで保存します。写真は `assets/mock_data/images/` に置き、Markdownの `![説明](../images/写真名.jpg)` で指定します。既存の写真10枚もローカルアセットです。
+
+同じフォルダへ `.md` を追加すれば、アセット一覧から自動で読み込みます。Dartのデータ配列やindexの追記は不要です。追加・変更後はアプリを停止して再起動、Web公開時は再ビルドしてください。編集用の書式・コピー用テンプレートは [データ追加ガイド](assets/mock_data/README.md) を参照してください。
+
+カタログはRepositoryで読み込み、Riverpodで起動時に一度復元します。プロフィール・検索条件・旅程の端末内保存とは別です。Firestoreには未接続ですが、将来は `MockCatalogRepository` の実装を差し替えられます。
+
 ## 操作
 
 1. ホームは「現在選択中の旅行のしおり」です。旅程がある場合は横幅いっぱいの代表写真にタイトル・日程・出発地・移動手段を重ね、写真下部に24px重ねた白いSheetへ訪問順のリストと「旅のしおりを開く」を配置します。写真と主ボタンを固定し、Sheet内のリストだけをスクロールして全スポットを確認できます。旅行がない場合はイラスト・「まだ旅行の予定はありません」・検索開始ボタンを表示し、その下に北海道の体験写真を横スワイプで切り替えられるギャラリーで表示します。写真をタップすると既存の詳細Sheetが下から開き、ストーリーや所要時間を確認・保存できます。左上のメニュー「わたしの旅」から切り替え・名前変更・複製・確認付き削除ができます。スポット0件の保存済み旅程も「作成中」として表示します。「新しい旅を探す」でプロフィールを初期条件として読み込み、既存の3つの好奇心質問へ進みます。旅行がある場合の新規検索はDrawerの「新しい旅を追加」から開始します。プロフィールのプリセット読み込みも、質問から始まります。ホームには検索履歴を表示しません。
@@ -22,9 +36,25 @@ flutter run -d web-server --web-port 7357
 3. 全画面の条件設定は、STEP 1「どこから旅を始める？」→STEP 2「どうやって旅する？」→STEP 3「どのくらい旅する？」→STEP 4「誰と旅する？」の順です。出発地は「札幌駅」「新千歳空港」「小樽駅」「旭川駅」の2列×2行の4択で、ワンタップで確定します。検索欄はありません。地図は「地図から選ぶ」を開いたときだけ表示・読み込みし、同じ4地点のピンを選択後「この出発地にする」で確定します。移動手段もカードを1回タップするだけで次へ進みます。
 4. 旅行期間は「半日・日帰り・1泊2日・2泊3日以上」の4択をタップすると同行者画面へ進みます。同行者は「ひとり・友達・カップル・家族」の4択。下の折りたたみには片道時間・総予算・徒歩負担をまとめています。最後に「この条件で探す」または「条件を保存して検索」を選びます。後者は任意のプリセット名を入力でき、プリセットとLastSearchを1回の保存処理で更新してから探索へ進みます。キャンセル・保存失敗時は探索を開始しません。スキップ操作はありません。検索フローでは旅行日を聞きません。
 
-5. 探索画面は全10件の写真を事前に読み込みます。最大12秒で個々の失敗をプレースホルダーに確定し、スワイプ中には読み込み直しません。**左スワイプは次へ、右スワイプは保存して次へ**。上スワイプでも保存して次へ進み、ハートは保存・取り消しを切り替えます。最後の次は先頭へ循環します。詳細は長押しまたは画像上のボタンで表示します。
+5. 探索画面は登録された全件の写真を事前に読み込みます。最大12秒で個々の失敗をプレースホルダーに確定し、スワイプ中には読み込み直しません。**左スワイプは次へ、右スワイプは保存して次へ**。上スワイプでも保存して次へ進み、ハートは保存・取り消しを切り替えます。最後の次は先頭へ循環します。詳細は長押しまたは画像上のボタンで表示します。
 6. カード下の「旅を組み立てる」ボタン、または同名のタブから、保存した体験を追加・削除・ドラッグ並べ替えします。自分で組み立てた旅程とAIのデモ用旅程を表示できます。タブを切り替えても編集中の旅程を保持し、自動保存します。
 7. プロフィールでは普段の出発地・交通手段・予算・徒歩希望を保存します。プリセットの読み込み、名前変更、内容編集、上書き、確認付き削除もここから行います。
+
+## 投稿タブ（ローカル試作）
+
+ホーム・旅を組み立てる・投稿・プロフィールの4タブです。
+
+- 「おすすめ」は質問の興味を参考に並べるルールベースのデモです。AI APIには接続していません。「フォロー中」は投稿メニューからフォローしたサンプルユーザーの投稿を表示します。
+- 投稿カードにはスポットタグ、写真・動画のカルーセル、ページ表示、いいね、コメント、シェア、投稿の保存、星評価、本文・ハッシュタグ、最新コメントを表示します。
+- タグをタップすると既存の観光地詳細が開き、同じスポットIDの投稿を「みんなのレビュー」に表示します。投稿のしおり保存と、旅行計画への体験保存は独立しています。
+- 右下の＋から、登録済みスポット・評価・カテゴリ・本文を入力し、写真・動画を選んで投稿できます。端末のライブラリ・対応端末での撮影に加え、動作確認用のスポット写真も利用できます。
+- メディアは最大6件、1件20MB・合計40MB、動画30秒以内です。Webの再生形式はブラウザに依存します。MP4・WebMを推奨し、未対応形式は読み込みエラーを表示します。撮影や写真ライブラリのUIは端末・ブラウザに依存します。
+- シェアは本文とスポット名のテキスト共有です。対応環境では標準の共有画面を使い、利用できない場合は本文をコピーします。公開用の投稿URLは生成しません。
+- 投稿・コメント・いいね・フォロー・保存とメディア本体は、この端末だけに保存します。WebはIndexedDB（`tabisaki.posts.v1`）、Android/iOSはアプリのサポートディレクトリ内のSembastファイルです。同じブラウザ・同じオリジンで復元します。ほかのユーザーには公開されず、同期はありません。新しい投稿・コメントはログイン中のUIDとニックネームを使用し、未登録時は端末内ゲストIDと「ゲストさん」を使用します。
+- 投稿と画像・動画の保存は1トランザクションで行い、失敗時はフォームを保持します。自分の投稿のみ確認後に削除でき、他の投稿と共有していないローカルメディアも削除します。
+- モデルは `lib/model/post.dart`、保存境界は `PostsRepository`、状態は `postsProvider` に分離しています。観光地のMarkdownや既存のプロフィール・旅程保存は変更しません。
+
+メディア選択には[image_picker](https://pub.dev/packages/image_picker)、再生には[video_player](https://pub.dev/packages/video_player)、Web保存には[sembast_web](https://pub.dev/packages/sembast_web)を使用しています。iOSの写真・カメラ・マイクの利用目的をInfo.plistに追加しています。実機での撮影・再生確認は未実施です。
 
 ## 保存と独立性
 
@@ -61,7 +91,7 @@ flutter run -d web-server --web-port 7357
 | `lib/state/discovery_state.dart` | 検索画面遷移・質問回答・探索位置 |
 | `lib/state/trip_state.dart` | 編集中旅程の投影と、既存画面から使う編集API |
 | `lib/state/trip_library_state.dart` | 旅程一覧の復元・編集・削除・保存とエラー通知 |
-| `lib/state/app_tab.dart` | 発見・旅程・プロフィールの3タブ |
+| `lib/state/app_tab.dart` | ホーム・旅程・投稿・プロフィールの4タブ |
 | `lib/service/curiosity_questions.dart` | 4つの気分・12通りの理由・5種類のクエストセットと興味のヒント |
 | `lib/screen/recommendation/curiosity_question_flow.dart` | 写真付き4択・理由3択・クエスト3択の質問UI |
 | `lib/service/recommendation_service.dart` | 好みに近い・隣接・意外な体験を混ぜる推薦 |
@@ -81,8 +111,13 @@ flutter run -d web-server --web-port 7357
 | `lib/screen/recommendation/experience_deck.dart` | 事前読み込み済み画像の左右スワイプ探索 |
 | `lib/screen/recommendation/experience_detail.dart` | ストーリー詳細、固定の閉じるボタン |
 | `lib/screen/itinerary/itinerary_home.dart` | 条件を引き継いだ旅程編集とサンプル交通 |
-| `lib/screen/base_page.dart` | 設定と旅程の起動時復元・ホーム/旅程/プロフィールの3タブ・戻る操作 |
-| `lib/data/mock_data.dart` | 北海道10件とサンプル交通。推薦処理はServiceに分離 |
+| `lib/screen/base_page.dart` | 設定と旅程の起動時復元・ホーム/旅程/投稿/プロフィールの4タブ・戻る操作 |
+| `lib/data/mock_data.dart` | カタログRepositoryと読み込み状態のRiverpod Provider |
+| `lib/repository/mock_catalog_repository.dart` | アセット一覧からMarkdownを自動検出・検証・読み込み |
+| `lib/model/mock_catalog.dart` | 体験一覧・交通サンプルと区間の表示モデル |
+| `assets/mock_data/sightseeing_spot/*.md` | 北海道10件の体験・写真・アクセスのサンプル値 |
+| `assets/mock_data/transit/*.md` | 交通機関・時刻・乗換・徒歩・運賃・注意書き |
+| `assets/mock_data/images/*` | 同梱する観光写真 |
 | `pubspec.yaml`, `pubspec.lock` | 保存・地図・座標型・地図出典リンクの依存 |
 | `android/app/src/main/AndroidManifest.xml` | リリース版でも地図画像を取得するためのINTERNET権限 |
 | `ios/Podfile`, `ios/Flutter/{Debug,Release}.xcconfig` | プラグイン導入時にFlutterが生成したiOS設定 |
@@ -92,7 +127,7 @@ flutter run -d web-server --web-port 7357
 
 ## 制限・未実装
 
-- AI・交通API・Firebase・認証・課金は追加していません。
+- Firebase Authenticationと本人用プロフィールのFirestore保存を追加しています。AI・交通API・課金、公開プロフィール、共同旅程、旅程・投稿のクラウド同期は未実装です。
 - 出発地・交通手段・予算・移動時間などはサンプル推薦のジャンル内順位に反映します。実経路や料金の検索ではなく、条件を満たす保証・除外判定は行いません。
 - [flutter_map](https://pub.dev/packages/flutter_map)でパン・ズームできる地図を表示します。地図画像はOpenStreetMapから取得しますが、駅・バス停候補と座標はローカルのサンプルです。外部ジオコーディングや全国の駅検索はありません。検索フローで新しく選べる地点は暫定の4地点です。画像取得失敗時も4択ボタンを利用できます。保存済み条件に別の出発地がある場合は、自動変更せず保持します。地図には出典リンクを表示しています。
 - 時刻・乗換・徒歩・交通費・車の所要時間はすべてダミー。帰路や最終便、実際の日帰り可否も検索しません。
@@ -103,12 +138,14 @@ flutter run -d web-server --web-port 7357
 
 ## 検証
 
+投稿は `test/posts_state_test.dart`・`test/posts_widget_test.dart` で保存・操作・レビュー連動を、`flutter test --platform chrome test/posts_browser_test.dart` で実際のIndexedDBへの保存と復元を確認します。
+
 ```sh
 flutter pub get
 dart format .
 flutter analyze
 flutter test
-flutter test --platform chrome test/browser_storage_test.dart test/conditions_steps_test.dart
+flutter test --platform chrome test/browser_storage_test.dart test/mock_catalog_test.dart
 flutter build web
 ```
 

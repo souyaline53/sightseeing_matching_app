@@ -14,6 +14,7 @@ import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 
 void main() {
+  initializeMockCatalogTests();
   test(
     'JSON repository restores all three data types in a new provider container',
     () async {
@@ -146,7 +147,7 @@ void main() {
   test(
     'all 36 answer combinations mix quests, moods and surprising registered experiences',
     () {
-      final service = RecommendationService();
+      final service = RecommendationService(catalog: experiences);
       for (final mood in CuriosityQuestions.moods) {
         expect(CuriosityQuestions.reasonFor(mood.id).options.length, 3);
         for (final reason in CuriosityQuestions.reasonFor(mood.id).options) {
@@ -176,7 +177,9 @@ void main() {
   test(
     'question back preserves answers; changing an earlier answer clears stale branches',
     () {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [mockCatalogProvider.overrideWith((ref) => testCatalog)],
+      );
       addTearDown(container.dispose);
       final controller = container.read(discoveryProvider.notifier);
       controller.startConditions();
@@ -230,7 +233,7 @@ void main() {
   test(
     'mock filters affect ranking while retaining close, related and surprising genres',
     () {
-      final service = RecommendationService();
+      final service = RecommendationService(catalog: experiences);
       final nearby = service.recommend(
         '食',
         [0, 0],

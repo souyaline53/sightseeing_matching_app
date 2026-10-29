@@ -2,12 +2,11 @@ import '../model/search_settings.dart';
 import '../model/interest_answers.dart';
 import 'mock_access_ranking.dart';
 import 'curiosity_questions.dart';
-import '../data/mock_data.dart';
 import '../model/experience.dart';
 
 class RecommendationService {
   final List<Experience> catalog;
-  const RecommendationService({this.catalog = experiences});
+  const RecommendationService({required this.catalog});
   List<Experience> recommendFor(
     InterestAnswers answers, {
     SearchFilters? filters,
@@ -73,7 +72,9 @@ class RecommendationService {
     List<int> choices, {
     SearchFilters? filters,
   }) {
-    final moodIndex = moods.indexWhere((m) => m.$2 == category);
+    final moodIndex = CuriosityQuestions.moods.indexWhere(
+      (m) => m.genres.first == category,
+    );
     final mood = CuriosityQuestions.moods.elementAtOrNull(moodIndex);
     if (mood == null || choices.length < 2) return const [];
     final reason = CuriosityQuestions.reasonFor(

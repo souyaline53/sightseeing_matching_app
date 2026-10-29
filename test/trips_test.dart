@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:sightseeing_matching_app/data/mock_data.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
@@ -9,6 +8,7 @@ import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'test_support.dart';
 
 void main() {
+  initializeMockCatalogTests();
   test(
     'valid selection takes priority over dates; missing selection falls back safely',
     () {

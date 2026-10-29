@@ -13,6 +13,7 @@ import 'test_support.dart';
 import 'widget_test.dart' show boot, reveal, answerQuestions, enterDetails;
 
 void main() {
+  initializeMockCatalogTests();
   testWidgets(
     'offline map remains interactive; pin requires explicit confirmation',
     (tester) async {
@@ -190,10 +191,9 @@ void main() {
       expect(settings.lastSearch!.searchedAt.isBefore(before), isFalse);
       expect(container.read(tripProvider).travelDate, isNull);
       expect(container.read(discoveryProvider).step, 3);
-      final expected = RecommendationService().recommend('食', [
-        0,
-        0,
-      ], filters: filters);
+      final expected = RecommendationService(
+        catalog: experiences,
+      ).recommend('食', [0, 0], filters: filters);
       expect(
         container.read(discoveryProvider).deck.map((e) => e.id),
         expected.map((e) => e.id),

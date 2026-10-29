@@ -1,7 +1,9 @@
 import '../state/trip_library_state.dart';
+import '../data/mock_data.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
 import 'profile/profile_home.dart';
+import 'posts/posts_home.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../state/app_tab.dart';
 import 'package:flutter/material.dart';
@@ -15,10 +17,11 @@ class BasePage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final trips = ref.watch(tripLibraryProvider);
-    if (settings.isLoading || trips.isLoading) {
+    final catalog = ref.watch(mockCatalogProvider);
+    if (settings.isLoading || trips.isLoading || catalog.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (settings.hasError || trips.hasError) {
+    if (settings.hasError || trips.hasError || catalog.hasError) {
       return Scaffold(
         body: Center(
           child: Padding(
@@ -26,14 +29,17 @@ class BasePage extends HookConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '保存済みデータを読み込めませんでした。データを保護するため、読み込みが完了するまで編集を停止しています。',
+                Text(
+                  catalog.hasError
+                      ? '観光地・交通データを読み込めませんでした。Markdownファイルの内容を確認してください。\n${catalog.error}'
+                      : '保存済みデータを読み込めませんでした。データを保護するため、読み込みが完了するまで編集を停止しています。',
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
                     if (settings.hasError) ref.invalidate(settingsProvider);
                     if (trips.hasError) ref.invalidate(tripLibraryProvider);
+                    if (catalog.hasError) ref.invalidate(mockCatalogProvider);
                   },
                   child: const Text('再読み込み'),
                 ),
@@ -76,6 +82,7 @@ class BasePage extends HookConsumerWidget {
                 children: [
                   const RecommendationHome(),
                   const ItineraryHome(),
+                  const PostsHome(),
                   const ProfileHome(),
                 ],
               ),
@@ -103,6 +110,11 @@ class BasePage extends HookConsumerWidget {
                 child: const Icon(Icons.route_outlined),
               ),
               label: '旅を組み立てる',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.photo_library_outlined),
+              selectedIcon: Icon(Icons.photo_library),
+              label: '投稿',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline),

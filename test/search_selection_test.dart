@@ -16,6 +16,7 @@ Iterable<Semantics> selectedCards(WidgetTester tester, Type page) => tester
     .where((widget) => widget.properties.selected == true);
 
 void main() {
+  initializeMockCatalogTests();
   testWidgets(
     'search starts visually unselected, preserves defaults and remembers explicit choices on back',
     (tester) async {

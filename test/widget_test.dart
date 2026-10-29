@@ -12,6 +12,12 @@ import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'package:sightseeing_matching_app/service/curiosity_questions.dart';
 import 'test_support.dart';
+import 'package:sightseeing_matching_app/state/account_state.dart';
+import 'package:sightseeing_matching_app/repository/account_repository.dart';
+import 'package:sightseeing_matching_app/repository/posts_repository.dart';
+import 'package:sightseeing_matching_app/state/posts_state.dart';
+import 'package:sightseeing_matching_app/service/post_media_picker.dart';
+import 'package:sightseeing_matching_app/data/mock_data.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'package:sightseeing_matching_app/screen/profile/profile_setting_screen.dart';
@@ -32,12 +38,27 @@ Future<ProviderContainer> boot(
   WidgetTester tester, {
   MemorySettingsStorage? storage,
   MemorySettingsStorage? tripStorage,
+  PostsRepository? postsRepository,
+  PostMediaPicker? mediaPicker,
+  AccountRepository? accountRepository,
   Future<Map<String, ImageInfo?>> Function()? photos,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final container = ProviderContainer(
     overrides: [
+      guestIdentityRepositoryProvider.overrideWithValue(
+        MemoryGuestIdentityRepository(),
+      ),
+      accountRepositoryProvider.overrideWith(
+        (ref) => accountRepository ?? FakeAccountRepository(),
+      ),
+      mockCatalogProvider.overrideWith((ref) => testCatalog),
+      if (mediaPicker != null)
+        postMediaPickerProvider.overrideWithValue(mediaPicker),
+      postsRepositoryProvider.overrideWithValue(
+        postsRepository ?? MemoryPostsRepository(),
+      ),
       mapTilesEnabledProvider.overrideWithValue(false),
       tripsRepositoryProvider.overrideWithValue(
         LocalTripsRepository(storage: tripStorage ?? MemorySettingsStorage()),
@@ -102,6 +123,7 @@ Future<void> enterDetails(
 }
 
 void main() {
+  initializeMockCatalogTests();
   testWidgets(
     'questions precede conditions; execution, cards and itinerary remain connected',
     (tester) async {

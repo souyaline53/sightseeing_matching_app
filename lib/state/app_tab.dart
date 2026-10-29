@@ -1,6 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-enum AppTab { recommendation, itinerary, profile }
+enum AppTab { recommendation, itinerary, posts, profile }
 
 final appTabProvider = NotifierProvider<AppTabNotifier, AppTab>(
   AppTabNotifier.new,

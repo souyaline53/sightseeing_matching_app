@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../model/experience.dart';
 import '../../state/trip_state.dart';
 import '../../widgets/travel_photo.dart';
+import '../posts/spot_reviews.dart';
 
 void showExperience(BuildContext context, Experience experience) {
   showModalBottomSheet<void>(
@@ -99,6 +100,7 @@ class ExperienceDetail extends HookConsumerWidget {
                           ),
                         ),
                       ),
+                      SpotReviews(spotId: experience.id),
                     ],
                   ),
                 ),
@@ -128,6 +130,6 @@ Experience experiencesCompanion(Experience e) => Experience(
   e.description,
   e.story,
   e.surprise,
-  'photo-1472396961693-142e6e269027',
+  e.additionalPhotos.firstOrNull ?? e.photo,
   e.minutes,
 );

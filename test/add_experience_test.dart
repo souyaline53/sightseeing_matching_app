@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:sightseeing_matching_app/data/mock_data.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
@@ -24,6 +23,7 @@ Future<void> showCoal(WidgetTester tester) async {
 }
 
 void main() {
+  initializeMockCatalogTests();
   for (final fromBooklet in [false, true]) {
     testWidgets(
       'add cards to existing trip from ${fromBooklet ? 'booklet FAB' : 'itinerary button'}',

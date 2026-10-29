@@ -12,6 +12,7 @@ class HomeExperienceGallery extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
+    final experiences = ref.watch(mockCatalogProvider).requireValue.experiences;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

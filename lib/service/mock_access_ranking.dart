@@ -4,18 +4,6 @@ import '../model/search_settings.dart';
 
 /// Illustrative ranking costs only: not a route, fare or feasibility guarantee.
 class MockAccessRanking {
-  static const _minutes = {
-    'melon': 120,
-    'coal': 140,
-    'lake': 150,
-    'otaru': 60,
-    'craft': 60,
-    'b walk': 45,
-    'bread': 15,
-    'hill': 240,
-    'river': 70,
-    'rail': 110,
-  };
   double score(Experience e, SearchFilters filters) {
     final home = [
       '札幌',
@@ -31,7 +19,7 @@ class MockAccessRanking {
         (e.area.contains(home) || home == '旭川' && e.area == '美瑛');
     final base = local
         ? 15
-        : (_minutes[e.id] ?? 120) + (home == null || home == '札幌' ? 0 : 90);
+        : e.accessMinutes + (home == null || home == '札幌' ? 0 : 90);
     final minutes = filters.transport == TravelMode.transit
         ? base.toDouble()
         : base * .65;

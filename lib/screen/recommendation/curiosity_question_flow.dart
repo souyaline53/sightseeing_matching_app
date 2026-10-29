@@ -258,7 +258,12 @@ class _QuestionPhoto extends HookConsumerWidget {
   const _QuestionPhoto(this.id);
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final experience = experiences.where((e) => e.id == id).firstOrNull;
+    final experience = ref
+        .watch(mockCatalogProvider)
+        .requireValue
+        .experiences
+        .where((e) => e.id == id)
+        .firstOrNull;
     return experience == null
         ? const ColoredBox(
             color: Color(0xffd9e7df),

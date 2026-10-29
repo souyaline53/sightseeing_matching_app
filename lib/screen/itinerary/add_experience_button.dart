@@ -23,12 +23,15 @@ class AddExperienceButton extends HookConsumerWidget {
         if (tripId != null) ref.read(tripProvider.notifier).openPlan(tripId!);
         final trip = ref.read(tripProvider);
         final interests = ref.read(discoveryProvider).interests;
+        final experiences = ref
+            .read(mockCatalogProvider)
+            .requireValue
+            .experiences;
         final ranking = MockAccessRanking();
         final deck = CuriosityQuestions.valid(interests)
-            ? RecommendationService().recommendFor(
-                interests,
-                filters: trip.conditions,
-              )
+            ? RecommendationService(
+                catalog: experiences,
+              ).recommendFor(interests, filters: trip.conditions)
             : ([...experiences]..sort(
                 (a, b) => ranking
                     .score(a, trip.conditions)

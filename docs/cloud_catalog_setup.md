@@ -36,6 +36,31 @@ firebase deploy --only firestore:rules,storage --project sightseeing-matching-pr
 - Cloud Storageを有効化する。設定済みのバケットは `sightseeing-matching-prototype.firebasestorage.app`。
 - 現在のStorage利用要件はBlazeプラン。[公式の要件](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024)
 
+### Webの画像取得に必要なCORS設定
+
+画像を直接ブラウザで開けても、Webアプリから画像データを取得・キャッシュするにはStorageバケットのCORS設定が必要です。未設定の場合、Chromeは `No 'Access-Control-Allow-Origin' header` として取得を拒否し、アプリではプレースホルダーが表示されます。端末のキャッシュ削除だけでは直りません。[Firebase公式の説明](https://firebase.google.com/docs/storage/web/download-files#cors_configuration)
+
+リポジトリ直下で、Google Cloud CLIを利用できるアカウントから次を実行してください。バケット設定の変更権限が必要です。`firebase deploy` はCORS設定を反映しません。
+
+```sh
+gcloud storage buckets update gs://sightseeing-matching-prototype.firebasestorage.app --cors-file=storage.cors.json
+gcloud storage buckets describe gs://sightseeing-matching-prototype.firebasestorage.app --format="default(cors_config)"
+node tool/check_image_cors.mjs http://localhost:7357
+```
+
+Google Cloud CLIが手元にない場合は、Google CloudコンソールのCloud Shellで、次のコマンドを実行できます。
+
+```sh
+cat > /tmp/tabisaki-storage.cors.json <<'JSON'
+[{"origin":["*"],"method":["GET","HEAD"],"responseHeader":["Content-Type","Content-Length","Cache-Control","ETag"],"maxAgeSeconds":3600}]
+JSON
+gcloud storage buckets update gs://sightseeing-matching-prototype.firebasestorage.app --cors-file=/tmp/tabisaki-storage.cors.json
+```
+
+これは閲覧用のGET・HEADのみを許可します。既存の公開画像を開発時の可変ポートからも取得できるよう、オリジンは `*` としています。Storageルールや認証、書き込み権限は変更しません。既存のCORS設定がある場合、このコマンドはその設定を置き換えるため、必要な許可を統合してから反映してください。本番オリジンと開発ポートを固定した段階では `origin` を使用するオリジンの一覧に限定できます。
+
+反映後、Web画面を再読み込みしてください。バケット設定は今回のローカル修正では変更していません。確認用スクリプトは公開カタログの画像1件の応答を確認するだけで、クラウドへの書き込みや画像URLのログ出力は行いません。
+
 ## 管理画面
 
 `nichi-ka@nichi-ka.com` でログインすると、プロフィール最下部に管理者メニューを表示します。書き込みにはメール確認も必要です。「確認メールを送信」→確認リンク→「確認状態を更新」の順で、認証トークンも更新します。

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/account_profile.dart';
 import 'account_repository.dart';
+import '../service/cloud/public_profile_sync.dart';
 
 class FirebaseAccountRepository implements AccountRepository {
   final FirebaseAuth auth;
@@ -78,6 +79,7 @@ class FirebaseAccountRepository implements AccountRepository {
         email: email.trim(),
         password: password,
       );
+      await syncPublicProfile();
     } on FirebaseAuthException catch (error) {
       throw AccountFailure(authErrorMessage(error.code));
     }
@@ -94,15 +96,30 @@ class FirebaseAccountRepository implements AccountRepository {
     final reference = firestore.collection('users').doc(user.uid);
     await firestore.runTransaction((transaction) async {
       final existing = await transaction.get(reference);
+      final userType = UserType.fromValue(existing.data()?['userType']);
       transaction.set(reference, {
         'uid': user.uid,
         ...details.toMap(),
+        'userType': userType.name,
         'createdAt':
             existing.data()?['createdAt'] ?? FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      transaction.set(firestore.collection('public_profiles').doc(user.uid), {
+        'uid': user.uid,
+        'displayName': details.nickname.trim(),
+        'userType': userType.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
     await user.updateDisplayName(details.nickname.trim());
+  }
+
+  // 旧アカウントも再ログイン時に公開用の最小プロフィールを作成する。
+  Future<void> syncPublicProfile() async {
+    final user = auth.currentUser;
+    if (user == null || user.isAnonymous) return;
+    await syncPublicChatProfile(firestore, user.uid);
   }
 
   @override

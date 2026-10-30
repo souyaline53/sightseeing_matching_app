@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/main.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
+import 'package:sightseeing_matching_app/repository/chat_repository.dart';
+import 'package:sightseeing_matching_app/state/chat_state.dart';
 import 'package:sightseeing_matching_app/repository/settings_repository.dart';
 import 'package:sightseeing_matching_app/state/settings_state.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
@@ -45,6 +47,7 @@ Future<ProviderContainer> boot(
   PostsRepository? postsRepository,
   PostMediaPicker? mediaPicker,
   AccountRepository? accountRepository,
+  ChatRepository? chatRepository,
   CloudServices? cloudServices,
   FirestoreCatalogRepository? adminRepository,
   Object? catalogFailure,
@@ -60,6 +63,8 @@ Future<ProviderContainer> boot(
       accountRepositoryProvider.overrideWith(
         (ref) => accountRepository ?? FakeAccountRepository(),
       ),
+      if (chatRepository != null)
+        chatRepositoryProvider.overrideWith((ref) => chatRepository),
       catalogProvider.overrideWith((ref) {
         if (catalogFailure != null) throw catalogFailure;
         return Stream.value(testCatalog);

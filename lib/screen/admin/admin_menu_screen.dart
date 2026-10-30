@@ -8,13 +8,14 @@ import '../../service/cloud/image_optimization_service.dart';
 import '../../state/account_state.dart';
 import '../../widgets/settings_actions.dart';
 import 'catalog_edit_screen.dart';
+import 'user_type_panel.dart';
 
 class AdminMenuScreen extends HookConsumerWidget {
   const AdminMenuScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final account = ref.watch(currentAccountProvider);
-    final tabs = useTabController(initialLength: 2);
+    final tabs = useTabController(initialLength: 3);
     useListenable(tabs);
     final busy = useState(false);
     final progress = useState('');
@@ -101,11 +102,12 @@ class AdminMenuScreen extends HookConsumerWidget {
                   tabs: const [
                     Tab(text: '観光地情報'),
                     Tab(text: '交通情報'),
+                    Tab(text: 'ユーザー属性'),
                   ],
                 )
               : null,
         ),
-        floatingActionButton: authorized
+        floatingActionButton: authorized && tabs.index < 2
             ? FloatingActionButton.extended(
                 onPressed: busy.value
                     ? null
@@ -148,6 +150,7 @@ class AdminMenuScreen extends HookConsumerWidget {
                             busy: busy.value,
                             onEdit: (record) => open(kind, record),
                           ),
+                        const UserTypePanel(),
                       ],
                     ),
                   ),

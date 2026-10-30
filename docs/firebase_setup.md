@@ -116,3 +116,7 @@ flutter test --platform chrome --dart-define=AUTH_EMULATORS_TEST=true --dart-def
 ```
 
 観光地・交通・写真のクラウド移行と管理者設定は [クラウド移行ガイド](cloud_catalog_setup.md) を参照してください。エミュレーター検証時はStorageも同時に起動します。
+
+## チャット・自治体ユーザの追加について
+
+属性の保存先、管理者によるメールアドレス指定の変更、Cloud Functionsの反映手順は [chat_setup.md](chat_setup.md) を参照してください。Firestoreルールだけでなく、管理者用Functionのデプロイが必要です。

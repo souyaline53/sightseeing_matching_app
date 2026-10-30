@@ -4,9 +4,11 @@ import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
 import 'profile/profile_home.dart';
 import 'posts/posts_home.dart';
+import 'chat/chat_home.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../state/app_tab.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import '../state/trip_state.dart';
 import 'recommendation/recommendation_home.dart';
 import 'itinerary/itinerary_home.dart';
@@ -15,6 +17,7 @@ class BasePage extends HookConsumerWidget {
   const BasePage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final chatOpened = useState(false);
     final settings = ref.watch(settingsProvider);
     final trips = ref.watch(tripLibraryProvider);
     final catalog = ref.watch(catalogProvider);
@@ -82,6 +85,9 @@ class BasePage extends HookConsumerWidget {
                       ? const ItineraryHome()
                       : const _CatalogNotice(),
                   catalog.hasValue ? const PostsHome() : const _CatalogNotice(),
+                  chatOpened.value || tab == AppTab.chat.index
+                      ? const ChatHome()
+                      : const SizedBox.shrink(),
                   const ProfileHome(),
                 ],
               ),
@@ -91,6 +97,7 @@ class BasePage extends HookConsumerWidget {
         bottomNavigationBar: NavigationBar(
           selectedIndex: tab,
           onDestinationSelected: (value) {
+            if (value == AppTab.chat.index) chatOpened.value = true;
             if (value == AppTab.recommendation.index) {
               ref.read(discoveryProvider.notifier).reset();
             }
@@ -108,12 +115,17 @@ class BasePage extends HookConsumerWidget {
                 isLabelVisible: trip.saved.isNotEmpty,
                 child: const Icon(Icons.route_outlined),
               ),
-              label: '旅を組み立てる',
+              label: '組み立て',
             ),
             const NavigationDestination(
               icon: Icon(Icons.photo_library_outlined),
               selectedIcon: Icon(Icons.photo_library),
               label: '投稿',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon: Icon(Icons.chat_bubble),
+              label: 'チャット',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline),

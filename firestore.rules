@@ -8,7 +8,7 @@ service cloud.firestore {
     function validProfile(uid) {
       let data = request.resource.data;
       return data.keys().hasAll(['uid', 'nickname', 'ageGroup', 'prefecture', 'municipality', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['uid', 'nickname', 'ageGroup', 'prefecture', 'municipality', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'nickname', 'ageGroup', 'prefecture', 'municipality', 'userType', 'createdAt', 'updatedAt'])
         && data.uid == uid
         && data.nickname is string && data.nickname.size() > 0 && data.nickname.size() <= 30
         && data.ageGroup in ['10代以下', '20代', '30代', '40代', '50代', '60代', '70代以上']
@@ -19,18 +19,86 @@ service cloud.firestore {
           '鳥取県', '島根県', '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県',
           '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県']
         && data.municipality is string && data.municipality.size() > 0 && data.municipality.size() <= 80
+        && data.get('userType', 'general') in ['general', 'municipality']
         && data.createdAt is timestamp && data.updatedAt == request.time;
     }
     match /users/{uid} {
       allow get: if owner(uid);
       allow list: if false;
-      allow create: if owner(uid) && validProfile(uid) && request.resource.data.createdAt == request.time;
-      allow update: if owner(uid) && validProfile(uid) && request.resource.data.createdAt == resource.data.createdAt;
+      allow create: if owner(uid) && validProfile(uid) && request.resource.data.createdAt == request.time
+        && request.resource.data.get('userType', 'general') == 'general';
+      allow update: if owner(uid) && validProfile(uid) && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.get('userType', 'general') == resource.data.get('userType', 'general');
       allow delete: if owner(uid);
     }
     function admin() {
       return request.auth != null && request.auth.token.email.lower() == 'nichi-ka@nichi-ka.com'
         && request.auth.token.email_verified == true;
+    }
+    function registered() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function validPublicProfile(uid) {
+      let d = request.resource.data;
+      let profile = getAfter(/databases/$(database)/documents/users/$(uid)).data;
+      return d.keys().hasAll(['uid', 'displayName', 'userType', 'updatedAt'])
+        && d.keys().hasOnly(['uid', 'displayName', 'userType', 'updatedAt'])
+        && d.uid == uid && d.displayName == profile.nickname
+        && d.userType == profile.get('userType', 'general')
+        && d.userType in ['general', 'municipality'] && d.updatedAt == request.time;
+    }
+    match /public_profiles/{uid} {
+      allow read: if registered();
+      allow create, update: if owner(uid) && validPublicProfile(uid);
+      allow delete: if owner(uid);
+    }
+    function chatMember(roomId) {
+      return registered() && request.auth.uid in
+        get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.members;
+    }
+    function validChatRoom() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['members', 'lastMessage', 'lastSenderId', 'lastMessageId', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['members', 'lastMessage', 'lastSenderId', 'lastMessageId', 'createdAt', 'updatedAt'])
+        && d.members is list && d.members.size() == 2
+        && d.members[0] is string && d.members[1] is string && d.members[0] != d.members[1]
+        && request.auth.uid in d.members
+        && d.lastMessage is string && d.lastMessage.size() <= 2000
+        && d.lastSenderId is string && d.lastMessageId is string
+        && d.createdAt is timestamp && d.updatedAt == request.time;
+    }
+    function validRoomPreview(roomId) {
+      let d = request.resource.data;
+      let message = getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)/messages/$(d.lastMessageId)).data;
+      return d.lastMessageId.size() > 0 && d.lastSenderId == request.auth.uid
+        && !exists(/databases/$(database)/documents/chat_rooms/$(roomId)/messages/$(d.lastMessageId))
+        && message.senderId == request.auth.uid && message.text == d.lastMessage
+        && message.createdAt == request.time;
+    }
+    match /chat_rooms/{roomId} {
+      allow get: if registered() && (resource == null || request.auth.uid in resource.data.members);
+      allow list: if registered() && request.auth.uid in resource.data.members;
+      allow create: if registered() && validChatRoom()
+        && exists(/databases/$(database)/documents/public_profiles/$(request.resource.data.members[0]))
+        && exists(/databases/$(database)/documents/public_profiles/$(request.resource.data.members[1]))
+        && request.resource.data.lastMessage == '' && request.resource.data.lastSenderId == ''
+        && request.resource.data.lastMessageId == '' && request.resource.data.createdAt == request.time;
+      allow update: if chatMember(roomId) && validChatRoom()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastSenderId', 'lastMessageId', 'updatedAt'])
+        && validRoomPreview(roomId);
+      match /messages/{messageId} {
+        allow read: if chatMember(roomId);
+        allow create: if chatMember(roomId)
+          && request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt == request.time
+          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.lastMessageId == messageId
+          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.lastSenderId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.lastMessage == request.resource.data.text
+          && getAfter(/databases/$(database)/documents/chat_rooms/$(roomId)).data.updatedAt == request.time;
+      }
     }
     function text(value) { return value is string && value.size() > 0 && value.size() <= 10000; }
     function number(value) { return value is int && value >= 0 && value <= 100000; }

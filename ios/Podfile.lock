@@ -1198,6 +1198,10 @@ PODS:
     - Firebase/Firestore (= 12.19.3)
     - firebase_core
     - Flutter
+  - cloud_functions (7.0.1):
+    - Firebase/Functions (= 12.19.3)
+    - firebase_core
+    - Flutter
   - Firebase/Auth (12.19.3):
     - Firebase/CoreOnly
     - FirebaseAuth (~> 12.19.0)
@@ -1206,6 +1210,9 @@ PODS:
   - Firebase/Firestore (12.19.3):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 12.19.3)
+  - Firebase/Functions (12.19.3):
+    - Firebase/CoreOnly
+    - FirebaseFunctions (~> 12.19.0)
   - Firebase/Storage (12.19.3):
     - Firebase/CoreOnly
     - FirebaseStorage (~> 12.19.0)
@@ -1259,6 +1266,15 @@ PODS:
     - gRPC-Core (~> 1.69.0)
     - leveldb-library (~> 1.22)
     - nanopb (~> 3.30910.0)
+  - FirebaseFunctions (12.19.0):
+    - FirebaseAppCheckInterop (~> 12.19.0)
+    - FirebaseAuthInterop (~> 12.19.0)
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseCoreExtension (~> 12.19.0)
+    - FirebaseMessagingInterop (~> 12.19.0)
+    - FirebaseSharedSwift (~> 12.19.0)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
+  - FirebaseMessagingInterop (12.19.0)
   - FirebaseSharedSwift (12.19.0)
   - FirebaseStorage (12.19.0):
     - FirebaseAppCheckInterop (~> 12.19.0)
@@ -1401,6 +1417,7 @@ PODS:
 
 DEPENDENCIES:
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
+  - cloud_functions (from `.symlinks/plugins/cloud_functions/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
@@ -1423,6 +1440,8 @@ SPEC REPOS:
     - FirebaseCoreInternal
     - FirebaseFirestore
     - FirebaseFirestoreInternal
+    - FirebaseFunctions
+    - FirebaseMessagingInterop
     - FirebaseSharedSwift
     - FirebaseStorage
     - GoogleUtilities
@@ -1436,6 +1455,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   cloud_firestore:
     :path: ".symlinks/plugins/cloud_firestore/ios"
+  cloud_functions:
+    :path: ".symlinks/plugins/cloud_functions/ios"
   firebase_auth:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
@@ -1457,6 +1478,7 @@ SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   cloud_firestore: a9637b45813d95cc7371aa819d31bf975b27ef31
+  cloud_functions: 21e02dfd9b777f20246eb31e21622257829ec93b
   Firebase: e3c5ab38229ae085490d02398d97b9f5374bbe6e
   firebase_auth: 1be750cad742730e67d5b6d959b563368eab05de
   firebase_core: 80d50cac10fc9dff2597c55ed43e296d9a0bc90a
@@ -1469,6 +1491,8 @@ SPEC CHECKSUMS:
   FirebaseCoreInternal: 656b1c2fd5a1c5976183dc54b73deda78fb26ee3
   FirebaseFirestore: 1fc8a582c9a2b8a4c089d0fcd8793a4bf2b54846
   FirebaseFirestoreInternal: 2617381b45331505f051d60f451d254a6275a5c2
+  FirebaseFunctions: 5b5ae19d3cd261b74802d54780ac79db152562cd
+  FirebaseMessagingInterop: 8befe363c0f23eaff7b1807dbc76a0546d79f00c
   FirebaseSharedSwift: c91f36aeaa566e12b682caacc40d34c8303c3124
   FirebaseStorage: 357354fbde2ba62983c0fe5d9cf10155046b5404
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467

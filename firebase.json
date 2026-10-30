@@ -45,6 +45,7 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "functions": [{"source": "functions", "codebase": "tabisaki"}],
   "emulators": {
     "auth": {
       "port": 9099
@@ -58,6 +59,9 @@
     "singleProjectMode": true,
     "storage": {
       "port": 9199
+    },
+    "functions": {
+      "port": 5001
     }
   },
   "storage": {

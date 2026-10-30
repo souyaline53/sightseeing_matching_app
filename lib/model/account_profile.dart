@@ -1,12 +1,24 @@
 import '../data/japan_regions.dart';
 
+enum UserType {
+  general('旅行者'),
+  municipality('自治体');
+
+  final String label;
+  const UserType(this.label);
+  static UserType fromValue(Object? value) =>
+      value == 'municipality' ? municipality : general;
+}
+
 class AccountDetails {
   final String nickname, ageGroup, prefecture, municipality;
+  final UserType userType;
   const AccountDetails({
     required this.nickname,
     required this.ageGroup,
     required this.prefecture,
     required this.municipality,
+    this.userType = UserType.general,
   });
   String? validate() {
     if (nickname.trim().isEmpty || nickname.trim().length > 30) {
@@ -25,12 +37,14 @@ class AccountDetails {
     'ageGroup': ageGroup,
     'prefecture': prefecture,
     'municipality': municipality.trim(),
+    'userType': userType.name,
   };
   factory AccountDetails.fromMap(Map<String, dynamic> data) => AccountDetails(
     nickname: data['nickname'] as String,
     ageGroup: data['ageGroup'] as String,
     prefecture: data['prefecture'] as String,
     municipality: data['municipality'] as String,
+    userType: UserType.fromValue(data['userType']),
   );
 }
 
@@ -65,6 +79,7 @@ class CurrentAccount {
     this.error,
   });
   bool get registered => identity.registered;
+  UserType get userType => details?.userType ?? UserType.general;
   String get name =>
       registered ? details?.nickname ?? identity.displayName : 'ゲストさん';
   bool ownsPost(String userId) => userId == identity.uid;

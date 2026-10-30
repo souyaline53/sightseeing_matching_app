@@ -5,6 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../model/account_profile.dart';
 import '../../../state/account_state.dart';
 import '../../../widgets/settings_actions.dart';
+import '../../../widgets/user_type_badge.dart';
 import 'account_form_screen.dart';
 
 class AccountCard extends HookConsumerWidget {
@@ -118,8 +119,9 @@ class AccountCard extends HookConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
+                    if (account.registered) UserTypeBadge(account.userType),
                     Text(
-                      account.registered ? '登録済みプロフィール' : '登録なしでも使えます',
+                      account.registered ? '' : '登録するとチャットや旅程の共有ができます。',
                       style: TextStyle(
                         fontSize: 11,
                         color: colors.onSurfaceVariant,

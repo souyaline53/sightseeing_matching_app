@@ -1,67 +1,33 @@
-import 'dart:async';
 import 'dart:typed_data';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../data/mock_data.dart';
-import '../model/experience.dart';
-import '../model/account_profile.dart';
-import 'account_state.dart';
+import '../data/catalog_data.dart';
 import '../model/post.dart';
+import '../model/account_profile.dart';
 import '../repository/posts_repository.dart';
+import '../repository/firestore_posts_repository.dart';
+import '../repository/cloud_image_repository.dart';
+import '../service/image_policy.dart';
+import '../service/cloud/cloud_services.dart';
+import 'account_state.dart';
 
-final postsRepositoryProvider = Provider<PostsRepository>((ref) {
-  final repository = LocalPostsRepository();
-  ref.onDispose(() => unawaited(repository.close()));
-  return repository;
-});
-final postsProvider = AsyncNotifierProvider<PostsNotifier, PostsState>(
+final postsRepositoryProvider = Provider<PostsRepository>(
+  (ref) =>
+      FirestorePostsRepository(() => ref.read(cloudServicesProvider.future)),
+);
+final postsProvider = StreamNotifierProvider<PostsNotifier, PostsState>(
   PostsNotifier.new,
 );
-final postMediaBytesProvider = FutureProvider.autoDispose
-    .family<Uint8List?, String>(
-      (ref, id) => ref.watch(postsRepositoryProvider).readMedia(id),
-    );
 
-class PostsNotifier extends AsyncNotifier<PostsState> {
-  Future<void> _queue = Future.value();
+class PostsNotifier extends StreamNotifier<PostsState> {
   @override
-  Future<PostsState> build() async {
-    final repository = ref.read(postsRepositoryProvider);
-    final saved = await repository.load();
-    if (saved != null) return saved;
-    final catalog = await ref.watch(mockCatalogProvider.future);
-    final initial = _samplePosts(catalog.experiences);
-    await repository.save(initial);
-    return initial;
-  }
-
-  Future<void> _update(
-    PostsState Function(PostsState) change, {
-    Map<String, Uint8List> media = const {},
-    Set<String> removeMedia = const {},
-  }) {
-    final operation = _queue.then((_) async {
-      final current = await future;
-      final next = change(current);
-      await ref
-          .read(postsRepositoryProvider)
-          .save(next, media: media, removeMedia: removeMedia);
-      if (ref.mounted) state = AsyncData(next);
-    });
-    _queue = operation.then(
-      (_) {},
-      onError: (Object error, StackTrace stack) {},
-    );
-    return operation;
-  }
-
+  Stream<PostsState> build() => ref.watch(postsRepositoryProvider).watch();
+  void reload() => ref.invalidateSelf();
   Future<CurrentAccount> _account() async {
     final repository = await ref.read(accountRepositoryProvider.future);
     final identity = await repository.watchIdentity().first;
-    final guest = await ref.read(guestIdentityProvider.future);
     final current = ref.read(currentAccountProvider);
     return CurrentAccount(
       identity: identity,
-      guest: guest,
       details: current.identity.uid == identity.uid ? current.details : null,
     );
   }
@@ -74,7 +40,7 @@ class PostsNotifier extends AsyncNotifier<PostsState> {
     required List<PostMedia> media,
     Map<String, Uint8List> bytes = const {},
   }) async {
-    final catalog = await ref.read(mockCatalogProvider.future);
+    final catalog = await ref.read(catalogProvider.future);
     if (!catalog.experiences.any((e) => e.id == spotId)) {
       throw StateError('訪れた場所を選択してください。');
     }
@@ -84,177 +50,105 @@ class PostsNotifier extends AsyncNotifier<PostsState> {
       throw StateError('評価とカテゴリを選択してください。');
     }
     if (media.isEmpty || media.length > 6) {
-      throw StateError('写真・動画を1〜6件選択してください。');
+      throw StateError('画像を1〜6枚選択してください。');
     }
     if (media.map((e) => e.id).toSet().length != media.length) {
       throw StateError('メディアが重複しています。');
     }
     for (final item in media) {
-      if (item.isLocal && (bytes[item.id] == null || bytes[item.id]!.isEmpty)) {
-        throw StateError('写真・動画を読み直してください。');
+      if (bytes[item.id] == null) {
+        throw StateError('画像を選択し直してください。動画は投稿できません。');
       }
+      await validateImage(bytes[item.id]!);
     }
-    if (bytes.values.fold<int>(0, (total, data) => total + data.length) >
-        40 * 1024 * 1024) {
-      throw StateError('投稿のメディアは合計40MBまでです。');
+    final images = ref.read(cloudImageRepositoryProvider);
+    final owner = await images.postOwner();
+    final id = newPostId('post');
+    final uploaded = <PostMedia>[];
+    try {
+      for (final image in media) {
+        final result = await images.upload(
+          'posts/$owner/$id/${image.id}',
+          bytes[image.id]!,
+        );
+        uploaded.add(
+          PostMedia(
+            id: image.id,
+            source: result.url,
+            storagePath: result.path,
+            mimeType: 'image/jpeg',
+          ),
+        );
+      }
+      final account = await _account();
+      if (account.identity.uid != owner) {
+        throw StateError('ログイン状態が変わりました。もう一度投稿してください。');
+      }
+      final post = TravelPost(
+        id: id,
+        userId: owner,
+        userName: account.name,
+        spotId: spotId,
+        category: category,
+        caption: caption.trim(),
+        media: uploaded,
+        rating: rating,
+        createdAt: DateTime.now(),
+      );
+      await ref.read(postsRepositoryProvider).create(post);
+    } catch (_) {
+      for (final image in uploaded) {
+        try {
+          await images.delete(image.storagePath);
+        } catch (_) {
+          /* 再接続後にStorageで未参照ファイルを確認する。 */
+        }
+      }
+      rethrow;
     }
-    final account = await _account();
-    final post = TravelPost(
-      id: newPostId('post'),
-      userId: account.identity.uid,
-      userName: account.name,
-      spotId: spotId,
-      category: category,
-      caption: caption.trim(),
-      media: media,
-      rating: rating,
-      createdAt: DateTime.now(),
-    );
-    await _update(
-      (current) => current.copyWith(posts: [post, ...current.posts]),
-      media: bytes,
-    );
   }
 
-  Future<void> toggleLike(String id) => _update((current) {
-    final liked = {...current.likedIds};
-    final remove = liked.remove(id);
-    if (!remove) liked.add(id);
-    return current.copyWith(
-      likedIds: liked,
-      posts: [
-        for (final p in current.posts)
-          p.id == id
-              ? p.copyWith(
-                  likeCount: (p.likeCount + (remove ? -1 : 1)).clamp(
-                    0,
-                    1 << 30,
-                  ),
-                )
-              : p,
-      ],
-    );
-  });
-  Future<void> toggleSaved(String id) => _update((current) {
-    final saved = {...current.savedIds};
-    if (!saved.remove(id)) saved.add(id);
-    return current.copyWith(savedIds: saved);
-  });
-  Future<void> toggleFollow(String userId) async {
-    final account = await _account();
-    if (account.ownsPost(userId)) return;
-    await _update((current) {
-      final following = {...current.followingIds};
-      if (!following.remove(userId)) following.add(userId);
-      return current.copyWith(followingIds: following);
-    });
-  }
-
+  Future<void> toggleLike(String id) =>
+      ref.read(postsRepositoryProvider).toggleLike(id);
+  Future<void> toggleSaved(String id) =>
+      ref.read(postsRepositoryProvider).toggleSaved(id);
+  Future<void> toggleFollow(String userId) =>
+      ref.read(postsRepositoryProvider).toggleFollow(userId);
   Future<void> comment(String postId, String text) async {
     if (text.trim().isEmpty || text.length > 500) {
       throw StateError('コメントは1〜500文字で入力してください。');
     }
+    final uid = await ref.read(cloudImageRepositoryProvider).postOwner();
     final account = await _account();
-    final comment = PostComment(
-      id: newPostId('comment'),
-      userId: account.identity.uid,
-      userName: account.name,
-      text: text.trim(),
-      createdAt: DateTime.now(),
-    );
-    await _update(
-      (current) => current.copyWith(
-        posts: [
-          for (final post in current.posts)
-            post.id == postId
-                ? post.copyWith(comments: [...post.comments, comment])
-                : post,
-        ],
-      ),
-    );
+    if (account.identity.uid != uid) throw StateError('ログイン状態が変わりました。');
+    await ref
+        .read(postsRepositoryProvider)
+        .addComment(
+          postId,
+          PostComment(
+            id: newPostId('comment'),
+            userId: uid,
+            userName: account.name,
+            text: text.trim(),
+            createdAt: DateTime.now(),
+          ),
+        );
   }
 
   Future<void> delete(String id) async {
-    final account = await _account();
     final current = await future;
+    final account = await _account();
     final post = current.posts.where((e) => e.id == id).firstOrNull;
-    if (post == null || !account.ownsPost(post.userId)) {
+    if (post == null || account.identity.uid != post.userId) {
       throw StateError('自分の投稿だけ削除できます。');
     }
-    final remove = post.media
-        .where((m) => m.isLocal)
-        .map((m) => m.id)
-        .where(
-          (mediaId) => !current.posts.any(
-            (p) => p.id != id && p.media.any((m) => m.id == mediaId),
-          ),
-        )
-        .toSet();
-    await _update(
-      (data) => data.copyWith(
-        posts: data.posts.where((p) => p.id != id).toList(),
-        likedIds: {...data.likedIds}..remove(id),
-        savedIds: {...data.savedIds}..remove(id),
-      ),
-      removeMedia: remove,
-    );
-    for (final id in remove) {
-      ref.invalidate(postMediaBytesProvider(id));
+    await ref.read(postsRepositoryProvider).delete(post);
+    for (final image in post.media) {
+      try {
+        await ref.read(cloudImageRepositoryProvider).delete(image.storagePath);
+      } catch (_) {
+        throw StateError('投稿は削除済みですが、写真の削除に失敗しました。Storageを確認してください。');
+      }
     }
   }
-}
-
-PostsState _samplePosts(List<Experience> spots) {
-  final now = DateTime.now().toUtc();
-  final posts = <TravelPost>[];
-  final ids = ['melon', 'lake', 'otaru'];
-  final names = ['はる｜週末の寄り道', 'ゆき｜北海道さんぽ', 'そう｜小さな冒険'];
-  final captions = [
-    'ひとくちの甘さから、土地の物語が気になった日。次は街の歴史にも寄り道してみたい。\n#夕張 #旅の発見 #グルメ',
-    '予定を詰めない休日。水面を眺めているだけで、気持ちがほどける。\n#北海道 #自然 #リフレッシュ',
-    'いつもの道から一本それたら、まだ知らない景色に出会えた。\n#小樽 #街歩き #週末旅',
-  ];
-  for (var i = 0; i < ids.length; i++) {
-    final spot = spots.where((e) => e.id == ids[i]).firstOrNull;
-    if (spot == null) continue;
-    final photos = [spot.photo, ...spot.additionalPhotos];
-    final related = spots
-        .where(
-          (e) => e.id != spot.id && e.area.contains(spot.area.split('・').first),
-        )
-        .firstOrNull;
-    if (related != null && photos.length == 1) photos.add(related.photo);
-    posts.add(
-      TravelPost(
-        id: 'sample-post-$i',
-        userId: 'sample-user-$i',
-        userName: names[i],
-        avatar: spot.photo,
-        spotId: spot.id,
-        category: i == 0
-            ? 'グルメ'
-            : i == 1
-            ? '絶景'
-            : '街歩き',
-        caption: captions[i],
-        media: [
-          for (var j = 0; j < photos.length; j++)
-            PostMedia(id: 'sample-$i-$j', source: photos[j]),
-        ],
-        rating: [4.5, 5.0, 4.0][i],
-        createdAt: now.subtract(Duration(hours: 2 + i * 5)),
-        likeCount: [24, 38, 17][i],
-        comments: [
-          PostComment(
-            id: 'sample-comment-$i',
-            userId: 'sample-visitor',
-            userName: 'みどり',
-            text: 'こんな寄り道もいいですね！',
-            createdAt: now.subtract(Duration(hours: 1 + i)),
-          ),
-        ],
-      ),
-    );
-  }
-  return PostsState(posts: posts, followingIds: {'sample-user-0'});
 }

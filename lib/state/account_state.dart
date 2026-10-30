@@ -52,7 +52,6 @@ final currentAccountProvider = Provider<CurrentAccount>((ref) {
       : const AsyncData<AccountDetails?>(null);
   return CurrentAccount(
     identity: user,
-    guest: guest.value,
     details: profile.value,
     loading: identity.isLoading || guest.isLoading,
     profileLoading: profile.isLoading,
@@ -64,14 +63,6 @@ final accountActionsProvider = Provider((ref) => AccountActions(ref));
 class AccountActions {
   final Ref ref;
   AccountActions(this.ref);
-  Future<void> _claimGuestData(AccountRepository repository) async {
-    final identity = await repository.watchIdentity().first;
-    if (identity.registered) {
-      await ref.read(guestIdentityRepositoryProvider).claim(identity.uid);
-      ref.invalidate(guestIdentityProvider);
-    }
-  }
-
   Future<void> register({
     required String email,
     required String password,
@@ -83,19 +74,16 @@ class AccountActions {
       password: password,
       details: details,
     );
-    await _claimGuestData(repository);
   }
 
   Future<void> signIn(String email, String password) async {
     final repository = await ref.read(accountRepositoryProvider.future);
     await repository.signIn(email, password);
-    await _claimGuestData(repository);
   }
 
   Future<void> saveProfile(AccountDetails details) async {
     final repository = await ref.read(accountRepositoryProvider.future);
     await repository.saveProfile(details);
-    await _claimGuestData(repository);
   }
 
   Future<void> signOut() async =>

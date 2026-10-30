@@ -2,18 +2,29 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../model/experience.dart';
 import '../service/photo_source.dart';
+import '../data/catalog_data.dart';
 
 class TravelPhoto extends HookConsumerWidget {
   final Experience experience;
   const TravelPhoto(this.experience, {super.key});
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Image(
-    image: photoSource(experience.imageUrl),
-    fit: BoxFit.cover,
-    width: double.infinity,
-    height: double.infinity,
-    errorBuilder: (_, error, stack) => PhotoPlaceholder(experience),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref
+        .watch(catalogProvider)
+        .value
+        ?.experiences
+        .where((item) => item.id == experience.id)
+        .firstOrNull;
+    final photo = current?.photo ?? experience.photo;
+    if (photo.isEmpty) return PhotoPlaceholder(experience);
+    return Image(
+      image: photoSource(photo),
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (_, error, stack) => PhotoPlaceholder(experience),
+    );
+  }
 }
 
 class PhotoPlaceholder extends HookConsumerWidget {

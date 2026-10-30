@@ -1,32 +1,27 @@
 import 'dart:math';
 
-const localPostUserId = 'local-user';
 String newPostId(String prefix) =>
     '$prefix-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 30)}';
 
-enum PostMediaKind { image, video }
-
 class PostMedia {
-  final String id, source, mimeType;
-  final PostMediaKind kind;
+  final String id, source, mimeType, storagePath;
   const PostMedia({
     required this.id,
     required this.source,
-    this.kind = PostMediaKind.image,
     this.mimeType = 'image/jpeg',
+    this.storagePath = '',
   });
-  bool get isLocal => source.startsWith('local://');
   Map<String, dynamic> toJson() => {
     'id': id,
     'source': source,
-    'kind': kind.name,
     'mimeType': mimeType,
+    'storagePath': storagePath,
   };
   factory PostMedia.fromJson(Map<String, dynamic> json) => PostMedia(
     id: json['id'] as String,
     source: json['source'] as String,
-    kind: PostMediaKind.values.byName(json['kind'] as String),
     mimeType: json['mimeType'] as String,
+    storagePath: json['storagePath'] as String? ?? '',
   );
 }
 
@@ -153,28 +148,4 @@ class PostsState {
     likedIds: likedIds ?? this.likedIds,
     savedIds: savedIds ?? this.savedIds,
   );
-  Map<String, dynamic> toJson() => {
-    'version': 1,
-    'posts': posts.map((e) => e.toJson()).toList(),
-    'followingIds': followingIds.toList(),
-    'likedIds': likedIds.toList(),
-    'savedIds': savedIds.toList(),
-  };
-  factory PostsState.fromJson(Map<String, dynamic> json) {
-    if (json['version'] != 1) {
-      throw const FormatException('Unsupported posts version');
-    }
-    final posts = (json['posts'] as List)
-        .map((e) => TravelPost.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
-    if (posts.map((e) => e.id).toSet().length != posts.length) {
-      throw const FormatException('Duplicate post ids');
-    }
-    return PostsState(
-      posts: posts,
-      followingIds: (json['followingIds'] as List).cast<String>().toSet(),
-      likedIds: (json['likedIds'] as List).cast<String>().toSet(),
-      savedIds: (json['savedIds'] as List).cast<String>().toSet(),
-    );
-  }
 }

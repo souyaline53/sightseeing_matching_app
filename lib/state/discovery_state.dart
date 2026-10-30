@@ -1,5 +1,5 @@
 import '../model/interest_answers.dart';
-import '../data/mock_data.dart';
+import '../data/catalog_data.dart';
 import 'settings_state.dart';
 import 'conditions_step_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -137,7 +137,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     step: 3,
     index: 0,
     deck: RecommendationService(
-      catalog: ref.read(mockCatalogProvider).requireValue.experiences,
+      catalog: ref.read(catalogProvider).requireValue.experiences,
     ).recommendFor(state.interests, filters: ref.read(searchDraftProvider)),
   );
   void goTo(int index) {

@@ -13,7 +13,7 @@ import 'test_support.dart';
 import 'widget_test.dart' show boot, reveal, answerQuestions, enterDetails;
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   testWidgets(
     'offline map remains interactive; pin requires explicit confirmation',
     (tester) async {

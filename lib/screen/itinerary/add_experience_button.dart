@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/mock_data.dart';
+import '../../data/catalog_data.dart';
 import '../../service/curiosity_questions.dart';
 import '../../service/mock_access_ranking.dart';
 import '../../service/recommendation_service.dart';
@@ -23,10 +23,7 @@ class AddExperienceButton extends HookConsumerWidget {
         if (tripId != null) ref.read(tripProvider.notifier).openPlan(tripId!);
         final trip = ref.read(tripProvider);
         final interests = ref.read(discoveryProvider).interests;
-        final experiences = ref
-            .read(mockCatalogProvider)
-            .requireValue
-            .experiences;
+        final experiences = ref.read(catalogProvider).requireValue.experiences;
         final ranking = MockAccessRanking();
         final deck = CuriosityQuestions.valid(interests)
             ? RecommendationService(

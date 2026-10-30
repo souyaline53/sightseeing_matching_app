@@ -1,19 +1,36 @@
 import '../model/interest_answers.dart';
 
+enum CuriositySymbol {
+  dining,
+  explore,
+  spa,
+  celebration,
+  bakery,
+  history,
+  craft,
+  water,
+  walking,
+  railway,
+  landscape,
+  town,
+}
+
 class MoodChoice {
-  final String id, label, photoId;
+  final String id, label;
+  final CuriositySymbol symbol;
   final List<String> genres;
-  const MoodChoice(this.id, this.label, this.photoId, this.genres);
+  const MoodChoice(this.id, this.label, this.symbol, this.genres);
 }
 
 class QuestionOption {
-  final String id, title, photoId;
+  final String id, title;
+  final CuriositySymbol symbol;
   final String? description;
   final List<String> genres;
   const QuestionOption(
     this.id,
     this.title,
-    this.photoId,
+    this.symbol,
     this.genres, {
     this.description,
   });
@@ -24,7 +41,7 @@ class ReasonOption extends QuestionOption {
   const ReasonOption(
     super.id,
     super.title,
-    super.photoId,
+    super.symbol,
     super.genres,
     this.tendencyId,
     this.questSetId,
@@ -42,17 +59,23 @@ class ChoiceQuestion {
 
 class CuriosityQuestions {
   static const moods = [
-    MoodChoice('food', 'おいしいものを食べて幸せになりたい', 'melon', ['食']),
-    MoodChoice('discovery', '知らない世界にワクワクしたい', 'coal', ['歴史', 'ものづくり']),
-    MoodChoice('relax', '日常を忘れてリフレッシュしたい', 'lake', ['自然', '絶景']),
-    MoodChoice('fun', '思いっきり楽しみたい', 'craft', ['街歩き', 'ものづくり']),
+    MoodChoice('food', 'おいしいものを食べて幸せになりたい', CuriositySymbol.dining, ['食']),
+    MoodChoice('discovery', '知らない世界にワクワクしたい', CuriositySymbol.explore, [
+      '歴史',
+      'ものづくり',
+    ]),
+    MoodChoice('relax', '日常を忘れてリフレッシュしたい', CuriositySymbol.spa, ['自然', '絶景']),
+    MoodChoice('fun', '思いっきり楽しみたい', CuriositySymbol.celebration, [
+      '街歩き',
+      'ものづくり',
+    ]),
   ];
   static const _reasons = {
     'food': ChoiceQuestion('どんな出会いが一番うれしい？', [
       ReasonOption(
         'food_luxury',
         '一度は食べたい、とびきり贅沢な一品',
-        'melon',
+        CuriositySymbol.dining,
         ['食', '絶景'],
         'senses',
         'senses',
@@ -61,7 +84,7 @@ class CuriosityQuestions {
       ReasonOption(
         'food_hidden',
         '地元の人だけが知る、隠れた名物',
-        'bread',
+        CuriositySymbol.bakery,
         ['食', '街歩き'],
         'roots',
         'roots',
@@ -70,7 +93,7 @@ class CuriosityQuestions {
       ReasonOption(
         'food_maker',
         '作り手のこだわりが詰まった、特別な味',
-        'melon',
+        CuriositySymbol.dining,
         ['食', 'ものづくり'],
         'craftsmanship',
         'stories',
@@ -81,7 +104,7 @@ class CuriosityQuestions {
       ReasonOption(
         'discovery_space',
         '普段は入れない、不思議な空間',
-        'coal',
+        CuriositySymbol.history,
         ['歴史'],
         'mystery',
         'hidden',
@@ -90,7 +113,7 @@ class CuriosityQuestions {
       ReasonOption(
         'discovery_story',
         '昔の人々が残した、知られざる物語',
-        'rail',
+        CuriositySymbol.railway,
         ['歴史', '街歩き'],
         'story',
         'stories',
@@ -99,7 +122,7 @@ class CuriosityQuestions {
       ReasonOption(
         'discovery_landscape',
         '自然が生み出した、想像を超える景色',
-        'hill',
+        CuriositySymbol.landscape,
         ['自然', '絶景'],
         'senses',
         'senses',
@@ -110,7 +133,7 @@ class CuriosityQuestions {
       ReasonOption(
         'relax_quiet',
         '静かな場所で、景色を眺める',
-        'lake',
+        CuriositySymbol.water,
         ['自然', '絶景'],
         'senses',
         'senses',
@@ -119,7 +142,7 @@ class CuriosityQuestions {
       ReasonOption(
         'relax_warm',
         '温かい場所で、ゆっくりくつろぐ',
-        'bread',
+        CuriositySymbol.bakery,
         ['食', '街歩き'],
         'story',
         'stories',
@@ -128,7 +151,7 @@ class CuriosityQuestions {
       ReasonOption(
         'relax_wander',
         '自然の中で、気の向くまま歩く',
-        'b walk',
+        CuriositySymbol.walking,
         ['自然', '街歩き'],
         'adventure',
         'adventure',
@@ -139,7 +162,7 @@ class CuriosityQuestions {
       ReasonOption(
         'fun_active',
         '体を動かして、思いきり遊ぶ',
-        'b walk',
+        CuriositySymbol.walking,
         ['自然', '街歩き'],
         'adventure',
         'adventure',
@@ -148,7 +171,7 @@ class CuriosityQuestions {
       ReasonOption(
         'fun_together',
         '誰かと一緒に、新しいことに挑戦する',
-        'craft',
+        CuriositySymbol.craft,
         ['ものづくり', '街歩き'],
         'craftsmanship',
         'stories',
@@ -157,7 +180,7 @@ class CuriosityQuestions {
       ReasonOption(
         'fun_photo',
         '思わず写真を撮りたくなる場所に行く',
-        'hill',
+        CuriositySymbol.landscape,
         ['絶景', '街歩き'],
         'mystery',
         'hidden',
@@ -169,70 +192,119 @@ class CuriosityQuestions {
   // never promises of bookable activities or generated destination records.
   static const _quests = {
     'roots': [
-      QuestionOption('roots_origin', '作り手の秘密を探る', 'melon', [
-        '食',
-        '自然',
-      ], description: '食べ物が育つ場所を見てみたい'),
-      QuestionOption('roots_history', '街の意外な歴史を探る', 'coal', [
-        '歴史',
-      ], description: 'その街の意外な歴史を知りたい'),
-      QuestionOption('roots_view', '地元だけの景色を探す', 'lake', [
-        '自然',
-        '絶景',
-      ], description: '地元の人しか知らない景色を探したい'),
+      QuestionOption(
+        'roots_origin',
+        '作り手の秘密を探る',
+        CuriositySymbol.dining,
+        ['食', '自然'],
+        description: '食べ物が育つ場所を見てみたい',
+      ),
+      QuestionOption(
+        'roots_history',
+        '街の意外な歴史を探る',
+        CuriositySymbol.history,
+        ['歴史'],
+        description: 'その街の意外な歴史を知りたい',
+      ),
+      QuestionOption(
+        'roots_view',
+        '地元だけの景色を探す',
+        CuriositySymbol.water,
+        ['自然', '絶景'],
+        description: '地元の人しか知らない景色を探したい',
+      ),
     ],
     'hidden': [
       QuestionOption(
         'hidden_underground',
         '地下に眠る世界を探る',
-        'coal',
+        CuriositySymbol.history,
         ['歴史'],
         description: '暗闇の先に残る、人々の記憶に触れてみたい',
       ),
-      QuestionOption('hidden_hands', '光をつくる手仕事を探る', 'craft', [
-        'ものづくり',
-      ], description: 'ふだん見過ごす技と素材の秘密を知りたい'),
-      QuestionOption('hidden_water', 'まだ知らない水辺を探す', 'river', [
-        '自然',
-        '絶景',
-      ], description: '日常から少し離れた、水の風景を見つけたい'),
+      QuestionOption(
+        'hidden_hands',
+        '光をつくる手仕事を探る',
+        CuriositySymbol.craft,
+        ['ものづくり'],
+        description: 'ふだん見過ごす技と素材の秘密を知りたい',
+      ),
+      QuestionOption(
+        'hidden_water',
+        'まだ知らない水辺を探す',
+        CuriositySymbol.water,
+        ['自然', '絶景'],
+        description: '日常から少し離れた、水の風景を見つけたい',
+      ),
     ],
     'stories': [
-      QuestionOption('stories_craft', '受け継がれる技を探る', 'craft', [
-        'ものづくり',
-      ], description: '作る楽しさと、職人のこだわりに触れてみたい'),
-      QuestionOption('stories_taste', '暮らしに残る味を探す', 'bread', [
-        '食',
-      ], description: 'その土地で愛される味の背景を知りたい'),
-      QuestionOption('stories_land', '風景に隠れた記憶を探る', 'lake', [
-        '自然',
-        '歴史',
-      ], description: '景色の向こうにあった暮らしを想像したい'),
+      QuestionOption(
+        'stories_craft',
+        '受け継がれる技を探る',
+        CuriositySymbol.craft,
+        ['ものづくり'],
+        description: '作る楽しさと、職人のこだわりに触れてみたい',
+      ),
+      QuestionOption(
+        'stories_taste',
+        '暮らしに残る味を探す',
+        CuriositySymbol.bakery,
+        ['食'],
+        description: 'その土地で愛される味の背景を知りたい',
+      ),
+      QuestionOption(
+        'stories_land',
+        '風景に隠れた記憶を探る',
+        CuriositySymbol.water,
+        ['自然', '歴史'],
+        description: '景色の向こうにあった暮らしを想像したい',
+      ),
     ],
     'senses': [
-      QuestionOption('senses_water', '水の風景を見つける', 'river', [
-        '自然',
-        '絶景',
-      ], description: '音や光に目を向けて、いつもと違う景色を探したい'),
-      QuestionOption('senses_craft', '土地の光を手仕事に探す', 'craft', [
-        'ものづくり',
-      ], description: 'きれいなものが生まれる過程を知りたい'),
-      QuestionOption('senses_memory', '静かな街の記憶を探る', 'rail', [
-        '歴史',
-        '街歩き',
-      ], description: 'にぎわいの跡をたどって、意外な物語に出会いたい'),
+      QuestionOption(
+        'senses_water',
+        '水の風景を見つける',
+        CuriositySymbol.water,
+        ['自然', '絶景'],
+        description: '音や光に目を向けて、いつもと違う景色を探したい',
+      ),
+      QuestionOption(
+        'senses_craft',
+        '土地の光を手仕事に探す',
+        CuriositySymbol.craft,
+        ['ものづくり'],
+        description: 'きれいなものが生まれる過程を知りたい',
+      ),
+      QuestionOption(
+        'senses_memory',
+        '静かな街の記憶を探る',
+        CuriositySymbol.railway,
+        ['歴史', '街歩き'],
+        description: 'にぎわいの跡をたどって、意外な物語に出会いたい',
+      ),
     ],
     'adventure': [
-      QuestionOption('adventure_craft', '初めての手仕事に近づく', 'craft', [
-        'ものづくり',
-      ], description: '自分の手で形にする楽しさを覗いてみたい'),
-      QuestionOption('adventure_lanes', '路地の向こうを探検する', 'otaru', [
-        '街歩き',
-        '歴史',
-      ], description: '歩くほどに見えてくる、街の秘密を探したい'),
-      QuestionOption('adventure_flavor', '旅先の味で冒険する', 'melon', [
-        '食',
-      ], description: '知らなかった味から、土地の物語を見つけたい'),
+      QuestionOption(
+        'adventure_craft',
+        '初めての手仕事に近づく',
+        CuriositySymbol.craft,
+        ['ものづくり'],
+        description: '自分の手で形にする楽しさを覗いてみたい',
+      ),
+      QuestionOption(
+        'adventure_lanes',
+        '路地の向こうを探検する',
+        CuriositySymbol.town,
+        ['街歩き', '歴史'],
+        description: '歩くほどに見えてくる、街の秘密を探したい',
+      ),
+      QuestionOption(
+        'adventure_flavor',
+        '旅先の味で冒険する',
+        CuriositySymbol.dining,
+        ['食'],
+        description: '知らなかった味から、土地の物語を見つけたい',
+      ),
     ],
   };
 

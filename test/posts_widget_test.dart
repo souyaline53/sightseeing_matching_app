@@ -37,14 +37,24 @@ Future<void> revealForm(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> publishAndWait(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('publish-post')));
+  for (var i = 0; i < 200; i++) {
+    await tester.pump();
+    if (find.text('アップロード中…').evaluate().isEmpty) break;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+  }
+  await tester.pumpAndSettle();
+}
+
 Future<void> fillPost(WidgetTester tester, {bool sample = true}) async {
   await tester.tap(find.byTooltip('投稿を作成'));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('post-spot-option-melon')));
   await tester.pumpAndSettle();
-  final mediaButton = find.byKey(
-    ValueKey(sample ? 'use-sample-post-photo' : 'pick-post-media'),
-  );
+  final mediaButton = find.byKey(const ValueKey('pick-post-media'));
   await revealForm(tester, mediaButton);
   await tester.tap(mediaButton);
   await tester.pumpAndSettle();
@@ -86,11 +96,11 @@ class FakeMediaPicker implements PostMediaPicker {
 }
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   testWidgets(
     'posts tab, reactions, comments, bookmarks and following are interactive',
     (tester) async {
-      final repository = MemoryPostsRepository();
+      final repository = MemoryPostsRepository.seeded();
       final container = await boot(tester, postsRepository: repository);
       await openPosts(tester);
       expect(find.text('おすすめ'), findsOneWidget);
@@ -152,21 +162,20 @@ void main() {
       await tester.tap(find.byTooltip('保存した投稿'));
       await tester.pumpAndSettle();
       expect(find.byType(PostCard), findsOneWidget);
-      expect(repository.value!.savedIds, contains(original.id));
+      expect(repository.value.savedIds, contains(original.id));
       expect(tester.takeException(), isNull);
     },
   );
   testWidgets(
     'create post appears immediately and spot details include its review',
     (tester) async {
-      final repository = MemoryPostsRepository();
+      final repository = MemoryPostsRepository.seeded();
       final container = await boot(tester, postsRepository: repository);
       await openPosts(tester);
       await fillPost(tester);
-      await tester.tap(find.byKey(const ValueKey('publish-post')));
-      await tester.pumpAndSettle();
+      await publishAndWait(tester);
       final post = container.read(postsProvider).requireValue.posts.first;
-      expect(post.userId, localPostUserId);
+      expect(post.userId, 'local-user');
       expect(post.rating, 5);
       expect(post.spotId, 'melon');
       expect(post.caption, contains('#夕張'));
@@ -177,14 +186,14 @@ void main() {
       await Scrollable.ensureVisible(tester.element(review), alignment: .1);
       await tester.pumpAndSettle();
       expect(find.text('みんなのレビュー（2件）'), findsOneWidget);
-      expect(repository.value!.posts.first.id, post.id);
+      expect(repository.value.posts.first.id, post.id);
       expect(tester.takeException(), isNull);
     },
   );
   testWidgets(
     'library media persists and a failed publish retains the form for retry',
     (tester) async {
-      final repository = MemoryPostsRepository();
+      final repository = MemoryPostsRepository.seeded();
       final picker = FakeMediaPicker();
       final container = await boot(
         tester,
@@ -195,23 +204,22 @@ void main() {
       await fillPost(tester, sample: false);
       expect(picker.lastSource, PostMediaSource.library);
       repository.failWrite = true;
-      await tester.tap(find.byKey(const ValueKey('publish-post')));
-      await tester.pumpAndSettle();
+      await publishAndWait(tester);
       expect(find.byKey(const ValueKey('post-caption-input')), findsOneWidget);
       expect(
         container
             .read(postsProvider)
             .requireValue
             .posts
-            .where((p) => p.userId == localPostUserId),
+            .where((p) => p.userId == 'local-user'),
         isEmpty,
       );
       repository.failWrite = false;
-      await tester.tap(find.byKey(const ValueKey('publish-post')));
-      await tester.pumpAndSettle();
+      await publishAndWait(tester);
       final own = container.read(postsProvider).requireValue.posts.first;
-      expect(own.media.single.isLocal, isTrue);
-      expect(repository.media['picked-image'], isNotEmpty);
+      expect(own.media.single.source, startsWith('https://'));
+      expect(own.media.single.source, startsWith('https://'));
+
       expect(tester.takeException(), isNull);
     },
   );

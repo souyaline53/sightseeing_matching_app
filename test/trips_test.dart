@@ -8,7 +8,7 @@ import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'test_support.dart';
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   test(
     'valid selection takes priority over dates; missing selection falls back safely',
     () {

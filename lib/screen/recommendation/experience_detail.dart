@@ -1,3 +1,4 @@
+import '../../data/catalog_data.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../../model/experience.dart';
@@ -23,6 +24,14 @@ class ExperienceDetail extends HookConsumerWidget {
   const ExperienceDetail({super.key, required this.experience});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final experience =
+        ref
+            .watch(catalogProvider)
+            .value
+            ?.experiences
+            .where((item) => item.id == this.experience.id)
+            .firstOrNull ??
+        this.experience;
     final trip = ref.watch(tripProvider);
     return Material(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),

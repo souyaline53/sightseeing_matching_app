@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/mock_data.dart';
+import '../../data/catalog_data.dart';
 import '../../widgets/travel_photo.dart';
 import '../recommendation/experience_detail.dart';
 
@@ -12,7 +12,7 @@ class HomeExperienceGallery extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
-    final experiences = ref.watch(mockCatalogProvider).requireValue.experiences;
+    final experiences = ref.watch(catalogProvider).requireValue.experiences;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

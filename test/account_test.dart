@@ -87,7 +87,6 @@ void main() {
       expect(registered.registered, isTrue);
       expect(registered.name, 'たびすけ');
       expect(registered.identity.uid, 'firebase-uid-test');
-      expect(guest.value.claimedByUid, registered.identity.uid);
       expect(repository.lastPassword, 'abcdef');
       await container.read(accountActionsProvider).signOut();
       await container.pump();
@@ -95,18 +94,16 @@ void main() {
       expect(container.read(currentAccountProvider).registered, isFalse);
     },
   );
-  test('guest post aliases belong only to the linked registered identity', () {
-    const guest = GuestIdentity('guest-test', claimedByUid: 'alice');
+  test('cloud posts belong only to the exact Firebase UID', () {
     const alice = CurrentAccount(
       identity: AccountIdentity(uid: 'alice', registered: true),
-      guest: guest,
     );
     const bob = CurrentAccount(
       identity: AccountIdentity(uid: 'bob', registered: true),
-      guest: guest,
     );
-    expect(alice.ownsPost('guest-test'), isTrue);
-    expect(alice.ownsPost('local-user'), isTrue);
+    expect(alice.ownsPost('guest-test'), isFalse);
+    expect(alice.ownsPost('local-user'), isFalse);
+    expect(alice.ownsPost('alice'), isTrue);
     expect(bob.ownsPost('guest-test'), isFalse);
     expect(bob.ownsPost('alice'), isFalse);
     expect(bob.ownsPost('bob'), isTrue);

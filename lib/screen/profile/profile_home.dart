@@ -9,6 +9,8 @@ import 'widgets/conditions_form.dart';
 import 'profile_setting_screen.dart';
 import 'account/account_card.dart';
 import '../../widgets/settings_actions.dart';
+import '../../service/cloud/cloud_services.dart';
+import '../admin/admin_menu_screen.dart';
 
 class ProfileHome extends HookConsumerWidget {
   const ProfileHome({super.key});
@@ -205,6 +207,20 @@ class ProfileHome extends HookConsumerWidget {
                 ),
               ),
             ),
+          if (ref.watch(isAdminProvider)) ...[
+            const SizedBox(height: 28),
+            OutlinedButton.icon(
+              key: const ValueKey('admin-menu'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const AdminMenuScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.admin_panel_settings_outlined),
+              label: const Text('管理者メニュー'),
+            ),
+          ],
         ],
       ),
     );

@@ -12,7 +12,7 @@ import 'test_support.dart';
 import 'widget_test.dart' show boot, reveal;
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   testWidgets(
     'empty home gallery opens the matching detail sheet without creating a trip',
     (tester) async {
@@ -237,10 +237,10 @@ void main() {
         scrollable: scrollable,
       );
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('home-stop-9')).hitTestable(),
-        findsOneWidget,
-      );
+      final lastRow = tester.getRect(find.byKey(const ValueKey('home-stop-9')));
+      final viewport = tester.getRect(scrollable);
+      expect(lastRow.top, greaterThanOrEqualTo(viewport.top - 1));
+      expect(lastRow.bottom, lessThanOrEqualTo(viewport.bottom + 1));
       expect(tester.getRect(hero), heroBefore);
       expect(tester.getRect(button), buttonBefore);
       expect(button.hitTestable(), findsOneWidget);
@@ -272,16 +272,18 @@ void main() {
       expect(hero.width, size.width);
       expect(sheet.top, closeTo(hero.bottom - 24, .1));
       final content = find.byKey(const ValueKey('home-booklet-sheet'));
+      final viewport = tester.getRect(
+        find.descendant(of: content, matching: find.byType(Scrollable)),
+      );
       for (var i = 0; i < 3; i++) {
-        expect(
-          find
-              .descendant(
-                of: content,
-                matching: find.byKey(ValueKey('home-stop-$i')),
-              )
-              .hitTestable(),
-          findsOneWidget,
+        final row = find.descendant(
+          of: content,
+          matching: find.byKey(ValueKey('home-stop-$i')),
         );
+        expect(row, findsOneWidget);
+        final rect = tester.getRect(row);
+        expect(rect.top, greaterThanOrEqualTo(viewport.top - 1));
+        expect(rect.bottom, lessThanOrEqualTo(viewport.bottom + 1));
       }
       expect(find.byKey(const ValueKey('home-stop-3')), findsOneWidget);
       expect(find.text('旅のしおり（4スポット）'), findsOneWidget);

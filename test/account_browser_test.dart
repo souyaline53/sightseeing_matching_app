@@ -6,6 +6,7 @@ import 'package:cloud_firestore_web/cloud_firestore_web.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_web/firebase_auth_web.dart';
 import 'package:firebase_core_web/firebase_core_web.dart';
+import 'package:firebase_storage_web/firebase_storage_web.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -23,6 +24,7 @@ void main() {
       FirebaseCoreWeb.registerWith(webPluginRegistrar);
       FirebaseAuthWeb.registerWith(webPluginRegistrar);
       FirebaseFirestoreWeb.registerWith(webPluginRegistrar);
+      FirebaseStorageWeb.registerWith(webPluginRegistrar);
       registerPreferencesForTest();
       expect(
         const String.fromEnvironment('FIREBASE_EMULATOR_HOST'),
@@ -55,12 +57,14 @@ void main() {
       final actions = container.read(accountActionsProvider);
       String? uid;
       try {
+        final anonymousUid = (await auth.signInAnonymously()).user!.uid;
         await actions.register(
           email: email,
           password: 'abcdef',
           details: details,
         );
         uid = auth.currentUser!.uid;
+        expect(uid, anonymousUid);
         final repository = await container.read(
           accountRepositoryProvider.future,
         );
@@ -69,7 +73,6 @@ void main() {
           details.toMap(),
         );
         expect(auth.currentUser!.displayName, details.nickname);
-        expect((await guestRepository.load()).claimedByUid, uid);
         const edited = AccountDetails(
           nickname: '旅のつづき',
           ageGroup: '30代',
@@ -96,9 +99,6 @@ void main() {
           await auth.currentUser!.delete();
         }
         await auth.signOut();
-        await guestRepository.preferences.remove(
-          LocalGuestIdentityRepository.claimKey,
-        );
       }
     },
     skip: !const bool.fromEnvironment('AUTH_EMULATORS_TEST'),

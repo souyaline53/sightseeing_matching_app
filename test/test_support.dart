@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'package:sightseeing_matching_app/repository/cloud_image_repository.dart';
+import 'package:sightseeing_matching_app/service/post_media_picker.dart';
+import 'package:sightseeing_matching_app/service/image_policy.dart';
 import 'dart:async';
 import 'package:sightseeing_matching_app/model/account_profile.dart';
 import 'package:sightseeing_matching_app/repository/account_repository.dart';
@@ -7,8 +11,8 @@ import 'package:sightseeing_matching_app/model/post.dart';
 import 'package:sightseeing_matching_app/repository/posts_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/experience.dart';
-import 'package:sightseeing_matching_app/model/mock_catalog.dart';
-import 'package:sightseeing_matching_app/repository/mock_catalog_repository.dart';
+import 'package:sightseeing_matching_app/model/travel_catalog.dart';
+import 'catalog_fixtures.dart';
 import 'package:sightseeing_matching_app/repository/settings_repository.dart';
 
 class MemorySettingsStorage implements SettingsStorage {
@@ -27,47 +31,116 @@ class MemorySettingsStorage implements SettingsStorage {
   }
 }
 
-late MockCatalog testCatalog;
+late TravelCatalog testCatalog;
 List<Experience> get experiences => testCatalog.experiences;
 
-void initializeMockCatalogTests() {
+void initializeCatalogTests() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
-    testCatalog = await MarkdownMockCatalogRepository().load();
+    testCatalog = fixtureCatalog();
   });
 }
 
+PostsState fixturePosts() => PostsState(
+  posts: [
+    for (var i = 0; i < 3; i++)
+      TravelPost(
+        id: 'test-post-$i',
+        userId: 'test-user-$i',
+        userName: '検証ユーザー$i',
+        spotId: ['melon', 'lake', 'otaru'][i],
+        category: 'グルメ',
+        caption: '検証用本文',
+        media: [
+          PostMedia(
+            id: 'test-image-$i',
+            source: 'https://example.test/image-$i.jpg',
+          ),
+        ],
+        rating: 5,
+        createdAt: DateTime.utc(2026, 1, 3 - i),
+        comments: [
+          PostComment(
+            id: 'test-comment-$i',
+            userId: 'visitor',
+            userName: '検証',
+            text: '検証コメント',
+            createdAt: DateTime.utc(2026),
+          ),
+        ],
+      ),
+  ],
+  followingIds: {'test-user-0'},
+);
+
 class MemoryPostsRepository implements PostsRepository {
-  PostsState? value;
-  final Map<String, Uint8List> media = {};
+  PostsState value;
   bool failRead = false, failWrite = false;
+  final changes = StreamController<PostsState>.broadcast(sync: true);
+  MemoryPostsRepository({PostsState? initial})
+    : value = initial ?? PostsState();
+  MemoryPostsRepository.seeded() : value = fixturePosts();
   @override
-  Future<PostsState?> load() async {
+  Stream<PostsState> watch() async* {
     if (failRead) throw StateError('read unavailable');
-    return value == null ? null : PostsState.fromJson(value!.toJson());
+    yield value;
+    yield* changes.stream;
   }
 
-  @override
-  Future<void> save(
-    PostsState state, {
-    Map<String, Uint8List> media = const {},
-    Set<String> removeMedia = const {},
-  }) async {
+  Future<void> update(PostsState next) async {
     if (failWrite) throw StateError('write unavailable');
-    value = PostsState.fromJson(state.toJson());
-    this.media.addAll({
-      for (final entry in media.entries)
-        entry.key: Uint8List.fromList(entry.value),
-    });
-    for (final id in removeMedia) {
-      this.media.remove(id);
-    }
+    value = next;
+    changes.add(value);
   }
 
   @override
-  Future<Uint8List?> readMedia(String id) async => media[id];
+  Future<void> create(TravelPost post) =>
+      update(value.copyWith(posts: [post, ...value.posts]));
   @override
-  Future<void> close() async {}
+  Future<void> toggleLike(String id) {
+    final liked = {...value.likedIds};
+    final remove = liked.remove(id);
+    if (!remove) liked.add(id);
+    return update(
+      value.copyWith(
+        likedIds: liked,
+        posts: [
+          for (final p in value.posts)
+            p.id == id
+                ? p.copyWith(likeCount: p.likeCount + (remove ? -1 : 1))
+                : p,
+        ],
+      ),
+    );
+  }
+
+  @override
+  Future<void> toggleSaved(String id) {
+    final saved = {...value.savedIds};
+    if (!saved.remove(id)) saved.add(id);
+    return update(value.copyWith(savedIds: saved));
+  }
+
+  @override
+  Future<void> toggleFollow(String id) {
+    final follows = {...value.followingIds};
+    if (!follows.remove(id)) follows.add(id);
+    return update(value.copyWith(followingIds: follows));
+  }
+
+  @override
+  Future<void> addComment(String id, PostComment comment) => update(
+    value.copyWith(
+      posts: [
+        for (final p in value.posts)
+          p.id == id ? p.copyWith(comments: [...p.comments, comment]) : p,
+      ],
+    ),
+  );
+  @override
+  Future<void> delete(TravelPost post) => update(
+    value.copyWith(posts: value.posts.where((p) => p.id != post.id).toList()),
+  );
 }
 
 class MemoryGuestIdentityRepository implements GuestIdentityRepository {
@@ -77,10 +150,6 @@ class MemoryGuestIdentityRepository implements GuestIdentityRepository {
   ]);
   @override
   Future<GuestIdentity> load() async => value;
-  @override
-  Future<void> claim(String uid) async {
-    value = GuestIdentity(value.id, claimedByUid: value.claimedByUid ?? uid);
-  }
 }
 
 class FakeAccountRepository implements AccountRepository {
@@ -172,4 +241,49 @@ class FakeAccountRepository implements AccountRepository {
   Future<void> sendVerification() async {}
   @override
   Future<void> reloadIdentity() async {}
+}
+
+Uint8List get testImageBytes => base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+);
+
+class MemoryImagePicker implements PostMediaPicker {
+  @override
+  Future<List<PickedPostMedia>> pick(
+    PostMediaSource source, {
+    required int remaining,
+  }) async => [
+    PickedPostMedia(
+      const PostMedia(
+        id: 'picked-image',
+        source: 'local://picked-image',
+        mimeType: 'image/png',
+      ),
+      testImageBytes,
+    ),
+  ];
+}
+
+class MemoryCloudImages implements CloudImageRepository {
+  final String owner;
+  final files = <String, Uint8List>{};
+  int calls = 0;
+  int? failUploadAt;
+  MemoryCloudImages({this.owner = 'local-user'});
+  @override
+  Future<String> postOwner() async => owner;
+  @override
+  Future<CloudImage> upload(String prefix, Uint8List bytes) async {
+    final mime = await validateImage(bytes);
+    calls++;
+    if (calls == failUploadAt) throw StateError('アップロード失敗');
+    final path = '$prefix.${imageExtension(mime)}';
+    files[path] = bytes;
+    return CloudImage('https://example.test/$path', path);
+  }
+
+  @override
+  Future<void> delete(String path) async {
+    files.remove(path);
+  }
 }

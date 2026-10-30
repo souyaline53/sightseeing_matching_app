@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/mock_data.dart';
+import '../../data/catalog_data.dart';
 import '../../model/experience.dart';
 import '../../model/post.dart';
 import '../../service/post_media_picker.dart';
@@ -14,7 +14,7 @@ class PostCreateScreen extends HookConsumerWidget {
   const PostCreateScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final catalog = ref.watch(mockCatalogProvider).requireValue.experiences;
+    final catalog = ref.watch(catalogProvider).requireValue.experiences;
     final caption = useTextEditingController();
     final query = useState('');
     final selected = useState<Experience?>(null);
@@ -35,7 +35,6 @@ class PostCreateScreen extends HookConsumerWidget {
     Future<void> pick(PostMediaSource source) async {
       if (busy.value) return;
       busy.value = true;
-      ref.read(playingPostVideoProvider.notifier).select(null);
       try {
         final picked = await ref
             .read(postMediaPickerProvider)
@@ -45,10 +44,6 @@ class PostCreateScreen extends HookConsumerWidget {
           ...bytes.value,
           for (final item in picked) item.media.id: item.bytes,
         };
-        if (nextBytes.values.fold<int>(0, (n, b) => n + b.length) >
-            40 * 1024 * 1024) {
-          throw StateError('メディアは合計40MBまでです。');
-        }
         media.value = [...media.value, ...picked.map((item) => item.media)];
         bytes.value = nextBytes;
       } catch (error) {
@@ -57,7 +52,7 @@ class PostCreateScreen extends HookConsumerWidget {
             context,
             error is StateError
                 ? error.message.toString()
-                : '写真・動画を選択できませんでした。権限やファイル形式を確認してください。',
+                : '画像を選択できませんでした。権限やファイル形式を確認してください。',
           );
         }
       } finally {
@@ -73,7 +68,6 @@ class PostCreateScreen extends HookConsumerWidget {
       }
       busy.value = true;
       try {
-        ref.read(playingPostVideoProvider.notifier).select(null);
         await ref
             .read(postsProvider.notifier)
             .publish(
@@ -99,20 +93,6 @@ class PostCreateScreen extends HookConsumerWidget {
       }
     }
 
-    void samplePhoto() {
-      if (selected.value == null ||
-          selected.value!.photo.isEmpty ||
-          busy.value ||
-          media.value.length >= 6) {
-        return;
-      }
-      final id = newPostId('sample-photo');
-      media.value = [
-        ...media.value,
-        PostMedia(id: id, source: selected.value!.photo),
-      ];
-    }
-
     return PopScope(
       canPop: !busy.value,
       child: Scaffold(
@@ -123,7 +103,7 @@ class PostCreateScreen extends HookConsumerWidget {
               key: const ValueKey('publish-post'),
               onPressed: busy.value ? null : publish,
               child: Text(
-                busy.value ? '保存中…' : '投稿する',
+                busy.value ? 'アップロード中…' : '投稿する',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -140,8 +120,8 @@ class PostCreateScreen extends HookConsumerWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Text(
-                '※これはデモ版です。この端末に保存されます。ほかのユーザーには公開されません。',
-                style: TextStyle(fontSize: 25, height: 1.5, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                '写真・本文・評価はクラウドに保存され、ほかのユーザーにも表示されます。',
+                style: TextStyle(fontSize: 12, height: 1.5),
               ),
             ),
             const SizedBox(height: 24),
@@ -211,7 +191,7 @@ class PostCreateScreen extends HookConsumerWidget {
               ),
             const SizedBox(height: 24),
             Text(
-              '写真・動画（${media.value.length}/6）',
+              '画像（${media.value.length}/6）',
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
@@ -229,16 +209,12 @@ class PostCreateScreen extends HookConsumerWidget {
                 ),
                 PopupMenuButton<PostMediaSource>(
                   enabled: !busy.value && media.value.length < 6,
-                  tooltip: '写真・動画を撮影',
+                  tooltip: '画像を撮影',
                   onSelected: pick,
                   itemBuilder: (_) => const [
                     PopupMenuItem(
                       value: PostMediaSource.cameraPhoto,
                       child: Text('写真を撮影'),
-                    ),
-                    PopupMenuItem(
-                      value: PostMediaSource.cameraVideo,
-                      child: Text('動画を撮影（30秒まで）'),
                     ),
                   ],
                   child: const Padding(
@@ -255,19 +231,8 @@ class PostCreateScreen extends HookConsumerWidget {
                 ),
               ],
             ),
-            TextButton.icon(
-              key: const ValueKey('use-sample-post-photo'),
-              onPressed:
-                  selected.value == null ||
-                      busy.value ||
-                      media.value.length >= 6
-                  ? null
-                  : samplePhoto,
-              icon: const Icon(Icons.landscape_outlined),
-              label: const Text('選んだスポットのサンプル写真を使う'),
-            ),
             const Text(
-              '写真・動画は6件、1件20MB・合計40MBまで。動画は30秒以内。撮影は対応端末で利用できます。',
+              '画像は6枚まで・1枚5MB未満（JPEG・PNG・WebP・GIF）。動画は投稿できません。',
               style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.5),
             ),
             if (media.value.isNotEmpty) ...[
@@ -377,7 +342,7 @@ class PostCreateScreen extends HookConsumerWidget {
               decoration: const InputDecoration(
                 labelText: '旅で見つけたこと',
                 alignLabelWithHint: true,
-                hintText: 'どんな発見がありましたか？\n#北海道 #週末の寄り道',
+                hintText: '本文を入力してください',
               ),
             ),
           ],

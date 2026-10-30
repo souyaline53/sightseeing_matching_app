@@ -61,7 +61,7 @@ class AccountCard extends HookConsumerWidget {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('ログアウトしますか？'),
-          content: const Text('この端末の旅程・投稿・旅行の基本設定は残ります。'),
+          content: const Text('旅程・旅行の基本設定はこの端末に残ります。投稿はクラウドに保存されています。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),

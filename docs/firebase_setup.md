@@ -10,7 +10,7 @@
 
 これらはクライアント用設定です。サービスアカウントの秘密鍵は使用しません。iOSの最低対応バージョンは今回のFirebase SDKに合わせて15.0に設定しています。Androidは現在のFlutter既定値のAPI 24です。実機ビルドは未確認です。[FlutterFire公式セットアップ](https://firebase.google.com/docs/flutter/setup)
 
-**Authenticationの認証方式の有効化、Firestoreデータベースの作成、ルールの本番反映はまだ行っていません。** 作業時点のFirestore APIは未有効でした。以下をコンソールで設定してください。
+アプリ接続設定とは別に、認証方式・データベース・ルールの設定が必要です。観光地クラウド対応時にFirestore `(default)` の作成済みを確認しました。ルールの本番反映は今回実行していません。以下と [クラウド移行ガイド](cloud_catalog_setup.md) に沿ってコンソールの設定を確認してください。
 
 ## 1. メール／パスワード認証
 
@@ -20,7 +20,7 @@
 4. 「設定」→「パスワードポリシー」で最小文字数を **6** にする。大文字・小文字・数字・記号の必須条件はすべてオフにする。
 5. Webの認証設定の「承認済みドメイン」を確認し、開発用の `localhost` と実際に利用するHostingドメインがなければ追加する。独自ドメインを使う場合も登録する。
 
-Firebaseの匿名認証は不要です。未登録時にはFirebaseのアカウントを自動作成せず、端末内のゲストIDで利用します。登録後のメール確認は任意で、プロフィール画面から確認メールを送信できます。パスワード再設定メールも送信できます。
+閲覧・旅行計画では匿名認証は不要です。ゲストで写真を投稿する場合は匿名認証を有効化してください。写真投稿時のみFirebase匿名アカウントを作成します。登録後のメール確認は任意で、プロフィール画面から確認メールを送信できます。パスワード再設定メールも送信できます。
 
 参考：[Flutterのメール／パスワード認証](https://firebase.google.com/docs/auth/flutter/password-auth)、[パスワードポリシー](https://firebase.google.com/docs/auth/web/password-auth)、[開発時のlocalhostの承認](https://firebase.google.com/docs/auth/web/email-link-auth)
 
@@ -47,7 +47,7 @@ firebase deploy --only firestore:rules --project sightseeing-matching-prototype
 | --- | --- |
 | Firebase Authentication | UID、メールアドレス、パスワードの認証情報、表示名、メール確認状態 |
 | Firestore `users/{uid}` | `uid`, `nickname`, `ageGroup`, `prefecture`, `municipality`, `createdAt`, `updatedAt` |
-| 端末内 | 既存の旅行の基本設定・検索条件・旅程・投稿・メディア、ゲストID |
+| 端末内 | 旅行の基本設定・検索条件・旅程、ゲスト表示用ID |
 
 パスワードをFirestoreやアプリ独自の端末ストレージに保存しません。メールアドレスはAuthから取得し、プロフィール用ドキュメントへ複製しません。年代は「10代以下／20代／30代／40代／50代／60代／70代以上」です。住所は地方を選択してから47都道府県のいずれかを選び、市町村を入力します。
 
@@ -55,9 +55,10 @@ firebase deploy --only firestore:rules --project sightseeing-matching-prototype
 
 未登録の場合は「ゲストさん」と表示します。`guest-...` のIDを端末に保存し、同じブラウザ・同じオリジンでは再読み込みしても維持します。ブラウザのデータ削除や別端末への移動では維持されません。登録後はUIDが個人IDになります。
 
-新しい投稿・コメントにはその時点のUID（未登録ならゲストID）と名前を保存します。既存の端末内ゲスト投稿は、この端末で最初に登録・ログインしたユーザーから扱えるようにしています。別のアカウントに切り替えても、最初のユーザーの投稿を自分の投稿とは扱いません。名前は投稿時点の値で、過去の投稿の表示名は一括変更しません。
+投稿本文・評価・写真URL・リアクションはFirestore、写真本体はStorageに保存します。未登録ユーザーは書き込み時にFirebase匿名認証のUIDを取得します。投稿の所有者判定にはFirebase UIDのみを使い、端末内ゲストIDを登録ユーザーの投稿IDへ読み替える処理はありません。
 
-旅行の基本設定 `UserProfile` と今回のアカウント属性 `AccountDetails` は別モデルです。ログインしても既存の旅程・投稿等をFirestoreへアップロードしません。ログアウト後も端末内データは残り、ゲストとして利用できます。ログイン状態の復元はFirebase Auth SDKが管理します。
+旅行の基本設定 `UserProfile` とアカウント属性 `AccountDetails` は別モデルです。旅程・検索条件・基本設定の端末内保存は維持します。認証セッションの復元はFirebase Auth SDKが管理します。
+
 
 ## 起動と手動確認
 
@@ -81,7 +82,7 @@ flutterfire configure --project=sightseeing-matching-prototype --platforms=web,a
 ターミナル1（Firebase CLIとJava 21以上が必要）：
 
 ```sh
-firebase emulators:start --only auth,firestore --project sightseeing-matching-prototype
+firebase emulators:start --only auth,firestore,storage --project sightseeing-matching-prototype
 ```
 
 このMacでシステムのJavaがない場合はAndroid Studio付属のJavaを使用できます。
@@ -89,7 +90,7 @@ firebase emulators:start --only auth,firestore --project sightseeing-matching-pr
 ```sh
 export JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home'
 export PATH="$JAVA_HOME/bin:$PATH"
-firebase emulators:start --only auth,firestore --project sightseeing-matching-prototype
+firebase emulators:start --only auth,firestore,storage --project sightseeing-matching-prototype
 ```
 
 ターミナル2：
@@ -113,3 +114,5 @@ node tool/check_auth_emulators.mjs
 ```sh
 flutter test --platform chrome --dart-define=AUTH_EMULATORS_TEST=true --dart-define=FIREBASE_EMULATOR_HOST=127.0.0.1 test/account_browser_test.dart
 ```
+
+観光地・交通・写真のクラウド移行と管理者設定は [クラウド移行ガイド](cloud_catalog_setup.md) を参照してください。エミュレーター検証時はStorageも同時に起動します。

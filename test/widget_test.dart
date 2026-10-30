@@ -1,3 +1,7 @@
+import 'package:sightseeing_matching_app/service/cloud/cloud_services.dart';
+import 'package:sightseeing_matching_app/service/cloud/catalog_admin_service.dart';
+import 'package:sightseeing_matching_app/repository/firestore_catalog_repository.dart';
+import 'package:sightseeing_matching_app/repository/cloud_image_repository.dart';
 import 'package:sightseeing_matching_app/widgets/departure_map.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -17,7 +21,7 @@ import 'package:sightseeing_matching_app/repository/account_repository.dart';
 import 'package:sightseeing_matching_app/repository/posts_repository.dart';
 import 'package:sightseeing_matching_app/state/posts_state.dart';
 import 'package:sightseeing_matching_app/service/post_media_picker.dart';
-import 'package:sightseeing_matching_app/data/mock_data.dart';
+import 'package:sightseeing_matching_app/data/catalog_data.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'package:sightseeing_matching_app/screen/profile/profile_setting_screen.dart';
@@ -41,6 +45,9 @@ Future<ProviderContainer> boot(
   PostsRepository? postsRepository,
   PostMediaPicker? mediaPicker,
   AccountRepository? accountRepository,
+  CloudServices? cloudServices,
+  FirestoreCatalogRepository? adminRepository,
+  Object? catalogFailure,
   Future<Map<String, ImageInfo?>> Function()? photos,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -53,11 +60,20 @@ Future<ProviderContainer> boot(
       accountRepositoryProvider.overrideWith(
         (ref) => accountRepository ?? FakeAccountRepository(),
       ),
-      mockCatalogProvider.overrideWith((ref) => testCatalog),
-      if (mediaPicker != null)
-        postMediaPickerProvider.overrideWithValue(mediaPicker),
+      catalogProvider.overrideWith((ref) {
+        if (catalogFailure != null) throw catalogFailure;
+        return Stream.value(testCatalog);
+      }),
+      if (cloudServices != null)
+        cloudServicesProvider.overrideWith((ref) => cloudServices),
+      if (adminRepository != null)
+        adminCatalogRepositoryProvider.overrideWithValue(adminRepository),
+      postMediaPickerProvider.overrideWithValue(
+        mediaPicker ?? MemoryImagePicker(),
+      ),
+      cloudImageRepositoryProvider.overrideWithValue(MemoryCloudImages()),
       postsRepositoryProvider.overrideWithValue(
-        postsRepository ?? MemoryPostsRepository(),
+        postsRepository ?? MemoryPostsRepository.seeded(),
       ),
       mapTilesEnabledProvider.overrideWithValue(false),
       tripsRepositoryProvider.overrideWithValue(
@@ -123,7 +139,7 @@ Future<void> enterDetails(
 }
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   testWidgets(
     'questions precede conditions; execution, cards and itinerary remain connected',
     (tester) async {

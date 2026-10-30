@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function admin() {
+      return request.auth != null && request.auth.token.email.lower() == 'nichi-ka@nichi-ka.com'
+        && request.auth.token.email_verified == true;
+    }
+    function image() {
+      return request.resource.size > 0 && request.resource.size <= 200000
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    }
+    match /catalog/{collection}/{id}/{file} {
+      allow read: if true;
+      allow create: if resource == null && admin() && collection in ['sightseeing_spot', 'transit'] && image();
+      allow delete: if admin();
+    }
+    match /posts/{uid}/{postId}/{file} {
+      allow read: if true;
+      allow create: if resource == null && request.auth != null && image()
+        && (request.auth.uid == uid || (admin() && file.matches('display-v1-.*') && request.resource.size <= 200000 && request.resource.contentType == 'image/jpeg'));
+      allow delete: if request.auth != null && (request.auth.uid == uid || (admin() && file.matches('display-v1-.*')));
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

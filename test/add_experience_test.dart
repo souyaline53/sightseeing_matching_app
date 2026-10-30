@@ -23,7 +23,7 @@ Future<void> showCoal(WidgetTester tester) async {
 }
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   for (final fromBooklet in [false, true]) {
     testWidgets(
       'add cards to existing trip from ${fromBooklet ? 'booklet FAB' : 'itinerary button'}',

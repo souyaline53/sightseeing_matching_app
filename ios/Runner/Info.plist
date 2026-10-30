@@ -25,11 +25,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>旅の投稿に使用する写真・動画を選択します。</string>
+	<string>旅の投稿に使用する写真を選択します。</string>
 	<key>NSCameraUsageDescription</key>
-	<string>旅の投稿に使用する写真・動画を撮影します。</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>旅の動画を音声付きで撮影します。</string>
+	<string>旅の投稿に使用する写真を撮影します。</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

@@ -3,7 +3,7 @@ import '../../model/search_settings.dart';
 import '../../state/app_tab.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
-import '../../data/mock_data.dart';
+import '../../data/catalog_data.dart';
 import '../../model/experience.dart';
 import '../../state/trip_state.dart';
 import '../../state/trip_library_state.dart';
@@ -16,7 +16,7 @@ class ItineraryHome extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trip = ref.watch(tripProvider);
-    final experiences = ref.watch(mockCatalogProvider).requireValue.experiences;
+    final experiences = ref.watch(catalogProvider).requireValue.experiences;
     final controller = ref.read(tripProvider.notifier);
     void showPlan(bool demo) {
       final stops = List<Experience>.of(
@@ -237,7 +237,7 @@ class PlanScreen extends HookConsumerWidget {
     final publicTransport = livePlan?.publicTransport ?? this.publicTransport;
     final conditions = livePlan?.conditions ?? this.conditions;
     final legs = ref
-        .watch(mockCatalogProvider)
+        .watch(catalogProvider)
         .requireValue
         .sampleTransit(origin, stops);
     return Scaffold(

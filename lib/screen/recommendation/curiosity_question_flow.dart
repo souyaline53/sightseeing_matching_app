@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/mock_data.dart';
 import '../../service/curiosity_questions.dart';
 import '../../state/discovery_state.dart';
-import '../../widgets/travel_photo.dart';
 
 class CuriosityQuestionFlow extends HookConsumerWidget {
   const CuriosityQuestionFlow({super.key});
@@ -45,7 +43,7 @@ class CuriosityQuestionFlow extends HookConsumerWidget {
         content?.options ??
         [
           for (final mood in CuriosityQuestions.moods)
-            QuestionOption(mood.id, mood.label, mood.photoId, mood.genres),
+            QuestionOption(mood.id, mood.label, mood.symbol, mood.genres),
         ];
     final selectedId = number == 0
         ? answers.moodId
@@ -197,7 +195,15 @@ class _AnswerCard extends HookConsumerWidget {
                 SizedBox(
                   width: 72,
                   height: double.infinity,
-                  child: _QuestionPhoto(option.photoId),
+                  child: ColoredBox(
+                    color: colors.primary.withValues(alpha: .06),
+                    child: Icon(
+                      questionIcon(option.symbol),
+                      key: ValueKey('question-icon-${option.id}'),
+                      color: colors.primary,
+                      size: 32,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Padding(
@@ -253,22 +259,17 @@ class _AnswerCard extends HookConsumerWidget {
   }
 }
 
-class _QuestionPhoto extends HookConsumerWidget {
-  final String id;
-  const _QuestionPhoto(this.id);
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final experience = ref
-        .watch(mockCatalogProvider)
-        .requireValue
-        .experiences
-        .where((e) => e.id == id)
-        .firstOrNull;
-    return experience == null
-        ? const ColoredBox(
-            color: Color(0xffd9e7df),
-            child: Center(child: Icon(Icons.landscape_outlined)),
-          )
-        : TravelPhoto(experience);
-  }
-}
+IconData questionIcon(CuriositySymbol symbol) => switch (symbol) {
+  CuriositySymbol.dining => Icons.restaurant_outlined,
+  CuriositySymbol.explore => Icons.explore_outlined,
+  CuriositySymbol.spa => Icons.spa_outlined,
+  CuriositySymbol.celebration => Icons.celebration_outlined,
+  CuriositySymbol.bakery => Icons.bakery_dining_outlined,
+  CuriositySymbol.history => Icons.account_balance_outlined,
+  CuriositySymbol.craft => Icons.handyman_outlined,
+  CuriositySymbol.water => Icons.water_outlined,
+  CuriositySymbol.walking => Icons.hiking_outlined,
+  CuriositySymbol.railway => Icons.train_outlined,
+  CuriositySymbol.landscape => Icons.landscape_outlined,
+  CuriositySymbol.town => Icons.location_city_outlined,
+};

@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../data/mock_data.dart';
+import '../data/catalog_data.dart';
 import '../service/photo_source.dart';
 
 /// Keep decoded images alive for the session. Swiping never resolves a URL.
 final experiencePhotosProvider = FutureProvider<Map<String, ImageInfo?>>((
   ref,
 ) async {
-  final catalog = await ref.watch(mockCatalogProvider.future);
+  final snapshot = ref.watch(catalogProvider);
+  if (!snapshot.hasValue) await ref.watch(catalogProvider.future);
+  if (!ref.mounted) return {};
+  final catalog = ref.read(catalogProvider).requireValue;
   final images = <String, ImageInfo?>{};
   var disposed = false;
   ref.onDispose(() {
@@ -19,7 +22,7 @@ final experiencePhotosProvider = FutureProvider<Map<String, ImageInfo?>>((
   });
   await Future.wait(
     catalog.experiences.map((experience) async {
-      final image = await _loadPhoto(experience.imageUrl);
+      final image = await _loadPhoto(experience.photo);
       if (disposed) {
         image?.dispose();
       } else {

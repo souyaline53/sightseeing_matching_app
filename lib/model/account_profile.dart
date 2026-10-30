@@ -49,19 +49,16 @@ class AccountIdentity {
 
 class GuestIdentity {
   final String id;
-  final String? claimedByUid;
-  const GuestIdentity(this.id, {this.claimedByUid});
+  const GuestIdentity(this.id);
 }
 
 class CurrentAccount {
   final AccountIdentity identity;
-  final GuestIdentity? guest;
   final AccountDetails? details;
   final bool loading, profileLoading;
   final Object? error;
   const CurrentAccount({
     required this.identity,
-    this.guest,
     this.details,
     this.loading = false,
     this.profileLoading = false,
@@ -70,10 +67,7 @@ class CurrentAccount {
   bool get registered => identity.registered;
   String get name =>
       registered ? details?.nickname ?? identity.displayName : 'ゲストさん';
-  bool ownsPost(String userId) =>
-      userId == identity.uid ||
-      ((userId == guest?.id || userId == 'local-user') &&
-          (!registered || guest?.claimedByUid == identity.uid));
+  bool ownsPost(String userId) => userId == identity.uid;
 }
 
 class AccountFailure implements Exception {

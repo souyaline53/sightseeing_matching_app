@@ -19,15 +19,15 @@ flutter run -d web-server --web-port 7357
 
 プロフィールタブからメール／パスワードで登録・ログインできます。年代・ニックネーム・地方／都道府県・市町村をFirestoreの本人専用ドキュメントへ保存し、個人IDにはFirebase AuthのUIDを使用します。未登録時は「ゲストさん」として全タブを利用できます。
 
-Firebaseのアプリ接続設定は生成済みです。**利用前にAuthenticationのメール／パスワード方式の有効化、Firestore作成、セキュリティルール反映が必要です。** 詳しい手順とエミュレーターの使い方は [Firebase設定ガイド](docs/firebase_setup.md) を参照してください。既存の旅行の基本設定や旅程・投稿は端末内保存を維持しています。
+Firebaseのアプリ接続設定は生成済みです。**利用前にAuthenticationの方式、Firestore・Storageの設定、セキュリティルールの反映を確認してください。** 詳しい手順とエミュレーターの使い方は [Firebase設定ガイド](docs/firebase_setup.md) を参照してください。既存の旅行の基本設定や旅程・投稿は端末内保存を維持しています。
 
-## 観光地・交通データの追加
+## 観光地・交通・写真のクラウド保存
 
-観光地は `assets/mock_data/sightseeing_spot/`、交通サンプルは `assets/mock_data/transit/` に1件1ファイルのMarkdownで保存します。写真は `assets/mock_data/images/` に置き、Markdownの `![説明](../images/写真名.jpg)` で指定します。既存の写真10枚もローカルアセットです。
+通常の観光地・交通データはCloud Firestoreから取得します。写真本体はCloud Storage、写真URLと保存パスはFirestoreに保存します。新規画像はアップロード前に200KB以下へ変換し、表示時はURL単位のメモリ・永続キャッシュを利用します。管理者 `nichi-ka@nichi-ka.com` でログインすると、プロフィール最下部の「管理者メニュー」から観光地／交通の追加・編集・削除ができます。書き込みにはメール確認も必要です。
 
-同じフォルダへ `.md` を追加すれば、アセット一覧から自動で読み込みます。Dartのデータ配列やindexの追記は不要です。追加・変更後はアプリを停止して再起動、Web公開時は再ビルドしてください。編集用の書式・コピー用テンプレートは [データ追加ガイド](assets/mock_data/README.md) を参照してください。
+移行済みのFirestoreデータをそのまま利用します。ローカルMD・写真・解析処理・初回取り込み画面は削除済みです。カタログが空の場合にローカルデータで補完することもありません。
 
-カタログはRepositoryで読み込み、Riverpodで起動時に一度復元します。プロフィール・検索条件・旅程の端末内保存とは別です。Firestoreには未接続ですが、将来は `MockCatalogRepository` の実装を差し替えられます。
+既存画像の200KB最適化、キャッシュ、Storageの設定、ルール反映の詳細は [クラウド移行ガイド](docs/cloud_catalog_setup.md) を参照してください。
 
 ## 操作
 
@@ -40,21 +40,23 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 6. カード下の「旅を組み立てる」ボタン、または同名のタブから、保存した体験を追加・削除・ドラッグ並べ替えします。自分で組み立てた旅程とAIのデモ用旅程を表示できます。タブを切り替えても編集中の旅程を保持し、自動保存します。
 7. プロフィールでは普段の出発地・交通手段・予算・徒歩希望を保存します。プリセットの読み込み、名前変更、内容編集、上書き、確認付き削除もここから行います。
 
-## 投稿タブ（ローカル試作）
+## 投稿タブ（Firestore）
 
 ホーム・旅を組み立てる・投稿・プロフィールの4タブです。
 
-- 「おすすめ」は質問の興味を参考に並べるルールベースのデモです。AI APIには接続していません。「フォロー中」は投稿メニューからフォローしたサンプルユーザーの投稿を表示します。
-- 投稿カードにはスポットタグ、写真・動画のカルーセル、ページ表示、いいね、コメント、シェア、投稿の保存、星評価、本文・ハッシュタグ、最新コメントを表示します。
+- 「おすすめ」は質問の興味を参考に並べるルールベースのデモです。AI APIには接続していません。「フォロー中」はフォローしたユーザーのクラウド投稿を表示します。
+- 投稿カードにはスポットタグ、写真のカルーセル、ページ表示、いいね、コメント、シェア、投稿の保存、星評価、本文・ハッシュタグ、最新コメントを表示します。
 - タグをタップすると既存の観光地詳細が開き、同じスポットIDの投稿を「みんなのレビュー」に表示します。投稿のしおり保存と、旅行計画への体験保存は独立しています。
-- 右下の＋から、登録済みスポット・評価・カテゴリ・本文を入力し、写真・動画を選んで投稿できます。端末のライブラリ・対応端末での撮影に加え、動作確認用のスポット写真も利用できます。
-- メディアは最大6件、1件20MB・合計40MB、動画30秒以内です。Webの再生形式はブラウザに依存します。MP4・WebMを推奨し、未対応形式は読み込みエラーを表示します。撮影や写真ライブラリのUIは端末・ブラウザに依存します。
+- 右下の＋から、登録済みスポット・評価・カテゴリ・本文を入力し、写真を選んで投稿できます。端末のライブラリ・対応端末での写真撮影を利用できます。
+- 写真のみ最大6枚、1枚5MB未満（5,000,000バイト未満）。JPEG・PNG・WebP・GIFに対応します。動画は投稿できません。元のファイルサイズと画像内容を検証し、Storageルールでもサイズと形式を制限します。
 - シェアは本文とスポット名のテキスト共有です。対応環境では標準の共有画面を使い、利用できない場合は本文をコピーします。公開用の投稿URLは生成しません。
-- 投稿・コメント・いいね・フォロー・保存とメディア本体は、この端末だけに保存します。WebはIndexedDB（`tabisaki.posts.v1`）、Android/iOSはアプリのサポートディレクトリ内のSembastファイルです。同じブラウザ・同じオリジンで復元します。ほかのユーザーには公開されず、同期はありません。新しい投稿・コメントはログイン中のUIDとニックネームを使用し、未登録時は端末内ゲストIDと「ゲストさん」を使用します。
-- 投稿と画像・動画の保存は1トランザクションで行い、失敗時はフォームを保持します。自分の投稿のみ確認後に削除でき、他の投稿と共有していないローカルメディアも削除します。
-- モデルは `lib/model/post.dart`、保存境界は `PostsRepository`、状態は `postsProvider` に分離しています。観光地のMarkdownや既存のプロフィール・旅程保存は変更しません。
+- 投稿本文・評価・写真URL・コメント・いいねをFirestoreへ保存し、一覧をリアルタイム購読します。保存した投稿とフォローはユーザー別のFirestoreコレクションで管理します。
+- 写真本体はCloud Storageです。投稿文書の保存失敗時はアップロード済み画像の削除を試み、入力を保持します。
+- ゲストの書き込み時はFirebase匿名認証を使い、「ゲストさん」と表示します。他人の投稿変更や個人別の保存情報の読み取りはルールで拒否します。
+- 投稿本文や投稿サンプルの自動生成、ローカル投稿DB、ローカル画像保存はありません。空のFirestoreでは空の一覧を表示します。
+- 今回の対象外である旅程・検索条件・基本設定は従来の端末内保存を維持します。
 
-メディア選択には[image_picker](https://pub.dev/packages/image_picker)、再生には[video_player](https://pub.dev/packages/video_player)、Web保存には[sembast_web](https://pub.dev/packages/sembast_web)を使用しています。iOSの写真・カメラ・マイクの利用目的をInfo.plistに追加しています。実機での撮影・再生確認は未実施です。
+詳しくは [クラウド保存と設定](docs/cloud_catalog_setup.md) を参照してください。
 
 ## 保存と独立性
 
@@ -93,7 +95,7 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 | `lib/state/trip_library_state.dart` | 旅程一覧の復元・編集・削除・保存とエラー通知 |
 | `lib/state/app_tab.dart` | ホーム・旅程・投稿・プロフィールの4タブ |
 | `lib/service/curiosity_questions.dart` | 4つの気分・12通りの理由・5種類のクエストセットと興味のヒント |
-| `lib/screen/recommendation/curiosity_question_flow.dart` | 写真付き4択・理由3択・クエスト3択の質問UI |
+| `lib/screen/recommendation/curiosity_question_flow.dart` | アイコン付き4択・理由3択・クエスト3択の質問UI |
 | `lib/service/recommendation_service.dart` | 好みに近い・隣接・意外な体験を混ぜる推薦 |
 | `lib/service/mock_access_ranking.dart` | 条件からサンプルのアクセスしやすさを算出し、ジャンル内を並べ替え |
 | `lib/service/search_execution_service.dart` | 入力確定・プリセットとLastSearchの一括保存・旅程引継ぎ・探索開始 |
@@ -112,12 +114,9 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 | `lib/screen/recommendation/experience_detail.dart` | ストーリー詳細、固定の閉じるボタン |
 | `lib/screen/itinerary/itinerary_home.dart` | 条件を引き継いだ旅程編集とサンプル交通 |
 | `lib/screen/base_page.dart` | 設定と旅程の起動時復元・ホーム/旅程/投稿/プロフィールの4タブ・戻る操作 |
-| `lib/data/mock_data.dart` | カタログRepositoryと読み込み状態のRiverpod Provider |
-| `lib/repository/mock_catalog_repository.dart` | アセット一覧からMarkdownを自動検出・検証・読み込み |
-| `lib/model/mock_catalog.dart` | 体験一覧・交通サンプルと区間の表示モデル |
-| `assets/mock_data/sightseeing_spot/*.md` | 北海道10件の体験・写真・アクセスのサンプル値 |
-| `assets/mock_data/transit/*.md` | 交通機関・時刻・乗換・徒歩・運賃・注意書き |
-| `assets/mock_data/images/*` | 同梱する観光写真 |
+| `lib/data/catalog_data.dart` | FirestoreカタログRepositoryと読み込み状態のRiverpod Provider |
+| `lib/repository/catalog_repository.dart` | カタログ取得のインターフェース |
+| `lib/model/travel_catalog.dart` | 体験一覧・交通情報と区間の表示モデル |
 | `pubspec.yaml`, `pubspec.lock` | 保存・地図・座標型・地図出典リンクの依存 |
 | `android/app/src/main/AndroidManifest.xml` | リリース版でも地図画像を取得するためのINTERNET権限 |
 | `ios/Podfile`, `ios/Flutter/{Debug,Release}.xcconfig` | プラグイン導入時にFlutterが生成したiOS設定 |
@@ -127,7 +126,7 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 
 ## 制限・未実装
 
-- Firebase Authenticationと本人用プロフィールのFirestore保存を追加しています。AI・交通API・課金、公開プロフィール、共同旅程、旅程・投稿のクラウド同期は未実装です。
+- Firebase Authentication、本人用プロフィール・観光地・交通のFirestore保存、写真のCloud Storage保存を使用します。AI・交通API・課金、公開プロフィール、共同旅程、旅程のクラウド同期は未実装です。
 - 出発地・交通手段・予算・移動時間などはサンプル推薦のジャンル内順位に反映します。実経路や料金の検索ではなく、条件を満たす保証・除外判定は行いません。
 - [flutter_map](https://pub.dev/packages/flutter_map)でパン・ズームできる地図を表示します。地図画像はOpenStreetMapから取得しますが、駅・バス停候補と座標はローカルのサンプルです。外部ジオコーディングや全国の駅検索はありません。検索フローで新しく選べる地点は暫定の4地点です。画像取得失敗時も4択ボタンを利用できます。保存済み条件に別の出発地がある場合は、自動変更せず保持します。地図には出典リンクを表示しています。
 - 時刻・乗換・徒歩・交通費・車の所要時間はすべてダミー。帰路や最終便、実際の日帰り可否も検索しません。
@@ -138,14 +137,14 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 
 ## 検証
 
-投稿は `test/posts_state_test.dart`・`test/posts_widget_test.dart` で保存・操作・レビュー連動を、`flutter test --platform chrome test/posts_browser_test.dart` で実際のIndexedDBへの保存と復元を確認します。
+投稿は `test/posts_state_test.dart`・`test/posts_widget_test.dart` で操作・レビュー連動を、`test/cloud_catalog_browser_test.dart` で実際のFirestoreへの保存・別クライアントによる再取得・権限を確認します。
 
 ```sh
 flutter pub get
 dart format .
 flutter analyze
 flutter test
-flutter test --platform chrome test/browser_storage_test.dart test/mock_catalog_test.dart
+flutter test --platform chrome test/browser_storage_test.dart
 flutter build web
 ```
 

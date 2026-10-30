@@ -1206,12 +1206,19 @@ PODS:
   - Firebase/Firestore (12.19.3):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 12.19.3)
+  - Firebase/Storage (12.19.3):
+    - Firebase/CoreOnly
+    - FirebaseStorage (~> 12.19.0)
   - firebase_auth (7.0.1):
     - Firebase/Auth (= 12.19.3)
     - firebase_core
     - Flutter
   - firebase_core (5.1.0):
     - Firebase/CoreOnly (= 12.19.3)
+    - Flutter
+  - firebase_storage (14.0.1):
+    - Firebase/Storage (= 12.19.3)
+    - firebase_core
     - Flutter
   - FirebaseAppCheckInterop (12.19.0)
   - FirebaseAuth (12.19.0):
@@ -1253,6 +1260,13 @@ PODS:
     - leveldb-library (~> 1.22)
     - nanopb (~> 3.30910.0)
   - FirebaseSharedSwift (12.19.0)
+  - FirebaseStorage (12.19.0):
+    - FirebaseAppCheckInterop (~> 12.19.0)
+    - FirebaseAuthInterop (~> 12.19.0)
+    - FirebaseCore (~> 12.19.0)
+    - FirebaseCoreExtension (~> 12.19.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
   - Flutter (1.0.0)
   - GoogleUtilities/AppDelegateSwizzler (8.1.5):
     - GoogleUtilities/Environment
@@ -1384,20 +1398,17 @@ PODS:
     - FlutterMacOS
   - url_launcher_ios (0.0.1):
     - Flutter
-  - video_player_avfoundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
 
 DEPENDENCIES:
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
+  - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
   - Flutter (from `Flutter`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
-  - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
 
 SPEC REPOS:
   trunk:
@@ -1413,6 +1424,7 @@ SPEC REPOS:
     - FirebaseFirestore
     - FirebaseFirestoreInternal
     - FirebaseSharedSwift
+    - FirebaseStorage
     - GoogleUtilities
     - "gRPC-C++"
     - gRPC-Core
@@ -1428,6 +1440,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
+  firebase_storage:
+    :path: ".symlinks/plugins/firebase_storage/ios"
   Flutter:
     :path: Flutter
   image_picker_ios:
@@ -1438,8 +1452,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
-  video_player_avfoundation:
-    :path: ".symlinks/plugins/video_player_avfoundation/darwin"
 
 SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
@@ -1448,6 +1460,7 @@ SPEC CHECKSUMS:
   Firebase: e3c5ab38229ae085490d02398d97b9f5374bbe6e
   firebase_auth: 1be750cad742730e67d5b6d959b563368eab05de
   firebase_core: 80d50cac10fc9dff2597c55ed43e296d9a0bc90a
+  firebase_storage: ac98c8947d44a65b5043c883aa80896f27ddac08
   FirebaseAppCheckInterop: bd4b791ffaed7ae719304af6369d243ddee5e4a0
   FirebaseAuth: 8c38236f67e5e3dd6aacf3e0c46b3eed31e9c820
   FirebaseAuthInterop: f1ad187a0052276ad49a990538accfdf36fc595d
@@ -1457,6 +1470,7 @@ SPEC CHECKSUMS:
   FirebaseFirestore: 1fc8a582c9a2b8a4c089d0fcd8793a4bf2b54846
   FirebaseFirestoreInternal: 2617381b45331505f051d60f451d254a6275a5c2
   FirebaseSharedSwift: c91f36aeaa566e12b682caacc40d34c8303c3124
+  FirebaseStorage: 357354fbde2ba62983c0fe5d9cf10155046b5404
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   GoogleUtilities: 7dc09b3fa9ecb5c2298b952313d14628b61b9da3
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
@@ -1469,7 +1483,6 @@ SPEC CHECKSUMS:
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
-  video_player_avfoundation: 3453f792138786248960ca029747fcd9f318ef52
 
 PODFILE CHECKSUM: 53a6aebc29ccee84c41f92f409fc20cd4ca011f1
 

@@ -28,6 +28,141 @@ service cloud.firestore {
       allow update: if owner(uid) && validProfile(uid) && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if owner(uid);
     }
+    function admin() {
+      return request.auth != null && request.auth.token.email.lower() == 'nichi-ka@nichi-ka.com'
+        && request.auth.token.email_verified == true;
+    }
+    function text(value) { return value is string && value.size() > 0 && value.size() <= 10000; }
+    function number(value) { return value is int && value >= 0 && value <= 100000; }
+    function photo(url, path, collection, id) {
+      return (url == '' && path == '') || (url is string && url.matches('https?://.+')
+        && path is string && path.matches('catalog/' + collection + '/' + id + '/[^/]+'));
+    }
+    function extraPhoto(data, id, index) {
+      return data.additionalPhotos.size() <= index || photo(data.additionalPhotos[index], data.additionalPhotoPaths[index], 'sightseeing_spot', id);
+    }
+    function catalogTimes(creating) {
+      return request.resource.data.updatedAt == request.time && request.resource.data.createdAt is timestamp
+        && (creating ? request.resource.data.createdAt == request.time : request.resource.data.createdAt == resource.data.createdAt);
+    }
+    function spot(id, creating) {
+      let d = request.resource.data;
+      return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
+        && d.keys().hasAll(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
+        && d.keys().hasOnly(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
+        && text(d.title) && text(d.area) && text(d.category) && text(d.description) && text(d.story) && text(d.surprise)
+        && number(d.minutes) && number(d.accessMinutes) && number(d.order)
+        && photo(d.photo, d.photoPath, 'sightseeing_spot', id)
+        && d.additionalPhotos is list && d.additionalPhotoPaths is list
+        && d.additionalPhotos.size() == d.additionalPhotoPaths.size() && d.additionalPhotos.size() <= 5
+        && (d.photo != '' || d.additionalPhotos.size() == 0)
+        && extraPhoto(d,id,0) && extraPhoto(d,id,1) && extraPhoto(d,id,2) && extraPhoto(d,id,3) && extraPhoto(d,id,4)
+        && catalogTimes(creating);
+    }
+    function transit(id, creating) {
+      let d = request.resource.data;
+      return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
+        && d.keys().hasAll(['position','spotId','mode','transfer','walking','fare','departureMinutes','arrivalMinutes','stepMinutes','note','order','photo','photoPath','createdAt','updatedAt'])
+        && d.keys().hasOnly(['position','spotId','mode','transfer','walking','fare','departureMinutes','arrivalMinutes','stepMinutes','note','order','photo','photoPath','createdAt','updatedAt'])
+        && d.position in ['first','following','any'] && (d.spotId == '*' || d.spotId.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}'))
+        && text(d.mode) && text(d.transfer) && text(d.walking) && text(d.fare) && text(d.note)
+        && number(d.departureMinutes) && number(d.arrivalMinutes) && d.arrivalMinutes >= d.departureMinutes
+        && number(d.stepMinutes) && number(d.order) && photo(d.photo,d.photoPath,'transit',id) && catalogTimes(creating);
+    }
+    match /sightseeing_spot/{id} {
+      allow read: if true;
+      allow create: if admin() && spot(id, true);
+      allow update: if admin() && spot(id, false);
+      allow delete: if admin();
+    }
+    match /transit/{id} {
+      allow read: if true;
+      allow create: if admin() && transit(id, true);
+      allow update: if admin() && transit(id, false);
+      allow delete: if admin();
+    }
+    function signedOwner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function activePost(id) {
+      return exists(/databases/$(database)/documents/posts/$(id))
+        && get(/databases/$(database)/documents/posts/$(id)).data.status == 'active';
+    }
+    function postOwner(id) {
+      return request.auth != null && exists(/databases/$(database)/documents/posts/$(id))
+        && get(/databases/$(database)/documents/posts/$(id)).data.userId == request.auth.uid;
+    }
+    function postImage(m, uid, id) {
+      return m is map && m.keys().hasAll(['id','source','mimeType','storagePath'])
+        && m.keys().hasOnly(['id','source','mimeType','storagePath'])
+        && m.id is string && m.id.size() > 0 && m.id.size() <= 128
+        && m.source is string && m.source.size() <= 4096 && m.source.matches('https?://.+')
+        && m.mimeType in ['image/jpeg','image/png','image/webp','image/gif']
+        && m.storagePath is string && m.storagePath.matches('posts/' + uid + '/' + id + '/[^/]+');
+    }
+    function imageAt(d, id, index) { return d.media.size() <= index || postImage(d.media[index], d.userId, id); }
+    function validPost(id) {
+      let d = request.resource.data;
+      return d.keys().hasAll(['id','userId','userName','avatar','spotId','category','caption','media','rating','createdAt','status'])
+        && d.keys().hasOnly(['id','userId','userName','avatar','spotId','category','caption','media','rating','createdAt','status'])
+        && id.matches('[A-Za-z0-9_-]{1,128}') && d.id == id && signedOwner(d.userId)
+        && d.userName is string && d.userName.size() > 0 && d.userName.size() <= 30
+        && d.avatar == '' && d.spotId is string && exists(/databases/$(database)/documents/sightseeing_spot/$(d.spotId))
+        && d.category is string && d.category.size() > 0 && d.category.size() <= 40
+        && d.caption is string && d.caption.size() > 0 && d.caption.size() <= 2000
+        && d.rating is number && d.rating >= 1 && d.rating <= 5
+        && d.createdAt == request.time && d.status == 'active'
+        && d.media is list && d.media.size() >= 1 && d.media.size() <= 6
+        && imageAt(d,id,0) && imageAt(d,id,1) && imageAt(d,id,2) && imageAt(d,id,3) && imageAt(d,id,4) && imageAt(d,id,5);
+    }
+    match /posts/{id} {
+      allow read: if true;
+      allow create: if validPost(id);
+      allow update: if (signedOwner(resource.data.userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['active','deleting'])
+        || (admin() && resource.data.status == 'active'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['media'])
+          && request.resource.data.media is list
+          && request.resource.data.media.size() == resource.data.media.size()
+          && imageAt(request.resource.data,id,0) && imageAt(request.resource.data,id,1)
+          && imageAt(request.resource.data,id,2) && imageAt(request.resource.data,id,3)
+          && imageAt(request.resource.data,id,4) && imageAt(request.resource.data,id,5));
+      allow delete: if signedOwner(resource.data.userId) && resource.data.status == 'deleting';
+    }
+    match /post_likes/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['postId','userId','createdAt'])
+        && request.resource.data.keys().hasOnly(['postId','userId','createdAt'])
+        && request.resource.data.userId == request.auth.uid
+        && id == request.resource.data.postId + '_' + request.auth.uid
+        && request.resource.data.createdAt == request.time && activePost(request.resource.data.postId);
+      allow delete: if signedOwner(resource.data.userId) || postOwner(resource.data.postId);
+    }
+    match /post_comments/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['id','postId','userId','userName','text','createdAt'])
+        && request.resource.data.keys().hasOnly(['id','postId','userId','userName','text','createdAt'])
+        && request.resource.data.id == id && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userName is string && request.resource.data.userName.size() > 0 && request.resource.data.userName.size() <= 30
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500
+        && request.resource.data.createdAt == request.time && activePost(request.resource.data.postId);
+      allow delete: if signedOwner(resource.data.userId) || postOwner(resource.data.postId);
+    }
+    match /users/{uid}/post_bookmarks/{id} {
+      allow read, delete: if signedOwner(uid);
+      allow create: if signedOwner(uid) && activePost(id)
+        && request.resource.data.keys().hasAll(['targetId','createdAt'])
+        && request.resource.data.keys().hasOnly(['targetId','createdAt'])
+        && request.resource.data.targetId == id && request.resource.data.createdAt == request.time;
+    }
+    match /users/{uid}/post_follows/{id} {
+      allow read, delete: if signedOwner(uid);
+      allow create: if signedOwner(uid) && id != uid && id.size() <= 128
+        && request.resource.data.keys().hasAll(['targetId','createdAt'])
+        && request.resource.data.keys().hasOnly(['targetId','createdAt'])
+        && request.resource.data.targetId == id && request.resource.data.createdAt == request.time;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

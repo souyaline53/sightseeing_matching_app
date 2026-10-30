@@ -53,7 +53,7 @@ Future<void> fill(WidgetTester tester) async {
 }
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   testWidgets(
     'profile shows guest, registers attributes and returns to guest on logout',
     (tester) async {

@@ -1,5 +1,5 @@
 import '../state/trip_library_state.dart';
-import '../data/mock_data.dart';
+import '../data/catalog_data.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
 import 'profile/profile_home.dart';
@@ -17,11 +17,11 @@ class BasePage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final trips = ref.watch(tripLibraryProvider);
-    final catalog = ref.watch(mockCatalogProvider);
-    if (settings.isLoading || trips.isLoading || catalog.isLoading) {
+    final catalog = ref.watch(catalogProvider);
+    if (settings.isLoading || trips.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (settings.hasError || trips.hasError || catalog.hasError) {
+    if (settings.hasError || trips.hasError) {
       return Scaffold(
         body: Center(
           child: Padding(
@@ -29,17 +29,12 @@ class BasePage extends HookConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  catalog.hasError
-                      ? '観光地・交通データを読み込めませんでした。Markdownファイルの内容を確認してください。\n${catalog.error}'
-                      : '保存済みデータを読み込めませんでした。データを保護するため、読み込みが完了するまで編集を停止しています。',
-                ),
+                Text('保存済みデータを読み込めませんでした。データを保護するため、読み込みが完了するまで編集を停止しています。'),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () {
                     if (settings.hasError) ref.invalidate(settingsProvider);
                     if (trips.hasError) ref.invalidate(tripLibraryProvider);
-                    if (catalog.hasError) ref.invalidate(mockCatalogProvider);
                   },
                   child: const Text('再読み込み'),
                 ),
@@ -80,9 +75,13 @@ class BasePage extends HookConsumerWidget {
               child: IndexedStack(
                 index: tab,
                 children: [
-                  const RecommendationHome(),
-                  const ItineraryHome(),
-                  const PostsHome(),
+                  catalog.hasValue
+                      ? const RecommendationHome()
+                      : const _CatalogNotice(),
+                  catalog.hasValue
+                      ? const ItineraryHome()
+                      : const _CatalogNotice(),
+                  catalog.hasValue ? const PostsHome() : const _CatalogNotice(),
                   const ProfileHome(),
                 ],
               ),
@@ -122,6 +121,38 @@ class BasePage extends HookConsumerWidget {
               label: 'プロフィール',
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CatalogNotice extends HookConsumerWidget {
+  const _CatalogNotice();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(catalogProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('TABISAKI')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: catalog.isLoading
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'クラウドの観光地・交通情報を読み込めませんでした。Firebaseの設定・ルール・通信を確認してください。プロフィールは引き続き開けます。',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: () => ref.invalidate(catalogProvider),
+                      child: const Text('再読み込み'),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

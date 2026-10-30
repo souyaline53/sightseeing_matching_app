@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/mock_data.dart';
+import '../../data/catalog_data.dart';
 import '../../model/post.dart';
 import '../../service/curiosity_questions.dart';
 import '../../state/discovery_state.dart';
@@ -11,7 +10,6 @@ import '../../state/account_state.dart';
 import '../recommendation/experience_detail.dart';
 import 'post_create_screen.dart';
 import 'widgets/post_card.dart';
-import 'widgets/post_media_view.dart';
 
 class PostsHome extends HookConsumerWidget {
   const PostsHome({super.key});
@@ -28,11 +26,10 @@ class PostsHome extends HookConsumerWidget {
       discoveryProvider.select((state) => state.interests),
     );
     final hints = CuriosityQuestions.hints(interests);
-    final spots = ref.watch(mockCatalogProvider).requireValue.experiences;
+    final spots = ref.watch(catalogProvider).requireValue.experiences;
     Future<void> compose() async {
       if (opening.value) return;
       opening.value = true;
-      ref.read(playingPostVideoProvider.notifier).select(null);
       try {
         final published = await Navigator.push<bool>(
           context,
@@ -45,7 +42,7 @@ class PostsHome extends HookConsumerWidget {
           });
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('投稿をこの端末に保存しました。')));
+          ).showSnackBar(const SnackBar(content: Text('投稿しました。')));
         }
       } finally {
         if (context.mounted) opening.value = false;
@@ -71,8 +68,6 @@ class PostsHome extends HookConsumerWidget {
         ],
         bottom: TabBar(
           controller: tabs,
-          onTap: (_) =>
-              ref.read(playingPostVideoProvider.notifier).select(null),
           tabs: const [
             Tab(text: 'おすすめ'),
             Tab(text: 'フォロー中'),
@@ -93,12 +88,12 @@ class PostsHome extends HookConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  '投稿を読み込めませんでした。保存データは変更していません。',
+                  '投稿を読み込めませんでした。Firebaseの設定と通信を確認してください。',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () => ref.invalidate(postsProvider),
+                  onPressed: () => ref.read(postsProvider.notifier).reload(),
                   child: const Text('再読み込み'),
                 ),
               ],
@@ -168,41 +163,29 @@ class PostsHome extends HookConsumerWidget {
                 ),
               );
             }
-            return NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification is UserScrollNotification &&
-                    notification.direction != ScrollDirection.idle) {
-                  ref.read(playingPostVideoProvider.notifier).select(null);
-                }
-                return false;
-              },
-              child: ListView.builder(
-                controller: controller,
-                key: PageStorageKey(
-                  followed ? 'following-posts' : 'recommended-posts',
-                ),
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-                itemCount: posts.length + 1,
-                itemBuilder: (context, index) => index == 0
-                    ? Padding(
-                        padding: const EdgeInsets.only(left: 2, bottom: 12),
-                        child: Text(
-                          followed
-                              ? 'この端末内のフォロー・投稿のデモです'
-                              : 'おすすめはデモです · 質問の回答を参考に表示',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    : PostCard(
-                        key: ValueKey(posts[index - 1].id),
-                        post: posts[index - 1],
-                        onSpotTap: (spot) => showExperience(context, spot),
-                      ),
+            return ListView.builder(
+              controller: controller,
+              key: PageStorageKey(
+                followed ? 'following-posts' : 'recommended-posts',
               ),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+              itemCount: posts.length + 1,
+              itemBuilder: (context, index) => index == 0
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 2, bottom: 12),
+                      child: Text(
+                        followed ? 'フォローしているユーザーの投稿' : '質問の回答を参考に表示しています',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : PostCard(
+                      key: ValueKey(posts[index - 1].id),
+                      post: posts[index - 1],
+                      onSpotTap: (spot) => showExperience(context, spot),
+                    ),
             );
           }
 

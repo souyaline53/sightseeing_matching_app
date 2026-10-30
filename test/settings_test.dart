@@ -5,7 +5,7 @@ import 'package:sightseeing_matching_app/repository/settings_repository.dart';
 import 'package:sightseeing_matching_app/state/settings_state.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
-import 'package:sightseeing_matching_app/data/mock_data.dart';
+import 'package:sightseeing_matching_app/data/catalog_data.dart';
 import 'package:sightseeing_matching_app/service/curiosity_questions.dart';
 import 'package:sightseeing_matching_app/service/recommendation_service.dart';
 import 'test_support.dart';
@@ -14,7 +14,7 @@ import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 
 void main() {
-  initializeMockCatalogTests();
+  initializeCatalogTests();
   test(
     'JSON repository restores all three data types in a new provider container',
     () async {
@@ -176,11 +176,15 @@ void main() {
   );
   test(
     'question back preserves answers; changing an earlier answer clears stale branches',
-    () {
+    () async {
       final container = ProviderContainer(
-        overrides: [mockCatalogProvider.overrideWith((ref) => testCatalog)],
+        overrides: [
+          catalogProvider.overrideWith((ref) => Stream.value(testCatalog)),
+        ],
       );
       addTearDown(container.dispose);
+      container.listen(catalogProvider, (_, _) {});
+      await container.read(catalogProvider.future);
       final controller = container.read(discoveryProvider.notifier);
       controller.startConditions();
       controller.startQuestions();

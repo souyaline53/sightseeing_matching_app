@@ -128,7 +128,10 @@ class FirebaseAccountRepository implements AccountRepository {
   @override
   Future<void> reloadIdentity() async {
     final user = auth.currentUser;
-    if (user != null) await user.reload();
+    if (user != null) {
+      await user.reload();
+      await auth.currentUser?.getIdToken(true);
+    }
   }
 }
 

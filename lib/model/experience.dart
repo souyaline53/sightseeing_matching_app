@@ -2,6 +2,9 @@ class Experience {
   final String id, title, area, category, description, story, surprise, photo;
   final int minutes, accessMinutes;
   final List<String> additionalPhotos;
+  final String photoPath;
+  final List<String> additionalPhotoPaths;
+  final int order;
   const Experience(
     this.id,
     this.title,
@@ -14,6 +17,9 @@ class Experience {
     this.minutes, {
     this.additionalPhotos = const [],
     this.accessMinutes = 120,
+    this.photoPath = '',
+    this.additionalPhotoPaths = const [],
+    this.order = 1000,
   });
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -27,6 +33,9 @@ class Experience {
     'minutes': minutes,
     'additionalPhotos': additionalPhotos,
     'accessMinutes': accessMinutes,
+    'photoPath': photoPath,
+    'additionalPhotoPaths': additionalPhotoPaths,
+    'order': order,
   };
   factory Experience.fromJson(Map<String, dynamic> json) => Experience(
     json['id'] as String,
@@ -39,14 +48,14 @@ class Experience {
     json['photo'] as String,
     json['minutes'] as int,
     accessMinutes: json['accessMinutes'] as int? ?? 120,
+    photoPath: json['photoPath'] as String? ?? '',
+    additionalPhotoPaths: (json['additionalPhotoPaths'] as List? ?? [])
+        .cast<String>(),
+    order: json['order'] as int? ?? 1000,
     additionalPhotos: List.unmodifiable(
       (json['additionalPhotos'] as List? ?? const []).cast<String>(),
     ),
   );
-  // Retains compatibility with photo IDs in previously saved trips.
-  String get imageUrl => photo.startsWith('photo-')
-      ? 'https://images.unsplash.com/$photo?auto=format&fit=crop&w=1000&q=85'
-      : photo;
 }
 
 class TransitLeg {

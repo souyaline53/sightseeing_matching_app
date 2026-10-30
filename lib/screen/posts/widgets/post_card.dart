@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../../data/mock_data.dart';
+import '../../../data/catalog_data.dart';
 import '../../../model/experience.dart';
 import '../../../model/post.dart';
 import '../../../service/photo_source.dart';
@@ -54,7 +54,7 @@ class PostCard extends HookConsumerWidget {
     final social = ref.watch(postsProvider).requireValue;
     final ownPost = ref.watch(currentAccountProvider).ownsPost(post.userId);
     final spot = ref
-        .watch(mockCatalogProvider)
+        .watch(catalogProvider)
         .requireValue
         .experiences
         .where((e) => e.id == post.spotId)
@@ -78,14 +78,12 @@ class PostCard extends HookConsumerWidget {
     }
 
     void comments() {
-      ref.read(playingPostVideoProvider.notifier).select(null);
       showPostComments(context, post.id);
     }
 
     String shareText() =>
         '${spot?.area ?? ''}｜${spot?.title ?? '旅の発見'}\n★${post.rating.toStringAsFixed(1)}\n${post.caption}\n#TABISAKI';
     Future<void> share() async {
-      ref.read(playingPostVideoProvider.notifier).select(null);
       final box = context.findRenderObject() as RenderBox?;
       try {
         await SharePlus.instance.share(
@@ -174,7 +172,7 @@ class PostCard extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${postDateLabel(post.createdAt)}${post.userId.startsWith('sample-') ? ' · サンプル投稿' : ''}',
+                        postDateLabel(post.createdAt),
                         style: TextStyle(
                           fontSize: 10,
                           color: colors.onSurfaceVariant,
@@ -221,7 +219,6 @@ class PostCard extends HookConsumerWidget {
               onPressed: spot == null || onSpotTap == null
                   ? null
                   : () {
-                      ref.read(playingPostVideoProvider.notifier).select(null);
                       onSpotTap!(spot);
                     },
               icon: const Icon(Icons.place_outlined, size: 16),
@@ -246,7 +243,6 @@ class PostCard extends HookConsumerWidget {
                     itemBuilder: (_, index) => PostMediaView(
                       key: ValueKey(post.media[index].id),
                       media: post.media[index],
-                      active: index == page.value,
                     ),
                   ),
                 ),

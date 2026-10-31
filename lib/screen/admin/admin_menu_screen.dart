@@ -1,3 +1,4 @@
+import 'transport_admin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -42,7 +43,7 @@ class AdminMenuScreen extends HookConsumerWidget {
         builder: (context) => AlertDialog(
           title: const Text('既存画像を200KB以下に最適化'),
           content: const Text(
-            '観光地・交通・投稿の大きな画像を一度取得し、200KB以下の画像を作成して表示URLを更新します。最適化済み画像は再作成しません。旧画像は残します。',
+            '観光地・投稿の大きな画像を一度取得し、200KB以下の画像を作成して表示URLを更新します。最適化済み画像は再作成しません。旧画像は残します。',
           ),
           actions: [
             TextButton(
@@ -91,6 +92,17 @@ class AdminMenuScreen extends HookConsumerWidget {
           actions: [
             if (authorized)
               IconButton(
+                tooltip: '交通マスター・時刻表',
+                icon: const Icon(Icons.departure_board),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TransportAdminScreen(),
+                  ),
+                ),
+              ),
+            if (authorized)
+              IconButton(
                 tooltip: '既存画像を200KB以下に最適化',
                 onPressed: busy.value ? null : optimizeImages,
                 icon: const Icon(Icons.compress_outlined),
@@ -101,17 +113,17 @@ class AdminMenuScreen extends HookConsumerWidget {
                   controller: tabs,
                   tabs: const [
                     Tab(text: '観光地情報'),
-                    Tab(text: '交通情報'),
+                    Tab(text: '交通時刻表'),
                     Tab(text: 'ユーザー属性'),
                   ],
                 )
               : null,
         ),
-        floatingActionButton: authorized && tabs.index < 2
+        floatingActionButton: authorized && tabs.index == 0
             ? FloatingActionButton.extended(
                 onPressed: busy.value
                     ? null
-                    : () => open(CatalogKind.values[tabs.index]),
+                    : () => open(CatalogKind.sightseeing),
                 icon: const Icon(Icons.add),
                 label: const Text('追加'),
               )
@@ -150,6 +162,7 @@ class AdminMenuScreen extends HookConsumerWidget {
                             busy: busy.value,
                             onEdit: (record) => open(kind, record),
                           ),
+                        const TransportAdminScreen(embedded: true),
                         const UserTypePanel(),
                       ],
                     ),

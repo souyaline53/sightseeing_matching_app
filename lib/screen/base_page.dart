@@ -115,7 +115,7 @@ class BasePage extends HookConsumerWidget {
                 isLabelVisible: trip.saved.isNotEmpty,
                 child: const Icon(Icons.route_outlined),
               ),
-              label: '組み立て',
+              label: '旅程作成',
             ),
             const NavigationDestination(
               icon: Icon(Icons.photo_library_outlined),
@@ -155,7 +155,7 @@ class _CatalogNotice extends HookConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'クラウドの観光地・交通情報を読み込めませんでした。Firebaseの設定・ルール・通信を確認してください。プロフィールは引き続き開けます。',
+                      'クラウドの観光地情報を読み込めませんでした。Firebaseの設定・ルール・通信を確認してください。プロフィールは引き続き開けます。',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),

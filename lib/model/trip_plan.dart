@@ -1,3 +1,4 @@
+import 'transport.dart';
 import 'dart:math';
 import 'experience.dart';
 import 'search_settings.dart';
@@ -8,6 +9,8 @@ class TripState {
   final List<Experience> saved, stops;
   final SearchConditions conditions;
   final DateTime? travelDate;
+  final List<TransportSelection> transportSelections;
+  final Map<String, int> stayMinutes;
   TripState({
     String? id,
     this.title = '',
@@ -16,6 +19,8 @@ class TripState {
     List<Experience> stops = const [],
     this.conditions = const SearchConditions(),
     this.travelDate,
+    this.transportSelections = const [],
+    this.stayMinutes = const {},
   }) : id =
            id ??
            'trip-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 30)}',
@@ -39,8 +44,29 @@ class TripState {
     SearchConditions? conditions,
     DateTime? travelDate,
     bool clearDate = false,
+    List<TransportSelection>? transportSelections,
+    Map<String, int>? stayMinutes,
   }) => TripState(
     id: id,
+    transportSelections: (transportSelections ?? this.transportSelections)
+        .where((s) {
+          final next = stops ?? this.stops;
+          return List.generate(
+            next.isNotEmpty ? next.length - 1 : 0,
+            (i) => next[i].id == s.from && next[i + 1].id == s.to,
+          ).contains(true);
+        })
+        .map(
+          (s) => travelDate != null || clearDate
+              ? TransportSelection({
+                  ...s.data,
+                  'serviceDate': null,
+                  'verificationStatus': 'needsReview',
+                })
+              : s,
+        )
+        .toList(),
+    stayMinutes: stayMinutes ?? this.stayMinutes,
     title: title ?? this.title,
     updatedAt: DateTime.now().toUtc(),
     saved: saved ?? this.saved,
@@ -56,9 +82,15 @@ class TripState {
     'stops': stops.map((e) => e.toJson()).toList(),
     'conditions': conditions.toJson(),
     'travelDate': travelDate?.toIso8601String(),
+    'transportSelections': transportSelections.map((s) => s.toJson()).toList(),
+    'stayMinutes': stayMinutes,
   };
   factory TripState.fromJson(Map<String, dynamic> json) => TripState(
     id: json['id'] as String,
+    transportSelections: (json['transportSelections'] as List? ?? [])
+        .map((s) => TransportSelection(Map<String, dynamic>.from(s as Map)))
+        .toList(),
+    stayMinutes: Map<String, int>.from(json['stayMinutes'] as Map? ?? {}),
     title: json['title'] as String? ?? '',
     updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),
     saved: (json['saved'] as List)

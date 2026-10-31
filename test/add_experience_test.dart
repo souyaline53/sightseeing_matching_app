@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -49,11 +50,11 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(find.byType(FloatingActionButton));
         } else {
-          await tester.tap(find.text('旅を組み立てる'));
+          await tester.tap(find.text('旅程作成'));
           await tester.pumpAndSettle();
         }
         await tester.pumpAndSettle();
-        expect(find.text('旅を組み立てよう！'), findsOneWidget);
+        expect(find.byType(ItineraryEditor), findsOneWidget);
         final button = find.widgetWithText(OutlinedButton, '体験を追加する');
         await reveal(tester, button);
         await tester.tap(button);
@@ -83,7 +84,7 @@ void main() {
         );
         await tester.tap(find.text('旅程に戻る（2件）'));
         await tester.pumpAndSettle();
-        expect(find.text('旅を組み立てよう！'), findsOneWidget);
+        expect(find.byType(ItineraryEditor), findsOneWidget);
         await container.read(tripLibraryProvider.notifier).retrySave();
         expect(
           (await LocalTripsRepository(
@@ -100,7 +101,7 @@ void main() {
     'add button also opens cards after restart with no question answers or saved trip',
     (tester) async {
       final container = await boot(tester);
-      await tester.tap(find.text('旅を組み立てる'));
+      await tester.tap(find.text('旅程作成'));
       await tester.pumpAndSettle();
       final button = find.widgetWithText(OutlinedButton, '体験を追加する');
       await reveal(tester, button);

@@ -50,7 +50,20 @@ try {
   assert.equal((await commit(admin, 'sightseeing_spot', 'security-test', {...read.body.fields, title: str('変更済み')}, false)).status, 200);
   const transit = {position: str('any'), spotId: str('*'), mode: str('JR（サンプル）'), transfer: str('なし'), walking: str('5分'), fare: str('500円'), departureMinutes: num(600), arrivalMinutes: num(630), stepMinutes: num(60), note: str('サンプル時刻・実際の運行情報ではありません'), order: num(0), photo: str(''), photoPath: str('')};
   assert.equal((await commit(other, 'transit', 'security-test', transit)).status, 403);
-  assert.equal((await commit(admin, 'transit', 'security-test', transit)).status, 200);
+  assert.equal((await commit(admin, 'transit', 'security-test', transit)).status, 403, '旧交通案内は廃止');
+  // 新交通マスターは匿名閲覧、確認済み管理者のみ書き込み可能。
+  for (const collection of ['transport_agencies','transport_stops','transport_routes','transport_services','transport_trips','transport_fares']) {
+    const fields = {name:str('架空・権限検証専用'), verificationStatus:str('sample')};
+    assert.equal((await commit(null,collection,'transport-security-test',fields)).status,403);
+    assert.equal((await commit(guest,collection,'transport-security-test',fields)).status,403);
+    assert.equal((await commit(other,collection,'transport-security-test',fields)).status,403);
+    assert.equal((await commit(admin,collection,'transport-security-test',fields)).status,200);
+    assert.equal((await request(`${db}/${collection}/transport-security-test`)).status,200);
+    await request(`${db}/${collection}/transport-security-test`,{token:'owner',method:'DELETE'});
+  }
+  const accessSpot = {...read.body.fields, accessStops: {arrayValue:{values:[{mapValue:{fields:{stopId:str('sample_stop'),walkingMinutes:{nullValue:null},verificationStatus:str('unverified')}}}]}}, accessNotes:str('入口まで未確認')};
+  assert.equal((await commit(admin,'sightseeing_spot','security-test',accessSpot,false)).status,200,'追加アクセス情報を管理者が保存可能');
+  assert.equal((await commit(other,'sightseeing_spot','security-test',accessSpot,false)).status,403);
   // 投稿本文・評価とリアクションもFirestoreのルールで保護する。
   const postId = 'cloud-post-security-test';
   const postFields = {
@@ -100,7 +113,7 @@ try {
   assert.equal((await upload(other, `posts/${other.localId}/test/limit.png`, Buffer.alloc(5000000))).status, 403, 'ちょうど5MBも拒否');
   assert.equal((await upload(other, `posts/${other.localId}/test/under.png`, Buffer.concat([png, Buffer.alloc(200000 - png.length)]))).status, 200, '表示用画像200KBまでは許可');
   assert.equal((await upload(other, `posts/${other.localId}/test/over-display.png`, Buffer.concat([png, Buffer.alloc(200001 - png.length)]))).status, 403, '表示用画像200KB超を拒否');
-  console.log('PASS: カタログ管理者権限・表示画像200KB制限、投稿本文・評価・コメント・いいねの保存、UID偽装・他人の変更・個人情報取得の拒否');
+  console.log('PASS: 新交通6コレクションの公開読取・管理者書込、観光地accessStops、カタログ管理者権限・表示画像200KB制限、投稿本文・評価・コメント・いいねの保存、UID偽装・他人の変更・個人情報取得の拒否');
 } finally {
   // 専用エミュレーター内の、このスクリプトの文書だけを後片付けする。
   for (const path of ['posts/cloud-post-security-test','post_comments/cloud-comment-test','post_comments/forged-comment','post_comments/late-comment',

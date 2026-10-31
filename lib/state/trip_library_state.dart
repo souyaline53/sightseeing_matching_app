@@ -23,6 +23,7 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
   Future<void> _writes = Future.value();
   @override
   Future<TripLibrary> build() => ref.read(tripsRepositoryProvider).load();
+  Future<void> flush() => _writes;
   void upsert(TripState plan) {
     final library = state.requireValue;
     final exists = library.plans.any((p) => p.id == plan.id);

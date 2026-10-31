@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/catalog_record.dart';
 import '../model/travel_catalog.dart';
@@ -29,73 +28,42 @@ class FirestoreCatalogRepository implements CatalogRepository {
 
   @override
   Future<TravelCatalog> load() async {
-    final lists = await Future.wait(CatalogKind.values.map(records));
+    final spots = await records(CatalogKind.sightseeing);
     return TravelCatalog(
-      experiences: lists[0].map((e) => e.toExperience()).toList(),
-      transit: lists[1].map((e) => e.toTransit()).toList(),
+      experiences: spots.map((e) => e.toExperience()).toList(),
     );
   }
 
   @override
   Stream<TravelCatalog> watch() async* {
     final cloud = await services();
-    final controller = StreamController<TravelCatalog>();
-    final current = <CatalogKind, List<CatalogRecord>>{};
-    var closed = false;
-    void accept(
-      CatalogKind kind,
-      QuerySnapshot<Map<String, dynamic>> snapshot,
-    ) {
-      if (closed) return;
-      try {
-        final records =
-            snapshot.docs.map((doc) {
-              final error = validateCatalogRecord(kind, doc.id, doc.data());
-              if (error != null) {
-                throw FormatException('${kind.label}/${doc.id}: $error');
-              }
-              return CatalogRecord(doc.id, kind, doc.data());
-            }).toList()..sort((a, b) {
-              final order = a.order.compareTo(b.order);
-              return order == 0 ? a.id.compareTo(b.id) : order;
-            });
-        current[kind] = records;
-        if (current.length == 2) {
-          controller.add(
-            TravelCatalog(
-              experiences: current[CatalogKind.sightseeing]!
-                  .map((r) => r.toExperience())
-                  .toList(),
-              transit: current[CatalogKind.transit]!
-                  .map((r) => r.toTransit())
-                  .toList(),
-            ),
+    yield* cloud.firestore
+        .collection(CatalogKind.sightseeing.collection)
+        .snapshots()
+        .map((snapshot) {
+          final records =
+              snapshot.docs.map((doc) {
+                final error = validateCatalogRecord(
+                  CatalogKind.sightseeing,
+                  doc.id,
+                  doc.data(),
+                );
+                if (error != null) {
+                  throw FormatException('観光地/${doc.id}: $error');
+                }
+                return CatalogRecord(
+                  doc.id,
+                  CatalogKind.sightseeing,
+                  doc.data(),
+                );
+              }).toList()..sort((a, b) {
+                final order = a.order.compareTo(b.order);
+                return order == 0 ? a.id.compareTo(b.id) : order;
+              });
+          return TravelCatalog(
+            experiences: records.map((r) => r.toExperience()).toList(),
           );
-        }
-      } catch (error, stack) {
-        controller.addError(error, stack);
-      }
-    }
-
-    final subscriptions = [
-      for (final kind in CatalogKind.values)
-        cloud.firestore
-            .collection(kind.collection)
-            .snapshots()
-            .listen(
-              (snapshot) => accept(kind, snapshot),
-              onError: (Object error, StackTrace stack) {
-                if (!closed) controller.addError(error, stack);
-              },
-            ),
-    ];
-    try {
-      yield* controller.stream;
-    } finally {
-      closed = true;
-      await Future.wait(subscriptions.map((s) => s.cancel()));
-      await controller.close();
-    }
+        });
   }
 
   Future<void> save(
@@ -116,6 +84,7 @@ class FirestoreCatalogRepository implements CatalogRepository {
       }
       if (!creating && !current.exists) throw StateError('このデータは既に削除されています。');
       transaction.set(doc, {
+        ...?current.data(),
         ...data,
         'createdAt':
             current.data()?['createdAt'] ?? FieldValue.serverTimestamp(),

@@ -117,7 +117,9 @@ service cloud.firestore {
       let d = request.resource.data;
       return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
         && d.keys().hasAll(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
-        && d.keys().hasOnly(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
+        && d.keys().hasOnly(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt'])
+        && d.get('accessStops', []) is list && d.get('accessStops', []).size() <= 30
+        && d.get('accessNotes', '') is string
         && text(d.title) && text(d.area) && text(d.category) && text(d.description) && text(d.story) && text(d.surprise)
         && number(d.minutes) && number(d.accessMinutes) && number(d.order)
         && photo(d.photo, d.photoPath, 'sightseeing_spot', id)
@@ -127,28 +129,14 @@ service cloud.firestore {
         && extraPhoto(d,id,0) && extraPhoto(d,id,1) && extraPhoto(d,id,2) && extraPhoto(d,id,3) && extraPhoto(d,id,4)
         && catalogTimes(creating);
     }
-    function transit(id, creating) {
-      let d = request.resource.data;
-      return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
-        && d.keys().hasAll(['position','spotId','mode','transfer','walking','fare','departureMinutes','arrivalMinutes','stepMinutes','note','order','photo','photoPath','createdAt','updatedAt'])
-        && d.keys().hasOnly(['position','spotId','mode','transfer','walking','fare','departureMinutes','arrivalMinutes','stepMinutes','note','order','photo','photoPath','createdAt','updatedAt'])
-        && d.position in ['first','following','any'] && (d.spotId == '*' || d.spotId.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}'))
-        && text(d.mode) && text(d.transfer) && text(d.walking) && text(d.fare) && text(d.note)
-        && number(d.departureMinutes) && number(d.arrivalMinutes) && d.arrivalMinutes >= d.departureMinutes
-        && number(d.stepMinutes) && number(d.order) && photo(d.photo,d.photoPath,'transit',id) && catalogTimes(creating);
-    }
     match /sightseeing_spot/{id} {
       allow read: if true;
       allow create: if admin() && spot(id, true);
       allow update: if admin() && spot(id, false);
       allow delete: if admin();
     }
-    match /transit/{id} {
-      allow read: if true;
-      allow create: if admin() && transit(id, true);
-      allow update: if admin() && transit(id, false);
-      allow delete: if admin();
-    }
+    // Legacy dummy collection retired. No client reads/writes.
+    match /transit/{id} { allow read, write: if false; }
     function signedOwner(uid) { return request.auth != null && request.auth.uid == uid; }
     function activePost(id) {
       return exists(/databases/$(database)/documents/posts/$(id))
@@ -230,6 +218,10 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['targetId','createdAt'])
         && request.resource.data.keys().hasOnly(['targetId','createdAt'])
         && request.resource.data.targetId == id && request.resource.data.createdAt == request.time;
+    }
+    match /{collection}/{id} {
+      allow read: if collection in ['transport_agencies', 'transport_stops', 'transport_routes', 'transport_services', 'transport_trips', 'transport_fares'];
+      allow create, update: if admin() && collection in ['transport_agencies', 'transport_stops', 'transport_routes', 'transport_services', 'transport_trips', 'transport_fares'];
     }
     match /{document=**} {
       allow read, write: if false;

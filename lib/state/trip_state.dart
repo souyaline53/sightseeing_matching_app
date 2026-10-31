@@ -1,3 +1,4 @@
+import '../model/transport.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../model/experience.dart';
 import '../model/search_settings.dart';
@@ -84,9 +85,28 @@ class TripNotifier extends Notifier<TripState> {
     if (newIndex > oldIndex) newIndex--;
     final stops = [...state.stops];
     stops.insert(newIndex, stops.removeAt(oldIndex));
-    _commit(state.copyWith(stops: stops));
+    _commit(state.copyWith(stops: stops, transportSelections: []));
   }
 
+  void selectTransport(TransportSelection selection) => _commit(
+    state.copyWith(
+      transportSelections: [
+        ...state.transportSelections.where(
+          (s) => s.from != selection.from || s.to != selection.to,
+        ),
+        selection,
+      ],
+    ),
+  );
+  void clearTransport(String from, String to) => _commit(
+    state.copyWith(
+      transportSelections: state.transportSelections
+          .where((s) => s.from != from || s.to != to)
+          .toList(),
+    ),
+  );
+  void setStay(String id, int minutes) =>
+      _commit(state.copyWith(stayMinutes: {...state.stayMinutes, id: minutes}));
   void setDate(DateTime date) => _commit(
     state.copyWith(
       travelDate: DateTime(date.year, date.month, date.day),

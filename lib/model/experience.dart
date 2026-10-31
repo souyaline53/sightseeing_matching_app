@@ -1,3 +1,5 @@
+import 'transport.dart';
+
 class Experience {
   final String id, title, area, category, description, story, surprise, photo;
   final int minutes, accessMinutes;
@@ -5,6 +7,8 @@ class Experience {
   final String photoPath;
   final List<String> additionalPhotoPaths;
   final int order;
+  final List<AccessStop> accessStops;
+  final String accessNotes;
   const Experience(
     this.id,
     this.title,
@@ -20,6 +24,8 @@ class Experience {
     this.photoPath = '',
     this.additionalPhotoPaths = const [],
     this.order = 1000,
+    this.accessStops = const [],
+    this.accessNotes = '',
   });
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -36,6 +42,8 @@ class Experience {
     'photoPath': photoPath,
     'additionalPhotoPaths': additionalPhotoPaths,
     'order': order,
+    'accessStops': accessStops.map((e) => e.toJson()).toList(),
+    'accessNotes': accessNotes,
   };
   factory Experience.fromJson(Map<String, dynamic> json) => Experience(
     json['id'] as String,
@@ -47,6 +55,10 @@ class Experience {
     json['surprise'] as String,
     json['photo'] as String,
     json['minutes'] as int,
+    accessStops: (json['accessStops'] as List? ?? [])
+        .map((e) => AccessStop(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    accessNotes: json['accessNotes'] as String? ?? '',
     accessMinutes: json['accessMinutes'] as int? ?? 120,
     photoPath: json['photoPath'] as String? ?? '',
     additionalPhotoPaths: (json['additionalPhotoPaths'] as List? ?? [])
@@ -56,21 +68,4 @@ class Experience {
       (json['additionalPhotos'] as List? ?? const []).cast<String>(),
     ),
   );
-}
-
-class TransitLeg {
-  final String mode, from, to, departure, arrival, transfer, walking, fare;
-  final String photo, note;
-  const TransitLeg({
-    required this.mode,
-    required this.from,
-    required this.to,
-    required this.departure,
-    required this.arrival,
-    required this.transfer,
-    required this.walking,
-    required this.fare,
-    this.photo = '',
-    this.note = '',
-  });
 }

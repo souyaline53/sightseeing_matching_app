@@ -109,46 +109,39 @@ void main() {
       }
     },
   );
-  test(
-    'catalog field validation rejects bad IDs, negative times and invalid transit',
-    () {
-      expect(
-        validateCatalogRecord(CatalogKind.sightseeing, 'new-spot', spotValues),
-        isNull,
-      );
-      expect(
-        validateCatalogRecord(CatalogKind.sightseeing, '../bad', spotValues),
-        isNotNull,
-      );
-      expect(
-        validateCatalogRecord(CatalogKind.sightseeing, 'new', {
-          ...spotValues,
-          'minutes': -1,
-        }),
-        isNotNull,
-      );
-      expect(
-        validateCatalogRecord(CatalogKind.transit, 'new', spotValues),
-        isNotNull,
-      );
-      expect(
-        isAdminIdentity(
-          const AccountIdentity(uid: 'x', email: adminEmail, registered: true),
+  test('catalog field validation rejects bad IDs, negative times', () {
+    expect(
+      validateCatalogRecord(CatalogKind.sightseeing, 'new-spot', spotValues),
+      isNull,
+    );
+    expect(
+      validateCatalogRecord(CatalogKind.sightseeing, '../bad', spotValues),
+      isNotNull,
+    );
+    expect(
+      validateCatalogRecord(CatalogKind.sightseeing, 'new', {
+        ...spotValues,
+        'minutes': -1,
+      }),
+      isNotNull,
+    );
+    expect(
+      isAdminIdentity(
+        const AccountIdentity(uid: 'x', email: adminEmail, registered: true),
+      ),
+      isTrue,
+    );
+    expect(
+      isAdminIdentity(
+        const AccountIdentity(
+          uid: 'x',
+          email: 'other@example.com',
+          registered: true,
         ),
-        isTrue,
-      );
-      expect(
-        isAdminIdentity(
-          const AccountIdentity(
-            uid: 'x',
-            email: 'other@example.com',
-            registered: true,
-          ),
-        ),
-        isFalse,
-      );
-    },
-  );
+      ),
+      isFalse,
+    );
+  });
   test(
     'failed image upload and failed Firestore create roll back images without losing existing posts',
     () async {
@@ -194,7 +187,7 @@ void main() {
     },
   );
   testWidgets(
-    'admin menu can edit and delete; transit tab and all fields remain accessible',
+    'admin menu edits sightseeing and links to the new transport screen',
     (tester) async {
       final repository = _Catalog()
         ..data['test-spot'] =
@@ -235,7 +228,8 @@ void main() {
       await tester.tap(button);
       await tester.pumpAndSettle();
       expect(find.text('観光地情報'), findsOneWidget);
-      expect(find.text('交通情報'), findsOneWidget);
+      expect(find.text('旧交通案内'), findsNothing);
+      expect(find.byTooltip('交通マスター・時刻表'), findsOneWidget);
       await tester.tap(find.text('新しい冒険'));
       await tester.pumpAndSettle();
       final title = find.byKey(const ValueKey('catalog-title'));
@@ -251,11 +245,6 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, '削除'));
       await tester.pumpAndSettle();
       expect(repository.data, isEmpty);
-      await tester.tap(find.text('交通情報'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('追加'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('catalog-id')), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

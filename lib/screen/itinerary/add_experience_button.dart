@@ -11,7 +11,8 @@ import '../recommendation/experience_deck.dart';
 
 class AddExperienceButton extends HookConsumerWidget {
   final String? tripId;
-  const AddExperienceButton({super.key, this.tripId});
+  final bool compact;
+  const AddExperienceButton({super.key, this.tripId, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -59,6 +60,16 @@ class AddExperienceButton extends HookConsumerWidget {
     }
 
     return OutlinedButton.icon(
+      style: compact
+          ? OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 30),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+              textStyle: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontSize: 11),
+            )
+          : null,
       onPressed: opening.value ? null : openCards,
       icon: const Icon(Icons.add),
       label: const Text('体験を追加する'),

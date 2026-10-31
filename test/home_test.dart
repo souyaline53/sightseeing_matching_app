@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
@@ -118,7 +119,7 @@ void main() {
       expect(find.text('旅のしおりを開く').hitTestable(), findsOneWidget);
       await tester.tap(find.text('旅のしおりを開く'));
       await tester.pumpAndSettle();
-      expect(find.text('旅を組み立てよう！'), findsOneWidget);
+      expect(find.byType(ItineraryEditor), findsOneWidget);
       expect(container.read(tripProvider).id, draft.id);
       expect(tester.takeException(), isNull);
     },

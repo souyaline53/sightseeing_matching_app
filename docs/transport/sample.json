@@ -1,0 +1,244 @@
+{
+  "transport_agencies": {
+    "sample_agency": {
+      "name": "架空交通（検証専用）",
+      "timezone": "Asia/Tokyo",
+      "sourceType": "sample",
+      "verificationStatus": "sample"
+    }
+  },
+  "transport_stops": {
+    "sample_a": {
+      "name": "架空停留所A",
+      "type": "bus_stop",
+      "routeIds": [
+        "sample_route"
+      ],
+      "gtfsStopId": null,
+      "sourceType": "sample",
+      "verificationStatus": "sample"
+    },
+    "sample_b": {
+      "name": "架空停留所B",
+      "type": "bus_stop",
+      "routeIds": [
+        "sample_route"
+      ],
+      "gtfsStopId": null,
+      "sourceType": "sample",
+      "verificationStatus": "sample"
+    },
+    "sample_c": {
+      "name": "架空停留所C",
+      "type": "bus_stop",
+      "routeIds": [
+        "sample_route"
+      ],
+      "gtfsStopId": null,
+      "sourceType": "sample",
+      "verificationStatus": "sample"
+    },
+    "sample_d": {
+      "name": "架空停留所D",
+      "type": "bus_stop",
+      "routeIds": [
+        "sample_route"
+      ],
+      "gtfsStopId": null,
+      "sourceType": "sample",
+      "verificationStatus": "sample"
+    }
+  },
+  "transport_routes": {
+    "sample_route": {
+      "name": "架空サンプル線",
+      "agencyId": "sample_agency",
+      "mode": "bus",
+      "verificationStatus": "sample",
+      "sourceType": "sample"
+    }
+  },
+  "transport_services": {
+    "sample_service": {
+      "timezone": "Asia/Tokyo",
+      "validFrom": "2026-01-01",
+      "validTo": "2030-12-31",
+      "weekdays": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "addedDates": [],
+      "removedDates": [],
+      "sourceType": "sample",
+      "verificationStatus": "sample"
+    }
+  },
+  "transport_trips": {
+    "sample_trip_0": {
+      "routeId": "sample_route",
+      "serviceId": "sample_service",
+      "headsign": "架空D行き",
+      "sourceType": "sample",
+      "verificationStatus": "sample",
+      "stopTimes": [
+        {
+          "stopId": "sample_a",
+          "sequence": 1,
+          "arrivalMinutes": null,
+          "departureMinutes": 492,
+          "pickupAllowed": true,
+          "dropoffAllowed": false
+        },
+        {
+          "stopId": "sample_b",
+          "sequence": 2,
+          "arrivalMinutes": 510,
+          "departureMinutes": 512,
+          "pickupAllowed": true,
+          "dropoffAllowed": true
+        },
+        {
+          "stopId": "sample_c",
+          "sequence": 3,
+          "arrivalMinutes": 530,
+          "departureMinutes": 532,
+          "pickupAllowed": true,
+          "dropoffAllowed": true
+        },
+        {
+          "stopId": "sample_d",
+          "sequence": 4,
+          "arrivalMinutes": 550,
+          "departureMinutes": null,
+          "pickupAllowed": false,
+          "dropoffAllowed": true
+        }
+      ],
+      "name": "朝便サンプル",
+      "note": "登録例の架空ダイヤ。実際の運行情報ではありません。"
+    },
+    "sample_trip_1": {
+      "routeId": "sample_route",
+      "serviceId": "sample_service",
+      "headsign": "架空D行き",
+      "sourceType": "sample",
+      "verificationStatus": "sample",
+      "stopTimes": [
+        {
+          "stopId": "sample_a",
+          "sequence": 1,
+          "arrivalMinutes": null,
+          "departureMinutes": 552,
+          "pickupAllowed": true,
+          "dropoffAllowed": false
+        },
+        {
+          "stopId": "sample_b",
+          "sequence": 2,
+          "arrivalMinutes": 570,
+          "departureMinutes": 572,
+          "pickupAllowed": true,
+          "dropoffAllowed": true
+        },
+        {
+          "stopId": "sample_c",
+          "sequence": 3,
+          "arrivalMinutes": 590,
+          "departureMinutes": 592,
+          "pickupAllowed": true,
+          "dropoffAllowed": true
+        },
+        {
+          "stopId": "sample_d",
+          "sequence": 4,
+          "arrivalMinutes": 610,
+          "departureMinutes": null,
+          "pickupAllowed": false,
+          "dropoffAllowed": true
+        }
+      ],
+      "name": "午前便サンプル",
+      "note": "登録例の架空ダイヤ。実際の運行情報ではありません。"
+    },
+    "sample_trip_2": {
+      "routeId": "sample_route",
+      "serviceId": "sample_service",
+      "headsign": "架空D行き（深夜サンプル）",
+      "sourceType": "sample",
+      "verificationStatus": "sample",
+      "stopTimes": [
+        {
+          "stopId": "sample_a",
+          "sequence": 1,
+          "arrivalMinutes": null,
+          "departureMinutes": 1510,
+          "pickupAllowed": true,
+          "dropoffAllowed": false
+        },
+        {
+          "stopId": "sample_b",
+          "sequence": 2,
+          "arrivalMinutes": 1530,
+          "departureMinutes": 1532,
+          "pickupAllowed": true,
+          "dropoffAllowed": true
+        },
+        {
+          "stopId": "sample_c",
+          "sequence": 3,
+          "arrivalMinutes": 1550,
+          "departureMinutes": 1552,
+          "pickupAllowed": true,
+          "dropoffAllowed": true
+        },
+        {
+          "stopId": "sample_d",
+          "sequence": 4,
+          "arrivalMinutes": 1570,
+          "departureMinutes": null,
+          "pickupAllowed": false,
+          "dropoffAllowed": true
+        }
+      ],
+      "name": "深夜便サンプル",
+      "note": "登録例の架空ダイヤ。実際の運行情報ではありません。"
+    }
+  },
+  "transport_fares": {
+    "sample_fare_b_c": {
+      "routeId": "sample_route",
+      "fromStopId": "sample_b",
+      "toStopId": "sample_c",
+      "amountYen": 300,
+      "fareType": "adult",
+      "sourceType": "sample",
+      "verificationStatus": "sample",
+      "note": "架空の運賃・実際の運賃ではありません。"
+    }
+  },
+  "exampleSpotAccess": {
+    "from": [
+      {
+        "stopId": "sample_b",
+        "walkingMinutes": null,
+        "isPrimary": true,
+        "sourceType": "sample",
+        "verificationStatus": "sample"
+      }
+    ],
+    "to": [
+      {
+        "stopId": "sample_c",
+        "walkingMinutes": 8,
+        "isPrimary": true,
+        "sourceType": "sample",
+        "verificationStatus": "sample"
+      }
+    ]
+  }
+}

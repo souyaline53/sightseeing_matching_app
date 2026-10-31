@@ -1,208 +1,17 @@
-import '../../state/discovery_state.dart';
+import '../../model/transport.dart';
 import '../../model/search_settings.dart';
 import '../../state/app_tab.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
-import '../../data/catalog_data.dart';
 import '../../model/experience.dart';
 import '../../state/trip_state.dart';
 import '../../state/trip_library_state.dart';
-import '../../widgets/travel_photo.dart';
-import '../recommendation/experience_detail.dart';
-import 'add_experience_button.dart';
+import 'itinerary_editor.dart';
 
-class ItineraryHome extends HookConsumerWidget {
+class ItineraryHome extends StatelessWidget {
   const ItineraryHome({super.key});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final trip = ref.watch(tripProvider);
-    final experiences = ref.watch(catalogProvider).requireValue.experiences;
-    final controller = ref.read(tripProvider.notifier);
-    void showPlan(bool demo) {
-      final stops = List<Experience>.of(
-        demo ? experiences.take(3) : trip.stops,
-      );
-      if (stops.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('訪問先を追加してください。')));
-        return;
-      }
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (context) => PlanScreen(
-            tripId: trip.id,
-            stops: stops,
-            origin: trip.origin.trim().isEmpty ? '札幌駅' : trip.origin.trim(),
-            date: trip.travelDate,
-            publicTransport: trip.publicTransport,
-            demo: demo,
-            conditions: trip.conditions,
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: BackButton(
-          onPressed: () {
-            ref.read(discoveryProvider.notifier).reset();
-            ref.read(appTabProvider.notifier).select(AppTab.recommendation);
-          },
-        ),
-        title: const Text('自分だけの旅を'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
-        children: [
-          const Text(
-            '旅を組み立てよう！',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '出発地：${trip.origin} · 移動：${trip.conditions.transport.label}',
-            key: const ValueKey('trip-search-summary'),
-            style: TextStyle(fontSize: 12),
-          ),
-          Text(
-            '${trip.conditions.length.label} · 総予算${trip.conditions.budget}円以内（交通費込み）',
-            style: const TextStyle(fontSize: 12),
-          ),
-          Text(
-            '片道${trip.conditions.maxMinutes}分以内 · 徒歩${trip.conditions.walking.label} · ${trip.conditions.company.label}',
-            style: const TextStyle(fontSize: 12),
-          ),
-          if (trip.conditions.transport == TravelMode.either)
-            const Text(
-              'どちらでも：サンプル旅程では公共交通を仮表示します。',
-              style: TextStyle(fontSize: 12),
-            ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate:
-                    trip.date.isBefore(DateUtils.dateOnly(DateTime.now()))
-                    ? DateTime.now()
-                    : trip.date,
-                firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                lastDate: DateTime(DateTime.now().year + 10, 12, 31),
-                helpText: '旅行日を選択',
-                cancelText: 'キャンセル',
-                confirmText: '決定',
-              );
-              if (date != null) controller.setDate(date);
-            },
-            icon: const Icon(Icons.calendar_today_outlined),
-            label: Text(
-              trip.travelDate == null
-                  ? '出発日を選択（未確定）'
-                  : '${trip.date.year}年${trip.date.month}月${trip.date.day}日 · ${trip.conditions.length.label}',
-            ),
-          ),
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  '訪問する体験',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              Text('${trip.stops.length}件'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (trip.stops.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Text(
-                'まだ訪問先がありません。\n「体験を追加する」から気になる体験を保存しましょう。',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            buildDefaultDragHandles: false,
-            itemCount: trip.stops.length,
-            onReorder: controller.reorder,
-            itemBuilder: (context, i) {
-              final e = trip.stops[i];
-              return Card(
-                key: ValueKey(e.id),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 62,
-                        height: 78,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: TravelPhoto(e),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => showExperience(context, e),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${i + 1}. ${e.title}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                '${e.area} · 約${e.minutes}分',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '訪問先から削除',
-                        onPressed: () => controller.removeStop(e),
-                        icon: const Icon(Icons.remove_circle_outline, size: 20),
-                      ),
-                      ReorderableDragStartListener(
-                        index: i,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Icon(Icons.drag_handle),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 10),
-          AddExperienceButton(tripId: trip.id),
-          const SizedBox(height: 10),
-          FilledButton(
-            onPressed: trip.saved.isEmpty ? null : () => showPlan(false),
-            child: const Text('自分で組み立てる'),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: trip.saved.isEmpty ? null : () => showPlan(true),
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('AIに提案してもらう'),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const ItineraryEditor();
 }
 
 class PlanScreen extends HookConsumerWidget {
@@ -236,10 +45,6 @@ class PlanScreen extends HookConsumerWidget {
     final date = livePlan == null ? this.date : livePlan.travelDate;
     final publicTransport = livePlan?.publicTransport ?? this.publicTransport;
     final conditions = livePlan?.conditions ?? this.conditions;
-    final legs = ref
-        .watch(catalogProvider)
-        .requireValue
-        .sampleTransit(origin, stops);
     return Scaffold(
       appBar: AppBar(title: Text(demo ? 'デモ用の旅程' : 'マイプラン')),
       floatingActionButton: demo
@@ -272,14 +77,14 @@ class PlanScreen extends HookConsumerWidget {
             '片道${conditions.maxMinutes}分以内 · 徒歩${conditions.walking.label} · ${conditions.company.label}',
           ),
           const Text(
-            '下記は訪問順のサンプルです。予算・移動上限・旅行期間を満たすかは未検証です。複数日でも宿泊や日別の割当は行いません。',
+            '下記は保存した訪問順です。予算・移動上限・旅行期間を満たすかは未検証です。複数日でも宿泊や日別の割当は行いません。',
             style: TextStyle(fontSize: 12),
           ),
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'サンプル時刻・実際の運行情報ではありません\n旅行日と当日の運休・季節運行を確認するまで、利用可能な便は確定しません。',
+                '交通情報の確認状態は各区間に表示します。\n旅行日・運休日・臨時変更を公式情報で確認してください。',
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -291,14 +96,40 @@ class PlanScreen extends HookConsumerWidget {
             ),
           for (var i = 0; i < stops.length; i++) ...[
             const SizedBox(height: 16),
-            if (publicTransport)
-              TransitCard(leg: legs[i])
+            if (publicTransport &&
+                i > 0 &&
+                livePlan != null &&
+                livePlan.transportSelections.any(
+                  (s) => s.from == stops[i - 1].id && s.to == stops[i].id,
+                ))
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Builder(
+                    builder: (context) {
+                      final s = livePlan.transportSelections.firstWhere(
+                        (s) => s.from == stops[i - 1].id && s.to == stops[i].id,
+                      );
+                      return Text(
+                        '選択した便：${s.data['selectedTripId']}\n${s.data['boardingStopId']} ${transportTime(s.data['departureMinutes'] as int?)} → ${s.data['alightingStopId']} ${transportTime(s.data['arrivalMinutes'] as int?)}\n徒歩 ${s.data['walkingMinutesBefore'] ?? '未確認'}分 / ${s.data['walkingMinutesAfter'] ?? '未確認'}分\n${verificationLabel(s.data['verificationStatus'] as String? ?? 'unverified')}\n選択時点の控えです。編集画面で最新情報を確認してください。',
+                      );
+                    },
+                  ),
+                ),
+              )
+            else if (publicTransport)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('交通便は未選択です。旅程編集画面で登録済みの便を選んでください。'),
+                ),
+              )
             else
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    '車で移動 · ${i == 0 ? origin : stops[i - 1].area} → ${stops[i].area}\n所要約60分・費用約1,000円（ダミー）',
+                    '車で移動 · ${i == 0 ? origin : stops[i - 1].area} → ${stops[i].area}\n所要時間・費用は未登録です',
                   ),
                 ),
               ),
@@ -306,7 +137,9 @@ class PlanScreen extends HookConsumerWidget {
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
               leading: CircleAvatar(child: Text('${i + 1}')),
               title: Text(stops[i].title),
-              subtitle: Text('${stops[i].area} · 滞在目安 ${stops[i].minutes}分'),
+              subtitle: Text(
+                '${stops[i].area} · 滞在 ${livePlan?.stayMinutes[stops[i].id] ?? stops[i].minutes}分',
+              ),
             ),
           ],
           const SizedBox(height: 20),
@@ -323,46 +156,4 @@ class PlanScreen extends HookConsumerWidget {
       ),
     );
   }
-}
-
-class TransitCard extends HookConsumerWidget {
-  final TransitLeg leg;
-  const TransitCard({super.key, required this.leg});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.directions_transit, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  leg.mode,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const Divider(),
-          Text(
-            '${leg.departure} ${leg.from}\n   ↓\n${leg.arrival} ${leg.to}',
-            style: const TextStyle(height: 1.7),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${leg.transfer}\n${leg.walking}\n推定交通費：${leg.fare}',
-            style: const TextStyle(fontSize: 12, height: 1.7),
-          ),
-          if (leg.note.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(leg.note, style: const TextStyle(fontSize: 11)),
-          ],
-        ],
-      ),
-    ),
-  );
 }

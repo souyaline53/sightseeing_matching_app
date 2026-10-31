@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/screen/itinerary/itinerary_spot_card.dart';
 import 'package:sightseeing_matching_app/service/cloud/cloud_services.dart';
 import 'package:sightseeing_matching_app/service/cloud/catalog_admin_service.dart';
 import 'package:sightseeing_matching_app/repository/firestore_catalog_repository.dart';
@@ -195,33 +196,27 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, '旅を組み立てる'));
       await tester.pumpAndSettle();
-      expect(find.text('出発地：小樽駅 · 移動：車'), findsOneWidget);
-      expect(find.text('出発日を選択（未確定）'), findsOneWidget);
+      expect(find.text('旅行日を選ぶ（未定）'), findsOneWidget);
       final before = container.read(tripProvider).stops.first.id;
-      await reveal(tester, find.byType(ReorderableDragStartListener).first);
-      await tester.drag(
-        find.byType(ReorderableDragStartListener).first,
-        const Offset(0, 220),
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(ItinerarySpotCard),
+              matching: find.byType(PopupMenuButton<String>),
+            )
+            .first,
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('次へ'));
+      await tester.pumpAndSettle();
       expect(container.read(tripProvider).stops.first.id, isNot(before));
-      await reveal(tester, find.text('自分で組み立てる'));
-      await tester.tap(find.text('自分で組み立てる'));
+      expect(find.text('日程未定：時刻表は参考情報です'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('itinerary-save')));
       await tester.pumpAndSettle();
-      expect(find.text('マイプラン'), findsOneWidget);
-      expect(find.textContaining('サンプル時刻・実際の運行情報ではありません'), findsOneWidget);
-      expect(find.textContaining('旅行日未確定'), findsOneWidget);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-      await reveal(tester, find.text('AIに提案してもらう'));
-      await tester.tap(find.text('AIに提案してもらう'));
-      await tester.pumpAndSettle();
-      expect(find.text('デモ用の旅程'), findsOneWidget);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
+      expect(find.text('旅程を端末に保存しました'), findsOneWidget);
       await tester.tap(find.text('プロフィール'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('旅を組み立てる'));
+      await tester.tap(find.text('旅程作成'));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).stops.length, 2);
       expect(tester.takeException(), isNull);

@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/screen/itinerary/plan_screen.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_map.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_spot_card.dart';
 import 'dart:ui' show PointerDeviceKind;
@@ -48,14 +49,25 @@ void main() {
       Experience spot(String id, String key) => Experience.fromJson({
         ...const Experience('', '', '', '', '', '', '', '', 60).toJson(),
         'id': id,
-        'title': '架空体験$id',
+        'title': '興味を惹く長い紹介文章$id',
+        'name': '架空体験$id',
         'accessStops': fixture['exampleSpotAccess'][key],
       });
       final spots = [spot('A', 'from'), spot('B', 'to')];
       final repo = LocalTripsRepository(storage: MemorySettingsStorage());
       await repo.save(
         TripLibrary(
-          plans: [TripState(stops: spots, saved: spots)],
+          plans: [
+            TripState(
+              stops: spots
+                  .map(
+                    (spot) =>
+                        Experience.fromJson(spot.toJson()..remove('name')),
+                  )
+                  .toList(),
+              saved: spots,
+            ),
+          ],
         ),
       );
       final container = ProviderContainer(
@@ -78,7 +90,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('日程未定：時刻表は参考情報です'), findsOneWidget);
+      expect(find.textContaining('時刻表は参考情報です'), findsOneWidget);
+      expect(find.textContaining('興味を惹く長い紹介文章'), findsNothing);
+      expect(find.text('架空体験A'), findsWidgets);
       final list = find.byType(ListView).last;
       expect(find.byKey(const ValueKey('itinerary-map')), findsOneWidget);
       expect(find.byType(DraggableScrollableSheet), findsOneWidget);
@@ -151,8 +165,8 @@ void main() {
             .data['selectedTripId'],
         'sample_trip_1',
       );
-      await tester.tap(find.byKey(const ValueKey('itinerary-save')));
-      await tester.pumpAndSettle();
+      // Changes are persisted before opening the booklet, without a save button.
+      await container.read(tripLibraryProvider.notifier).flush();
       expect(
         (await repo.load())
             .activeTrip!
@@ -161,6 +175,30 @@ void main() {
             .data['selectedTripId'],
         'sample_trip_1',
       );
+      final viewBooklet = find.byKey(const ValueKey('itinerary-view-booklet'));
+      expect(find.text('しおりに反映'), findsNothing);
+      expect(
+        tester.getRect(viewBooklet).bottom,
+        lessThan(
+          tester.getRect(find.byKey(const ValueKey('itinerary-map'))).top,
+        ),
+      );
+      await tester.tap(viewBooklet);
+      await tester.pumpAndSettle();
+      expect(find.text('マイプラン'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.textContaining('選択した便：sample_trip_1'),
+        180,
+        scrollable: find
+            .descendant(
+              of: find.byType(PlanScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.textContaining('選択した便：sample_trip_1'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
       await tester.tap(
         find
             .descendant(

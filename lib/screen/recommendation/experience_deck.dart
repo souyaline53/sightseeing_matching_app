@@ -220,7 +220,7 @@ class _ExperienceCard extends HookConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '⌖ ${experience.area}  ·  #${experience.category}',
+                '⌖ ${experience.area}  ·  ${experience.name}  ·  #${experience.category}',
                 style: const TextStyle(color: Colors.white),
               ),
               const SizedBox(height: 10),
@@ -238,11 +238,7 @@ class _ExperienceCard extends HookConsumerWidget {
                 experience.description,
                 style: const TextStyle(color: Colors.white, height: 1.6),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                '写真はイメージ / 体験内容はサンプル',
-                style: TextStyle(color: Colors.white70, fontSize: 10),
-              ),
+              SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

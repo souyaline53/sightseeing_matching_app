@@ -1,3 +1,8 @@
+import '../../service/transport/transport_admin_api.dart';
+import 'transport_sample_screen.dart';
+import 'transport_stop_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'gtfs_import_screen.dart';
 import '../../model/admin_transport_fields.dart';
 import 'transport_edit_dialog.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +19,34 @@ class TransportAdminScreen extends ConsumerStatefulWidget {
 }
 
 class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
-  String collection = 'transport_trips';
+  String collection = 'transport_agencies';
   late Future<List<Map<String, dynamic>>> records;
+  String? scope, cursor;
+  bool hasMore = false;
+  bool get scoped => [
+    'transport_routes',
+    'transport_stops',
+    'transport_trips',
+    'transport_fares',
+  ].contains(collection);
+  Future<void> chooseScope() async {
+    final id = await showDialog<String>(
+      context: context,
+      builder: (_) => TransportStopPicker(
+        manualOnly: true,
+        selectAgency: collection == 'transport_routes',
+        selectRoute: collection != 'transport_routes',
+      ),
+    );
+    if (id != null && mounted) {
+      setState(() {
+        scope = id;
+        cursor = null;
+        records = load();
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +56,21 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
   Future<List<Map<String, dynamic>>> load() async {
     final cloud = await ref.read(cloudServicesProvider.future);
     cloud.requireAdmin();
-    final docs = await cloud.firestore.collection(collection).limit(100).get();
+    if (scoped && scope == null) return [];
+    Query<Map<String, dynamic>> q = cloud.firestore.collection(collection);
+    if (scoped) {
+      q = collection == 'transport_stops'
+          ? q.where('routeIds', arrayContains: scope)
+          : q.where(
+              collection == 'transport_routes' ? 'agencyId' : 'routeId',
+              isEqualTo: scope,
+            );
+    }
+    q = q.orderBy(FieldPath.documentId).limit(100);
+    if (cursor != null) q = q.startAfter([cursor]);
+    final docs = await q.get();
+    hasMore = docs.docs.length == 100;
+    if (docs.docs.isNotEmpty) cursor = docs.docs.last.id;
     return docs.docs.map((d) => {'id': d.id, ...d.data()}).toList();
   }
 
@@ -45,30 +90,54 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
         duplicate: duplicate,
         onSave: (id, data) async {
           validateTransport(targetCollection, data);
+          if (targetCollection == 'transport_trips') {
+            final times =
+                (data['stopTimes'] as List)
+                    .map((r) => Map<String, dynamic>.from(r as Map))
+                    .toList()
+                  ..sort(
+                    (a, b) =>
+                        (a['sequence'] as int).compareTo(b['sequence'] as int),
+                  );
+            for (final row in times) {
+              row['arrivalSeconds'] = (row['arrivalMinutes'] as int?) == null
+                  ? null
+                  : (row['arrivalMinutes'] as int) * 60;
+              row['departureSeconds'] =
+                  (row['departureMinutes'] as int?) == null
+                  ? null
+                  : (row['departureMinutes'] as int) * 60;
+              row['pickupType'] = row['pickupAllowed'] == false ? 1 : 0;
+              row['dropOffType'] = row['dropoffAllowed'] == false ? 1 : 0;
+            }
+            data['stopTimes'] = times;
+            data['stopIds'] = times.map((r) => r['stopId']).toSet().toList();
+            data['firstDepartureMinutes'] = times.first['departureMinutes'];
+            data['lastArrivalMinutes'] = times.last['arrivalMinutes'];
+            data['firstStopId'] = times.first['stopId'];
+            data['lastStopId'] = times.last['stopId'];
+          }
           final cloud = await ref.read(cloudServicesProvider.future);
           cloud.requireAdmin();
-          final document = cloud.firestore.collection(targetCollection).doc(id);
-          await cloud.firestore.runTransaction((transaction) async {
-            final existing = await transaction.get(document);
-            if (creating && existing.exists) {
-              throw StateError('このIDは既に登録されています');
-            }
-            if (!creating && !existing.exists) {
-              throw StateError('このデータは既に削除されています');
-            }
-            final now = DateTime.now().toUtc().toIso8601String();
-            transaction.set(document, {
-              ...?existing.data(),
-              ...data,
-              'id': id,
-              'createdAt': existing.data()?['createdAt'] ?? now,
-              'updatedAt': now,
-            });
+          final editable = {
+            for (final field in transportFields(targetCollection))
+              if (data.containsKey(field.key)) field.key: data[field.key],
+          };
+          await transportFunctions().httpsCallable('saveManualTransport').call({
+            'collection': targetCollection,
+            'id': id,
+            'data': editable,
+            'creating': creating,
           });
         },
       ),
     );
-    if (mounted) setState(() => records = load());
+    if (mounted) {
+      setState(() {
+        cursor = null;
+        records = load();
+      });
+    }
   }
 
   @override
@@ -80,6 +149,21 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
     ),
     body: Column(
       children: [
+        ListTile(
+          title: const Text('GTFSインポート'),
+          leading: const Icon(Icons.upload_file),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const GtfsImportScreen()),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TransportSampleScreen()),
+          ),
+          child: const Text('旧サンプルの削除候補を確認'),
+        ),
         DropdownButton<String>(
           value: collection,
           isExpanded: true,
@@ -95,14 +179,22 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
             if (v != null) {
               setState(() {
                 collection = v;
+                scope = null;
+                cursor = null;
+                hasMore = false;
                 records = load();
               });
             }
           },
         ),
+        if (scoped)
+          TextButton(
+            onPressed: chooseScope,
+            child: Text(scope == null ? '事業者・路線を選択して読み込む' : '選択条件：$scope（変更）'),
+          ),
         const Padding(
           padding: EdgeInsets.all(12),
-          child: Text('先頭100件を表示。サンプル3便は架空の登録例です。複製ボタンから新しいIDで追加できます。'),
+          child: Text('手動マスターの先頭100件を表示。GTFSはインポート画面から更新します。'),
         ),
         ExpansionTile(
           title: const Text('交通データの追加手順'),
@@ -110,7 +202,7 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
             Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
-                '① 事業者 → 停留所 → 路線 → 運行日 → 便 → 運賃の順に登録\n② 登録済みの候補から路線や駅・バス停を選ぶ\n③ 時刻表の行を追加し、停車順と時刻を入力（例 08:10 / 25:10）\n④ 観光地編集で最寄り停留所を追加。徒歩時間不明は空欄\n⑤ 実データは情報源と確認状態を記録する。sample_*は登録例です。',
+                '① 事業者 → 停留所 → 路線 → 運行日 → 便 → 運賃の順に登録\n② 登録済みの候補から路線や駅・バス停を選ぶ\n③ 時刻表の行を追加し、停車順と時刻を入力（例 08:10 / 25:10）\n④ 観光地編集で最寄り停留所を追加。徒歩時間不明は空欄\n⑤ 実データは情報源と確認状態を記録する。',
               ),
             ),
           ],
@@ -127,6 +219,11 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
               }
               return ListView(
                 children: [
+                  if (hasMore)
+                    TextButton(
+                      onPressed: () => setState(() => records = load()),
+                      child: const Text('次の100件'),
+                    ),
                   for (final r in snapshot.data!)
                     ListTile(
                       title: Text('${r['name'] ?? r['headsign'] ?? r['id']}'),

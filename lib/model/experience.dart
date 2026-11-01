@@ -2,6 +2,10 @@ import 'transport.dart';
 
 class Experience {
   final String id, title, area, category, description, story, surprise, photo;
+
+  /// Short place name, separate from the promotional title.
+  final String name;
+  String get displayName => name.trim().isNotEmpty ? name.trim() : title;
   final int minutes, accessMinutes;
   final List<String> additionalPhotos;
   final String photoPath;
@@ -19,6 +23,7 @@ class Experience {
     this.surprise,
     this.photo,
     this.minutes, {
+    this.name = '',
     this.additionalPhotos = const [],
     this.accessMinutes = 120,
     this.photoPath = '',
@@ -30,6 +35,7 @@ class Experience {
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
+    'name': name,
     'area': area,
     'category': category,
     'description': description,
@@ -55,6 +61,7 @@ class Experience {
     json['surprise'] as String,
     json['photo'] as String,
     json['minutes'] as int,
+    name: json['name'] as String? ?? '',
     accessStops: (json['accessStops'] as List? ?? [])
         .map((e) => AccessStop(Map<String, dynamic>.from(e as Map)))
         .toList(),

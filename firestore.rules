@@ -117,7 +117,8 @@ service cloud.firestore {
       let d = request.resource.data;
       return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
         && d.keys().hasAll(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
-        && d.keys().hasOnly(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt'])
+        && d.keys().hasOnly(['name','title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt'])
+        && d.get('name', '') is string && d.get('name', '').size() <= 120
         && d.get('accessStops', []) is list && d.get('accessStops', []).size() <= 30
         && d.get('accessNotes', '') is string
         && text(d.title) && text(d.area) && text(d.category) && text(d.description) && text(d.story) && text(d.surprise)
@@ -219,9 +220,22 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['targetId','createdAt'])
         && request.resource.data.targetId == id && request.resource.data.createdAt == request.time;
     }
+    match /transport_feeds/{feedId} {
+      allow read: if true;
+      allow write: if false;
+      match /versions/{versionId} {
+        allow read: if admin();
+        allow write: if false;
+        match /{collection}/{id} {
+          allow read: if collection in ['transport_agencies', 'transport_routes', 'transport_stops', 'transport_trips', 'transport_services', 'transport_fares', 'transport_patterns']
+            && (admin() || get(/databases/$(database)/documents/transport_feeds/$(feedId)).data.activeVersionId == versionId);
+          allow write: if false;
+        }
+      }
+    }
     match /{collection}/{id} {
       allow read: if collection in ['transport_agencies', 'transport_stops', 'transport_routes', 'transport_services', 'transport_trips', 'transport_fares'];
-      allow create, update: if admin() && collection in ['transport_agencies', 'transport_stops', 'transport_routes', 'transport_services', 'transport_trips', 'transport_fares'];
+      allow write: if false; // Manual masters and GTFS imports both require authenticated server handlers.
     }
     match /{document=**} {
       allow read, write: if false;

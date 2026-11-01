@@ -1,3 +1,4 @@
+import '../data/departure_places.dart';
 import 'dart:convert';
 
 // Form definitions and validation are shared by the UI and save boundary.
@@ -41,18 +42,13 @@ class AdminField {
 }
 
 const statuses = {
-  'sample': 'サンプル',
   'verified': '確認済み',
   'needsReview': '再確認が必要',
   'unverified': '未確認',
 };
-const sourceTypes = {
-  'manual': '手動登録',
-  'official': '公式情報',
-  'gtfs': 'GTFS',
-  'sample': 'サンプル',
-};
+const sourceTypes = {'manual': '手動登録', 'official': '公式情報'};
 const provenance = [
+  AdminField('isActive', '有効な情報', type: AdminInput.toggle),
   AdminField(
     'sourceType',
     '情報の種類',
@@ -114,7 +110,7 @@ const accessStopFields = [
   ),
   AdminField('isPrimary', '主なアクセスにする', type: AdminInput.toggle),
   ...provenance,
-  AdminField('note', 'アクセスの補足', multiline: true),
+  AdminField('accessNotes', 'アクセスの補足', multiline: true),
 ];
 const accessStopsField = AdminField(
   'accessStops',
@@ -139,6 +135,15 @@ List<AdminField> transportFields(String collection) => switch (collection) {
   ],
   'transport_stops' => [
     const AdminField('name', '駅・バス停名', required: true),
+    AdminField(
+      'departurePlaceId',
+      '検索の出発地との対応（任意）',
+      type: AdminInput.choice,
+      options: {
+        '': '対応なし',
+        for (final place in departurePlaces) place.id: place.name,
+      },
+    ),
     const AdminField(
       'type',
       '交通拠点の種類',
@@ -355,7 +360,7 @@ void validateAdminFields(List<AdminField> fields, Map<String, dynamic> data) {
         ok = v is String && v.length <= 10000;
         break;
       case AdminInput.id:
-        ok = v is String && RegExp(r'^[A-Za-z0-9_-]{1,80}$').hasMatch(v);
+        ok = v is String && RegExp(r'^[A-Za-z0-9_~-]{1,1400}$').hasMatch(v);
         break;
       case AdminInput.url:
         final uri = v is String ? Uri.tryParse(v) : null;
@@ -376,7 +381,13 @@ void validateAdminFields(List<AdminField> fields, Map<String, dynamic> data) {
             v <= (f.max ?? double.maxFinite);
         break;
       case AdminInput.choice:
-        ok = v is String && f.options.containsKey(v);
+        ok =
+            v is String &&
+            (f.options.containsKey(v) ||
+                (v == 'sample' &&
+                    ['sourceType', 'verificationStatus'].contains(
+                      f.key,
+                    ))); // Legacy records remain readable until approved cleanup.
         break;
       case AdminInput.date:
         ok = v is String && validAdminDate(v);
@@ -392,6 +403,11 @@ void validateAdminFields(List<AdminField> fields, Map<String, dynamic> data) {
         break;
       case AdminInput.rows:
         ok = v is List && v.length >= f.minRows && v.length <= f.maxRows;
+        if (ok &&
+            f.key == 'accessStops' &&
+            v.map((r) => (r as Map)['stopId']).toSet().length != v.length) {
+          throw const FormatException('同じ停留所は1件にまとめてください');
+        }
         if (ok) {
           for (final row in v) {
             if (f.children.length == 1 && f.children.first.key == 'value') {

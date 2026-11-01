@@ -232,6 +232,9 @@ void main() {
       expect(find.byTooltip('交通マスター・時刻表'), findsOneWidget);
       await tester.tap(find.text('新しい冒険'));
       await tester.pumpAndSettle();
+      final name = find.byKey(const ValueKey('catalog-name'));
+      await revealEditor(tester, name);
+      await tester.enterText(name, '検証用公園');
       final title = find.byKey(const ValueKey('catalog-title'));
       await revealEditor(tester, title);
       await tester.enterText(title, '変更した冒険');
@@ -240,6 +243,7 @@ void main() {
       await tester.tap(save);
       await tester.pumpAndSettle();
       expect(repository.data['test-spot']!.title, '変更した冒険');
+      expect(repository.data['test-spot']!.toExperience().name, '検証用公園');
       await tester.tap(find.byTooltip('削除'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, '削除'));

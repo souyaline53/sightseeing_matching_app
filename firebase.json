@@ -43,9 +43,15 @@
     }
   },
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
-  "functions": [{"source": "functions", "codebase": "tabisaki"}],
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "tabisaki"
+    }
+  ],
   "emulators": {
     "auth": {
       "port": 9099

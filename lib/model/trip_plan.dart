@@ -33,6 +33,9 @@ class TripState {
       ? '新しい旅'
       : '${stops.first.area}の小さな旅';
   String get origin => conditions.origin;
+  static String departureEndpointId(String origin) =>
+      'departure:${Uri.encodeComponent(origin.trim())}';
+  String get originEndpointId => departureEndpointId(origin);
   DateTime get date =>
       travelDate ?? DateTime.now().add(const Duration(days: 1));
   bool get publicTransport => conditions.transport != TravelMode.car;
@@ -51,6 +54,16 @@ class TripState {
     transportSelections: (transportSelections ?? this.transportSelections)
         .where((s) {
           final next = stops ?? this.stops;
+          if (next.isNotEmpty &&
+              s.from == departureEndpointId(conditions?.origin ?? origin) &&
+              s.to == next.first.id) {
+            return true;
+          }
+          if (next.isNotEmpty &&
+              s.from == next.last.id &&
+              s.to == departureEndpointId(conditions?.origin ?? origin)) {
+            return true;
+          }
           return List.generate(
             next.isNotEmpty ? next.length - 1 : 0,
             (i) => next[i].id == s.from && next[i + 1].id == s.to,

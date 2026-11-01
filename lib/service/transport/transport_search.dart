@@ -30,11 +30,15 @@ List<TransportCandidate> findCandidates({
   required List<AccessStop> to,
   List<TransportFare> fares = const [],
   DateTime? date,
+  List<TransportStop> stops = const [],
 }) {
   final result = <TransportCandidate>[];
   for (final trip in trips) {
+    if (trip.data['isActive'] == false || trip.data['frequencyBased'] == true) {
+      continue;
+    }
     final route = routes.where((r) => r.id == trip.data['routeId']).firstOrNull;
-    if (route == null) continue;
+    if (route == null || route.data['isActive'] == false) continue;
     if (date != null &&
         !services.any(
           (s) => s.id == trip.data['serviceId'] && s.operates(date),
@@ -57,6 +61,7 @@ List<TransportCandidate> findCandidates({
             final fare = fares
                 .where(
                   (f) =>
+                      f.data['isActive'] != false &&
                       f.data['routeId'] == route.id &&
                       f.data['fromStopId'] == a.stopId &&
                       f.data['toStopId'] == b.stopId &&
@@ -71,7 +76,14 @@ List<TransportCandidate> findCandidates({
                 b,
                 start,
                 end,
-                fare?.data['amountYen'] as int?,
+                fare?.data['amountYen'] as int? ??
+                    resolveGtfsFare(
+                      fares,
+                      stops,
+                      route.id,
+                      start.stopId,
+                      end.stopId,
+                    ),
               ),
             );
           }
@@ -81,4 +93,45 @@ List<TransportCandidate> findCandidates({
   }
   result.sort((a, b) => a.boarding.departure!.compareTo(b.boarding.departure!));
   return result;
+}
+
+// Conservative fare-v1 resolution: uncertain zone/path or non-JPY fares remain unknown.
+int? resolveGtfsFare(
+  List<TransportFare> fares,
+  List<TransportStop> stops,
+  String routeId,
+  String from,
+  String to,
+) {
+  final origin = stops.where((s) => s.id == from).firstOrNull?.data['zoneId'];
+  final destination = stops
+      .where((s) => s.id == to)
+      .firstOrNull
+      ?.data['zoneId'];
+  final prices = <int>{};
+  for (final fare in fares) {
+    if (fare.data['sourceType'] != 'gtfs' ||
+        fare.data['currency'] != 'JPY' ||
+        !routeId.startsWith('${fare.data['feedId']}~')) {
+      continue;
+    }
+    final rules = fare.data['rules'] as List? ?? [];
+    if (rules.isEmpty || rules.any((r) => (r as Map)['containsId'] != null)) {
+      continue;
+    }
+    final matches = rules.any((raw) {
+      final r = raw as Map;
+      return (r['routeId'] == null || r['routeId'] == routeId) &&
+          r['containsId'] == null &&
+          (r['originId'] == null ||
+              (origin != null && r['originId'] == origin)) &&
+          (r['destinationId'] == null ||
+              (destination != null && r['destinationId'] == destination));
+    });
+    final price = fare.data['price'];
+    if (matches && price is num && price == price.roundToDouble()) {
+      prices.add(price.toInt());
+    }
+  }
+  return prices.length == 1 ? prices.single : null;
 }

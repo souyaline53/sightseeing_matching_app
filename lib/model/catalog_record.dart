@@ -10,17 +10,21 @@ enum CatalogKind {
 
 class CatalogField {
   final String key, label;
-  final bool number, multiline;
+  final bool number, multiline, optional;
+  final int maxLength;
   const CatalogField(
     this.key,
     this.label, {
     this.number = false,
     this.multiline = false,
+    this.optional = false,
+    this.maxLength = 10000,
   });
 }
 
 List<CatalogField> catalogFields(CatalogKind kind) => const [
-  CatalogField('title', 'タイトル'),
+  CatalogField('name', '観光地名称', optional: true, maxLength: 120),
+  CatalogField('title', '紹介タイトル'),
   CatalogField('area', '地域'),
   CatalogField('category', 'カテゴリ'),
   CatalogField('description', '紹介', multiline: true),
@@ -40,14 +44,15 @@ String? validateCatalogRecord(
   }
   for (final field in catalogFields(kind)) {
     final value = data[field.key];
+    if (field.optional && !data.containsKey(field.key)) continue;
     if (field.number) {
       if (value is! int || value < 0 || value > 100000) {
         return '${field.label}は0〜100000の整数で指定してください。';
       }
     } else if (value is! String ||
-        value.trim().isEmpty ||
-        value.length > 10000) {
-      return '${field.label}を1〜10000文字で入力してください。';
+        (!field.optional && value.trim().isEmpty) ||
+        value.length > field.maxLength) {
+      return '${field.label}は文字列で${field.maxLength}文字以内にしてください。';
     }
   }
   try {
@@ -66,6 +71,8 @@ class CatalogRecord {
     : data = Map.unmodifiable(data);
   String get title => data['title'] as String;
   int get order => data['order'] as int? ?? 1000;
+  String get name => data['name'] as String? ?? '';
+  String get displayName => name.trim().isNotEmpty ? name.trim() : title;
   List<CloudCatalogPhoto> get photos => [
     if ((data['photo'] as String? ?? '').isNotEmpty)
       CloudCatalogPhoto(

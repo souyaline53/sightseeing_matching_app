@@ -162,14 +162,14 @@ class CatalogEditScreen extends HookConsumerWidget {
                     for (final field in fields)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
-                        child: TextField(
+                        child: TextFormField(
                           key: ValueKey('catalog-${field.key}'),
                           controller: controllers[field.key],
                           inputFormatters: [
                             if (field.number)
                               FilteringTextInputFormatter.digitsOnly,
                             LengthLimitingTextInputFormatter(
-                              field.number ? 6 : 10000,
+                              field.number ? 6 : field.maxLength,
                             ),
                           ],
                           enabled: !busy.value,
@@ -180,7 +180,21 @@ class CatalogEditScreen extends HookConsumerWidget {
                               : TextInputType.text,
                           minLines: field.multiline ? 3 : 1,
                           maxLines: field.multiline ? 8 : 1,
-                          decoration: InputDecoration(labelText: field.label),
+                          validator: field.key == 'name'
+                              ? (value) => value == null || value.trim().isEmpty
+                                    ? '観光地名称を入力してください。'
+                                    : null
+                              : null,
+                          decoration: InputDecoration(
+                            labelText: field.key == 'name'
+                                ? '${field.label}（必須）'
+                                : field.label,
+                            helperText: field.key == 'name'
+                                ? '旅程に表示する短い名称です。例：○○公園、○○美術館'
+                                : field.key == 'title'
+                                ? '体験カードで興味を惹く紹介文として表示します。'
+                                : null,
+                          ),
                         ),
                       ),
                     if (kind == CatalogKind.sightseeing) ...[

@@ -92,7 +92,7 @@ class ItinerarySpotCard extends StatelessWidget {
                                     index: index,
                                     child: Semantics(
                                       label:
-                                          '${spot.title}の順番をドラッグで変更。タップで操作メニュー',
+                                          '${spot.displayName}の順番をドラッグで変更。タップで操作メニュー',
                                       child: Container(
                                         decoration: const BoxDecoration(
                                           color: Color(0xeeffffff),
@@ -158,15 +158,24 @@ class ItinerarySpotCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Expanded(
-                          child: Text(
-                            spot.title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: compact ? 11 : 12,
-                              fontWeight: FontWeight.w700,
-                              height: 1.25,
-                            ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  spot.displayName,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: compact ? 11 : 12,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.25,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         InkWell(

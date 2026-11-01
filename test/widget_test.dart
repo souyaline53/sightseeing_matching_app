@@ -210,10 +210,12 @@ void main() {
       await tester.tap(find.text('次へ'));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).stops.first.id, isNot(before));
-      expect(find.text('日程未定：時刻表は参考情報です'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('itinerary-save')));
+      expect(find.textContaining('時刻表は参考情報です'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
       await tester.pumpAndSettle();
-      expect(find.text('旅程を端末に保存しました'), findsOneWidget);
+      expect(find.text('マイプラン'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('プロフィール'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('旅程作成'));

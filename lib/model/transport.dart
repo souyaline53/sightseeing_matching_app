@@ -48,6 +48,7 @@ class TransportFare extends TransportRecord {
 class TransportService extends TransportRecord {
   TransportService(super.id, super.data);
   bool operates(DateTime date) {
+    if (data['isActive'] == false) return false;
     final day =
         '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     if ((data['removedDates'] as List? ?? []).contains(day)) return false;
@@ -68,8 +69,12 @@ class StopTime {
   int get sequence => data['sequence'] as int;
   int? get arrival => data['arrivalMinutes'] as int?;
   int? get departure => data['departureMinutes'] as int?;
-  bool get pickup => data['pickupAllowed'] != false;
-  bool get dropoff => data['dropoffAllowed'] != false;
+  bool get pickup =>
+      (data['pickupType'] == null || data['pickupType'] == 0) &&
+      data['pickupAllowed'] != false;
+  bool get dropoff =>
+      (data['dropOffType'] == null || data['dropOffType'] == 0) &&
+      data['dropoffAllowed'] != false;
 }
 
 class TransportTrip extends TransportRecord {

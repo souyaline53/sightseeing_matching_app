@@ -1,3 +1,4 @@
+import 'transport_stop_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -33,7 +34,10 @@ Map<String, dynamic> prepareAdminData(
       data[f.key] = v is List ? [...v] : <int>[];
     } else if (f.type == AdminInput.toggle) {
       data[f.key] =
-          v ?? (f.key == 'pickupAllowed' || f.key == 'dropoffAllowed');
+          v ??
+          (f.key == 'pickupAllowed' ||
+              f.key == 'dropoffAllowed' ||
+              f.key == 'isActive');
     } else if (f.type == AdminInput.choice && v == null) {
       data[f.key] = switch (f.key) {
         'timezone' => 'Asia/Tokyo',
@@ -230,11 +234,15 @@ class _InputState extends State<AdminFieldInput> {
       );
     }
     if (f.type == AdminInput.choice) {
+      final options = {
+        ...f.options,
+        if (value == 'sample') 'sample': '旧サンプル（削除承認待ち）',
+      };
       return DropdownButtonFormField<String>(
-        initialValue: f.options.containsKey(value) ? value as String : null,
+        initialValue: options.containsKey(value) ? value as String : null,
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
-        items: f.options.entries
+        items: options.entries
             .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
             .toList(),
         onChanged: widget.enabled
@@ -242,7 +250,7 @@ class _InputState extends State<AdminFieldInput> {
             : null,
         validator: (v) => f.required && v == null
             ? '選択してください'
-            : value != null && !f.options.containsKey(value)
+            : value != null && !options.containsKey(value)
             ? '選択肢から選び直してください'
             : null,
       );
@@ -305,7 +313,7 @@ class _InputState extends State<AdminFieldInput> {
       maxLength: f.type == AdminInput.integer
           ? 10
           : f.type == AdminInput.id
-          ? 80
+          ? 1400
           : f.type == AdminInput.time
           ? 6
           : 10000,
@@ -330,7 +338,7 @@ class _InputState extends State<AdminFieldInput> {
                 RegExp(r'^-?\d*(\.\d*)?$').hasMatch(next.text) ? next : old,
           ),
         if (f.type == AdminInput.id)
-          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_-]')),
+          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_~-]')),
         if (f.type == AdminInput.time)
           FilteringTextInputFormatter.allow(RegExp(r'[0-9:]')),
       ],
@@ -344,6 +352,37 @@ class _InputState extends State<AdminFieldInput> {
             : null,
       ),
     );
+    if (f.key == 'stopId' || f.key == 'routeId') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          input,
+          TextButton.icon(
+            icon: const Icon(Icons.search),
+            label: Text(
+              f.key == 'stopId' ? '事業者 → 路線 → 停留所から選ぶ' : '事業者 → 路線から選ぶ',
+            ),
+            onPressed: !widget.enabled
+                ? null
+                : () async {
+                    final id = await showDialog<String>(
+                      context: context,
+                      builder: (_) => TransportStopPicker(
+                        selectRoute: f.key == 'routeId',
+                        manualOnly: !widget.prefix.startsWith('accessStops'),
+                      ),
+                    );
+                    if (id != null && mounted) {
+                      setState(() {
+                        text.text = id;
+                        widget.data[f.key] = id;
+                      });
+                    }
+                  },
+          ),
+        ],
+      );
+    }
     if (f.reference == null) return input;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -456,6 +495,21 @@ class _RowsState extends State<AdminRowsEditor> {
                 Row(
                   children: [
                     Expanded(child: Text('${i + 1}件目')),
+                    if (widget.field.key == 'stopTimes' && i > 0)
+                      IconButton(
+                        tooltip: '上へ移動',
+                        icon: const Icon(Icons.arrow_upward),
+                        onPressed: !widget.enabled
+                            ? null
+                            : () => setState(() {
+                                final row = rows.removeAt(i);
+                                rows.insert(i - 1, row);
+                                for (var n = 0; n < rows.length; n++) {
+                                  rows[n]['sequence'] = n + 1;
+                                }
+                                sync();
+                              }),
+                      ),
                     IconButton(
                       tooltip: 'この項目を削除',
                       onPressed: !widget.enabled

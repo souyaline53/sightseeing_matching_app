@@ -1,0 +1,2 @@
+agency_id,agency_official_name,agency_zip_number,agency_address,agency_president_pos,agency_president_name
+9430001047360,夕張鉄道株式会社,0680425,北海道夕張市若菜２番地１９,代表取締役社長,畠山朗

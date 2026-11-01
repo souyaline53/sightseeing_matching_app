@@ -1,0 +1,4 @@
+service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date
+S000001,0,0,0,0,0,1,1,20260905,20270228
+S000002,1,1,1,1,1,0,0,20260901,20270226
+S000003,1,1,1,1,1,1,1,20260901,20270228

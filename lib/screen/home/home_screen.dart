@@ -1,3 +1,4 @@
+import '../../data/catalog_data.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -389,7 +390,15 @@ class _TimelineStop extends HookConsumerWidget {
   const _TimelineStop({required this.trip, required this.index});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stop = trip.stops[index];
+    final savedStop = trip.stops[index];
+    final stop =
+        ref
+            .watch(catalogProvider)
+            .value
+            ?.experiences
+            .where((current) => current.id == savedStop.id)
+            .firstOrNull ??
+        savedStop;
     final colors = Theme.of(context).colorScheme;
     return IntrinsicHeight(
       key: ValueKey('home-stop-$index'),
@@ -431,7 +440,7 @@ class _TimelineStop extends HookConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          stop.title,
+                          stop.displayName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

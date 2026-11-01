@@ -1,0 +1,10 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {"collectionGroup":"transport_trips","fieldPath":"stopTimes","indexes":[]},
+    {"collectionGroup":"transport_fares","fieldPath":"rules","indexes":[]},
+    {"collectionGroup":"transport_services","fieldPath":"addedDates","indexes":[]},
+    {"collectionGroup":"transport_services","fieldPath":"removedDates","indexes":[]},
+    {"collectionGroup":"transport_patterns","fieldPath":"stopIds","indexes":[]}
+  ]
+}

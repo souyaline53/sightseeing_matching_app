@@ -17,7 +17,7 @@ class ItineraryTransportSheet extends StatelessWidget {
   final int index, segmentCount;
   final bool collapsed;
   final VoidCallback? onPrevious, onNext, onClear;
-  final VoidCallback onRefresh, onMap, onExpand, onSave;
+  final VoidCallback onRefresh, onMap, onExpand;
   final ValueChanged<TransportCandidate> onSelect;
   final VoidCallback onHeaderDragStart, onHeaderDragCancel;
   final ValueChanged<double> onHeaderDragUpdate, onHeaderDragEnd;
@@ -37,7 +37,6 @@ class ItineraryTransportSheet extends StatelessWidget {
     required this.onRefresh,
     required this.onMap,
     required this.onExpand,
-    required this.onSave,
     required this.onSelect,
     required this.onHeaderDragStart,
     required this.onHeaderDragUpdate,
@@ -54,7 +53,8 @@ class ItineraryTransportSheet extends StatelessWidget {
       c.alighting.sequence == selected!.data['alightingSequence'] &&
       c.boarding.departure == selected!.data['departureMinutes'] &&
       c.alighting.arrival == selected!.data['arrivalMinutes'] &&
-      c.trip.data['updatedAt']?.toString() == selected!.data['tripVersion'];
+      (c.trip.data['versionId'] ?? c.trip.data['updatedAt'])?.toString() ==
+          selected!.data['tripVersion'];
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
@@ -144,6 +144,7 @@ class ItineraryTransportSheet extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 6),
             Expanded(
               child: ListView(
                 key: const ValueKey('transport-sheet-scroll'),
@@ -154,14 +155,14 @@ class ItineraryTransportSheet extends StatelessWidget {
                     if (to == null)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Text('2つ以上の体験を並べると、区間の時刻表を確認できます。'),
+                        child: Text('体験を追加し、出発地または観光地のカードを選ぶと交通情報を確認できます。'),
                       )
                     else ...[
                       Row(
                         children: [
-                          Expanded(
+                          Flexible(
                             child: Text(
-                              from!.title,
+                              from!.displayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -178,9 +179,9 @@ class ItineraryTransportSheet extends StatelessWidget {
                               size: 19,
                             ),
                           ),
-                          Expanded(
+                          Flexible(
                             child: Text(
-                              to!.title,
+                              to!.displayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -191,42 +192,18 @@ class ItineraryTransportSheet extends StatelessWidget {
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 6),
                       Text(
                         date == null
-                            ? '日程未定：時刻表は参考情報です'
+                            ? '日程未選択：時刻表は参考情報です。'
                             : '${date!.year}/${date!.month}/${date!.day} の時刻表',
                         style: TextStyle(
                           fontSize: 11,
                           color: color.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          _smallArrow('前の区間', Icons.chevron_left, onPrevious),
-                          Text(
-                            '${segmentCount == 0 ? 0 : index + 1} / $segmentCount 区間',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          _smallArrow('次の区間', Icons.chevron_right, onNext),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: onClear,
-                            style: TextButton.styleFrom(
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              minimumSize: const Size(0, 28),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                            ),
-                            child: const Text(
-                              '便を再選択',
-                              style: TextStyle(fontSize: 11),
-                            ),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 20),
                       data.when(
                         loading: () => const Padding(
                           padding: EdgeInsets.all(14),
@@ -241,6 +218,7 @@ class ItineraryTransportSheet extends StatelessWidget {
                             routes: d.routes,
                             services: d.services,
                             fares: d.fares,
+                            stops: d.stops,
                             from: from!.accessStops,
                             to: to!.accessStops,
                             date: date,
@@ -248,11 +226,6 @@ class ItineraryTransportSheet extends StatelessWidget {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (candidates.any((c) => c.status == 'sample'))
-                                const Padding(
-                                  padding: EdgeInsets.only(bottom: 8),
-                                  child: _Notice('サンプル時刻・実際の運行情報ではありません'),
-                                ),
                               if (selected != null && !candidates.any(matches))
                                 const _Notice('保存した便を再確認できません。再選択してください。'),
                               if (candidates.isEmpty)
@@ -329,51 +302,12 @@ class ItineraryTransportSheet extends StatelessWidget {
                 ],
               ),
             ),
-            if (!collapsed)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 2, 14, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    key: const ValueKey('itinerary-save'),
-                    onPressed: onSave,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                      shape: const StadiumBorder(),
-                    ),
-                    icon: const Icon(Icons.bookmark_border),
-                    label: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'しおりに反映',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 15),
-                        Icon(Icons.east, size: 19),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _smallArrow(String label, IconData icon, VoidCallback? action) =>
-      IconButton(
-        tooltip: label,
-        onPressed: action,
-        icon: Icon(icon, size: 18),
-        padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints.tightFor(width: 30, height: 28),
-      );
   Widget _candidate(
     BuildContext context,
     TransportCandidate c,
@@ -476,7 +410,7 @@ class ItineraryTransportSheet extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              c.fare == null ? '運賃\n未登録' : '¥${c.fare}',
+              c.fare == null ? '運賃\n未確認' : '¥${c.fare}',
               style: const TextStyle(fontSize: 11),
             ),
           ],
@@ -599,14 +533,14 @@ class ItineraryTransportSheet extends StatelessWidget {
                   Text(verificationLabel(c.status)),
                   const SizedBox(height: 12),
                   Text(
-                    '${from!.title}\n↓ 徒歩 ${c.before.walkingMinutes == null ? '時間不明' : '${c.before.walkingMinutes}分'}\n${d.stopName(c.boarding.stopId)} ${transportTime(c.boarding.departure)} 発\n↓ ${c.route.name}\n${d.stopName(c.alighting.stopId)} ${transportTime(c.alighting.arrival)} 着\n↓ 徒歩 ${c.after.walkingMinutes == null ? '時間不明' : '${c.after.walkingMinutes}分'}\n${to!.title}',
+                    '${from!.displayName}\n↓ 徒歩 ${c.before.walkingMinutes == null ? '時間不明' : '${c.before.walkingMinutes}分'}\n${d.stopName(c.boarding.stopId)} ${transportTime(c.boarding.departure)} 発\n↓ ${c.route.name}\n${d.stopName(c.alighting.stopId)} ${transportTime(c.alighting.arrival)} 着\n↓ 徒歩 ${c.after.walkingMinutes == null ? '時間不明' : '${c.after.walkingMinutes}分'}\n${to!.displayName}',
                     style: const TextStyle(height: 1.8),
                   ),
                   Text(
                     '徒歩情報：${verificationLabel(c.before.status)} / ${verificationLabel(c.after.status)}',
                     style: const TextStyle(fontSize: 12),
                   ),
-                  Text(c.fare == null ? '運賃未登録' : '大人運賃 ¥${c.fare}'),
+                  Text(c.fare == null ? '運賃未確認' : '大人運賃 ¥${c.fare}'),
                   Text(
                     '路線情報：${verificationLabel(c.route.data['verificationStatus'] as String? ?? 'unverified')}',
                   ),

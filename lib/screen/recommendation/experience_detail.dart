@@ -49,7 +49,7 @@ class ExperienceDetail extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${experience.area}  /  ${experience.category}',
+                        '${experience.area}  /  ${experience.name}  /  ${experience.category}',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                         ),

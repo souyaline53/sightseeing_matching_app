@@ -213,7 +213,7 @@ class _RecordsList extends HookConsumerWidget {
                   itemBuilder: (context, i) {
                     final record = records[i];
                     return ListTile(
-                      title: Text(record.title),
+                      title: Text(record.displayName),
                       subtitle: Text(record.id),
                       onTap: busy || deleting.value
                           ? null

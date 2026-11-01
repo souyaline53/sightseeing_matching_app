@@ -9,6 +9,14 @@ service firebase.storage {
       return request.resource.size > 0 && request.resource.size <= 200000
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     }
+    match /transport_imports/{uid}/{feedId}/{file} {
+      allow read: if admin();
+      allow create: if admin() && request.auth.uid == uid && resource == null
+        && file.matches('[A-Za-z0-9_-]+\\.zip')
+        && request.resource.size > 0 && request.resource.size <= 20971520
+        && request.resource.contentType == 'application/zip';
+      allow update, delete: if false;
+    }
     match /catalog/{collection}/{id}/{file} {
       allow read: if true;
       allow create: if resource == null && admin() && collection in ['sightseeing_spot', 'transit'] && image();

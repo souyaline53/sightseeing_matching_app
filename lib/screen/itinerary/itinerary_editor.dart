@@ -1,3 +1,5 @@
+import 'itinerary_endpoint_card.dart';
+import 'plan_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -87,23 +89,22 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     _endHeaderDrag(0);
   }
 
-  Future<void> _save() async {
-    try {
-      ref.read(tripLibraryProvider.notifier).upsert(ref.read(tripProvider));
-      await ref.read(tripLibraryProvider.notifier).flush();
-      if (ref.read(tripSaveErrorProvider)) throw StateError('save failed');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('旅程を端末に保存しました')));
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('保存に失敗しました。再試行してください。')));
-      }
-    }
+  void _openBooklet() {
+    final trip = ref.read(tripProvider);
+    if (trip.stops.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PlanScreen(
+          tripId: trip.id,
+          stops: trip.stops,
+          origin: trip.origin,
+          date: trip.travelDate,
+          publicTransport: trip.publicTransport,
+          demo: false,
+          conditions: trip.conditions,
+        ),
+      ),
+    );
   }
 
   Future<void> _rename() async {
@@ -174,6 +175,11 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
         .selectTransport(
           TransportSelection({
             'fromSpotId': from.id,
+            'fromKind': from.id == trip.originEndpointId ? 'origin' : 'spot',
+            'toKind': to.id == trip.originEndpointId ? 'origin' : 'spot',
+            if (from.id == trip.originEndpointId ||
+                to.id == trip.originEndpointId)
+              'originName': trip.origin,
             'toSpotId': to.id,
             'boardingStopId': c.boarding.stopId,
             'alightingStopId': c.alighting.stopId,
@@ -187,7 +193,12 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
             'verificationStatus': c.status,
             'departureMinutes': c.boarding.departure,
             'arrivalMinutes': c.alighting.arrival,
-            'tripVersion': c.trip.data['updatedAt']?.toString(),
+            'tripVersion':
+                (c.trip.data['versionId'] ?? c.trip.data['updatedAt'])
+                    ?.toString(),
+            'feedId': c.trip.data['feedId'],
+            'departureSeconds': c.boarding.data['departureSeconds'],
+            'arrivalSeconds': c.alighting.data['arrivalSeconds'],
           }),
         );
   }
@@ -204,14 +215,65 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
         )
         .toList();
     final index = segment.clamp(0, stops.length > 1 ? stops.length - 2 : 0);
-    final from = stops.isEmpty ? null : stops[index];
-    final to = stops.length < 2 ? null : stops[index + 1];
+    final originSelected = segment == -1;
+    final returnSelected = segment == -2;
+    final endpointSelected = originSelected || returnSelected;
+    final originStops = endpointSelected && stops.isNotEmpty
+        ? ref.watch(originTransportStopsProvider(trip.origin))
+        : const AsyncData<List<TransportStop>>([]);
+    // A view-only endpoint; departure and home never enter the sightseeing list.
+    final origin = Experience(
+      trip.originEndpointId,
+      trip.origin,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      0,
+      name: trip.origin,
+      accessStops: [
+        for (final stop in originStops.value ?? <TransportStop>[])
+          AccessStop({
+            'stopId': stop.id,
+            'walkingMinutes': null,
+            'sourceType': stop.data['sourceType'] ?? 'manual',
+            'verificationStatus':
+                stop.data['verificationStatus'] ?? 'unverified',
+          }),
+      ],
+    );
+    final from = returnSelected
+        ? stops.lastOrNull
+        : originSelected
+        ? origin
+        : stops.isEmpty
+        ? null
+        : stops[index];
+    final to = returnSelected
+        ? (stops.isEmpty ? null : origin)
+        : originSelected
+        ? stops.firstOrNull
+        : stops.length < 2
+        ? null
+        : stops[index + 1];
     final ids = {
       ...?from?.accessStops.map((s) => s.stopId),
       ...?to?.accessStops.map((s) => s.stopId),
     }.toList()..sort();
     final key = jsonEncode(ids);
-    final data = ref.watch(transportDataProvider(key));
+    final AsyncValue<TransportData> data;
+    if (endpointSelected && originStops.isLoading) {
+      data = const AsyncLoading();
+    } else if (endpointSelected && originStops.hasError) {
+      data = AsyncError(
+        originStops.error!,
+        originStops.stackTrace ?? StackTrace.empty,
+      );
+    } else {
+      data = ref.watch(transportDataProvider(key));
+    }
     final selected = trip.transportSelections
         .where((s) => s.from == from?.id && s.to == to?.id)
         .firstOrNull;
@@ -237,19 +299,31 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                       ),
                       const SizedBox(width: 8),
                       const Expanded(
-                        child: Text(
-                          'TABISAKI',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 4,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'TABISAKI',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 4,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                      IconButton(
-                        tooltip: '旅程を保存',
-                        onPressed: _save,
-                        icon: const Icon(Icons.bookmark_border),
+                      TextButton.icon(
+                        key: const ValueKey('itinerary-view-booklet'),
+                        onPressed: trip.stops.isEmpty ? null : _openBooklet,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(0, 32),
+                          textStyle: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        icon: const Icon(Icons.menu_book_outlined, size: 16),
+                        label: const Text('しおりを見る'),
                       ),
                       PopupMenuButton<String>(
                         tooltip: '旅程の操作',
@@ -303,7 +377,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                       trip.travelDate == null
                           ? '旅行日を選ぶ（未定）'
                           : '${trip.travelDate!.year}/${trip.travelDate!.month}/${trip.travelDate!.day}（${['月', '火', '水', '木', '金', '土', '日'][trip.travelDate!.weekday - 1]}） · ${trip.conditions.length.label}',
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     onPressed: () async {
                       final date = await showDatePicker(
@@ -330,15 +404,15 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                         padding: const EdgeInsets.fromLTRB(10, 0, 4, 0),
                         child: Row(
                           children: [
-                            Icon(
+                            /*Icon(
                               Icons.swap_horiz,
                               color: color.primary,
                               size: 18,
-                            ),
+                            ),*/
                             const SizedBox(width: 5),
                             const Expanded(
                               child: Text(
-                                '順番を入れ替える',
+                                '',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -349,45 +423,63 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                           ],
                         ),
                       ),
-                      if (stops.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            '気になる体験を追加して、\n自分だけの旅を組み立てよう。',
-                            textAlign: TextAlign.center,
+                      SizedBox(
+                        height: compact ? 142 : 170,
+                        child: ReorderableListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.only(left: 5),
+                          header: SizedBox(
+                            width: 105,
+                            child: ItineraryEndpointCard(
+                              key: const ValueKey('itinerary-departure'),
+                              departure: true,
+                              label: trip.origin,
+                              selected: originSelected,
+                              onTap: () {
+                                setState(() => segment = -1);
+                                _sheetTo(1);
+                              },
+                            ),
                           ),
-                        )
-                      else
-                        SizedBox(
-                          height: compact ? 142 : 170,
-                          child: ReorderableListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.only(left: 5),
-                            itemCount: stops.length,
-                            buildDefaultDragHandles: false,
-                            onReorder: _reorder,
-                            itemBuilder: (context, i) => SizedBox(
-                              key: ValueKey(stops[i].id),
-                              width: (bounds.maxWidth * .355).clamp(124, 168),
-                              child: ItinerarySpotCard(
-                                spot: stops[i],
-                                index: i,
-                                stayMinutes:
-                                    trip.stayMinutes[stops[i].id] ??
-                                    stops[i].minutes,
-                                selected: i == index,
-                                first: i == 0,
-                                last: i == stops.length - 1,
-                                compact: compact,
-                                onSelect: () => setState(() => segment = i),
-                                onStay: () => _stay(stops[i]),
-                                onPrevious: () => _reorder(i, i - 1),
-                                onNext: () => _reorder(i, i + 2),
-                                onRemove: () => controller.removeStop(stops[i]),
+                          footer: SizedBox(
+                            width: 85,
+                            child: ItineraryEndpointCard(
+                              key: const ValueKey('itinerary-home'),
+                              departure: false,
+                              label: trip.origin,
+                            ),
+                          ),
+                          itemCount: stops.length,
+                          buildDefaultDragHandles: false,
+                          onReorder: _reorder,
+                          itemBuilder: (context, i) => SizedBox(
+                            key: ValueKey(stops[i].id),
+                            width: (bounds.maxWidth * .355).clamp(124, 168),
+                            child: ItinerarySpotCard(
+                              spot: stops[i],
+                              index: i,
+                              stayMinutes:
+                                  trip.stayMinutes[stops[i].id] ??
+                                  stops[i].minutes,
+                              selected:
+                                  !originSelected &&
+                                  (returnSelected
+                                      ? i == stops.length - 1
+                                      : i == index),
+                              first: i == 0,
+                              last: i == stops.length - 1,
+                              compact: compact,
+                              onSelect: () => setState(
+                                () => segment = i == stops.length - 1 ? -2 : i,
                               ),
+                              onStay: () => _stay(stops[i]),
+                              onPrevious: () => _reorder(i, i - 1),
+                              onNext: () => _reorder(i, i + 2),
+                              onRemove: () => controller.removeStop(stops[i]),
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -406,10 +498,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                           ),
                           NotificationListener<DraggableScrollableNotification>(
                             onNotification: (n) {
-                              // Keep the footer hidden until the fixed header and save button fit.
-                              final next =
-                                  n.extent < minimumSheet + .08 ||
-                                  n.extent * sheetViewportHeight < 140;
+                              final next = n.extent < minimumSheet + .08;
                               if (next != collapsed) {
                                 setState(() => collapsed = next);
                               }
@@ -440,23 +529,47 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                     date: trip.travelDate,
                                     selected: selected,
                                     data: data,
-                                    index: index,
-                                    segmentCount: stops.length > 1
-                                        ? stops.length - 1
-                                        : 0,
-                                    onPrevious: index > 0
+                                    index: originSelected
+                                        ? 0
+                                        : returnSelected
+                                        ? stops.length
+                                        : index + 1,
+                                    segmentCount: stops.isEmpty
+                                        ? 0
+                                        : stops.length + 1,
+                                    onPrevious:
+                                        !originSelected && stops.isNotEmpty
                                         ? () => setState(
-                                            () => segment = index - 1,
+                                            () => segment = returnSelected
+                                                ? stops.length > 1
+                                                      ? stops.length - 2
+                                                      : -1
+                                                : index - 1,
                                           )
                                         : null,
-                                    onNext: index < stops.length - 2
+                                    onNext: !returnSelected && stops.isNotEmpty
                                         ? () => setState(
-                                            () => segment = index + 1,
+                                            () => segment = originSelected
+                                                ? stops.length > 1
+                                                      ? 0
+                                                      : -2
+                                                : index < stops.length - 2
+                                                ? index + 1
+                                                : -2,
                                           )
                                         : null,
-                                    onRefresh: () => ref.invalidate(
-                                      transportDataProvider(key),
-                                    ),
+                                    onRefresh: () {
+                                      if (endpointSelected) {
+                                        ref.invalidate(
+                                          originTransportStopsProvider(
+                                            trip.origin,
+                                          ),
+                                        );
+                                      }
+                                      ref.invalidate(
+                                        transportDataProvider(key),
+                                      );
+                                    },
                                     onSelect: (c) {
                                       if (from != null && to != null) {
                                         _select(c, from, to);
@@ -470,7 +583,6 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                           ),
                                     onMap: () => _sheetTo(.22),
                                     onExpand: () => _sheetTo(1),
-                                    onSave: _save,
                                   ),
                             ),
                           ),

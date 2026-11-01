@@ -9,13 +9,22 @@ service firebase.storage {
       return request.resource.size > 0 && request.resource.size <= 200000
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     }
-    match /transport_imports/{uid}/{feedId}/{file} {
+    match /transport_imports/{uid}/{feedId}/{uploadId}/{file} {
       allow read: if admin();
       allow create: if admin() && request.auth.uid == uid && resource == null
-        && file.matches('[A-Za-z0-9_-]+\\.zip')
-        && request.resource.size > 0 && request.resource.size <= 20971520
-        && request.resource.contentType == 'application/zip';
+        && feedId.matches('[A-Za-z0-9_-]{1,60}') && uploadId.matches('[A-Za-z0-9_-]+')
+        && file.matches('[a-z][a-z0-9_]*\\.txt')
+        && request.resource.size > 0 && request.resource.size <= 52428800
+        && request.resource.contentType == 'text/plain';
       allow update, delete: if false;
+    }
+    match /transport_data/{feedId}/{versionId}/{file=**} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+    match /transport_backups/{allPaths=**} {
+      allow get: if admin();
+      allow list, write: if false;
     }
     match /catalog/{collection}/{id}/{file} {
       allow read: if true;

@@ -116,6 +116,11 @@ class TripNotifier extends Notifier<TripState> {
       ),
     ),
   );
+  void setDepartureMinutes(int minutes) {
+    if (minutes < 0 || minutes >= 1440) throw ArgumentError.value(minutes);
+    _commit(state.copyWith(departureMinutes: minutes));
+  }
+
   void setOrigin(String origin) =>
       applyConditions(state.conditions.copyWith(origin: origin));
   void setTravelMode(TravelMode mode) =>

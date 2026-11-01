@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../service/transport/gtfs_asset_loader.dart';
+import 'gtfs_bundle_reader.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/transport.dart';
@@ -6,7 +10,44 @@ import 'transport_repository.dart';
 /// Immutable versions make cached pages safe; active pointers are refreshed per request.
 class GtfsRepository {
   final FirebaseFirestore db;
-  GtfsRepository(this.db);
+  final GtfsAssetLoader loader;
+  static final _loaders = <String, GtfsAssetLoader>{};
+  GtfsRepository(this.db, {GtfsAssetLoader? loader})
+    : loader =
+          loader ??
+          _loaders.putIfAbsent(
+            '${db.app.name}/${FirebaseStorage.instance.bucket}',
+            () => GtfsAssetLoader(
+              (path, limit) async =>
+                  (await FirebaseStorage.instance.ref(path).getData(limit)) ??
+                  Uint8List(0),
+              namespace: '${db.app.name}/${FirebaseStorage.instance.bucket}',
+            ),
+          );
+  bool storageFeed(Json feed) =>
+      (feed['distribution'] as Map?)?['formatVersion'] == 2;
+  GtfsBundleReader reader(Json feed) => GtfsBundleReader(feed, loader);
+  Future<List<Json>> agencies(Json feed) => storageFeed(feed)
+      ? reader(feed).agencies()
+      : all(collection(feed, 'transport_agencies'));
+  Future<List<Json>> routesFor(Json feed, String agencyId) => storageFeed(feed)
+      ? reader(feed).routes(agencyId)
+      : all(
+          collection(feed, 'transport_routes'),
+          field: 'agencyId',
+          value: agencyId,
+        );
+  Future<List<Json>> stopsFor(Json feed, String routeId) => storageFeed(feed)
+      ? reader(feed).routeStops(routeId)
+      : all(
+          collection(feed, 'transport_stops'),
+          field: 'routeIds',
+          value: routeId,
+          array: true,
+        );
+  Future<List<Json>> findStops(Json feed, String name) => storageFeed(feed)
+      ? reader(feed).findStops(name)
+      : all(collection(feed, 'transport_stops'), field: 'name', value: name);
   static final _cache = <String, List<Json>>{};
   static final _sizes = <String, int>{};
   static int _bytes = 0;
@@ -132,6 +173,15 @@ class GtfsRepository {
       final prefix = '${feed['id']}~';
       final selected = ids.where((id) => id.startsWith(prefix)).toSet();
       if (selected.isEmpty) continue;
+      if (storageFeed(feed)) {
+        final data = await reader(feed).load(selected);
+        stops.addAll({for (final r in data.stops) r.id: r});
+        routes.addAll({for (final r in data.routes) r.id: r});
+        trips.addAll({for (final r in data.trips) r.id: r});
+        services.addAll({for (final r in data.services) r.id: r});
+        fares.addAll({for (final r in data.fares) r.id: r});
+        continue;
+      }
       for (final id in selected) {
         for (final r in await all(
           collection(feed, 'transport_trips'),

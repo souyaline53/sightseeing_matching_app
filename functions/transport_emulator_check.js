@@ -1,157 +1,158 @@
-// Explicit opt-in: this script refuses production Firestore.
 "use strict";
 const assert = require("node:assert/strict");
 if (
   !/^(127\.0\.0\.1|localhost):\d+$/.test(
     process.env.FIRESTORE_EMULATOR_HOST || "",
-  )
+  ) ||
+  !process.env.FIREBASE_STORAGE_EMULATOR_HOST
 )
-  throw Error("Local Firestore emulator required");
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
-const { importTransport } = require("./transport_import");
-const { saveManualTransport } = require("./manual_transport");
-const { fixture, zip } = require("./test_support/gtfs_fixture");
-const projectId = "demo-tabisaki-gtfs";
-initializeApp({ projectId });
-const db = getFirestore();
-
-let buffer = zip(fixture());
-const bucket = {
-  file: () => ({
-    getMetadata: async () => [{ size: buffer.length }],
-    download: async () => [buffer],
-  }),
-};
-const auth = {
-  uid: "admin",
-  token: { email: "nichi-ka@nichi-ka.com", email_verified: true },
-};
-async function call(data) {
-  return importTransport({ auth, data }, db, bucket);
+  throw Error("Firestore and Storage emulators required");
+const { initializeApp } = require("firebase-admin/app"),
+  { getFirestore } = require("firebase-admin/firestore"),
+  { getStorage } = require("firebase-admin/storage");
+const { importTransport } = require("./transport_import"),
+  { saveManualTransport } = require("./manual_transport"),
+  { fixture } = require("./test_support/gtfs_fixture"),
+  { immutableSave } = require("./transport_bundle");
+initializeApp({
+  projectId: "demo-tabisaki-gtfs",
+  storageBucket: "demo-tabisaki-gtfs.appspot.com",
+});
+const db = getFirestore(),
+  bucket = getStorage().bucket(),
+  auth = {
+    uid: "admin",
+    token: { email: "nichi-ka@nichi-ka.com", email_verified: true },
+  };
+const call = (data) => importTransport({ auth, data }, db, bucket);
+async function upload(files, dir) {
+  for (const [name, value] of Object.entries(files))
+    await immutableSave(
+      bucket,
+      `${dir}/${name}`,
+      Buffer.from(value),
+      "text/plain",
+    );
 }
 (async () => {
-  const sourceFilePath = "transport_imports/admin/yutetsu/test.zip";
+  const dir = "transport_imports/admin/feed/one";
+  await upload(fixture(), dir);
   await db
     .doc("transport_stops/manual")
-    .set({ sourceType: "manual", name: "keep" });
+    .set({ name: "keep", sourceType: "manual" });
   const p = await call({
     action: "preview",
-    feedId: "yutetsu",
-    sourceFilePath,
+    feedId: "feed",
+    sourceDirectory: dir,
   });
   assert.deepEqual(p.errors, []);
-  assert.equal((await db.doc("transport_feeds/yutetsu").get()).exists, false);
+  assert.equal((await db.doc("transport_feeds/feed").get()).exists, false);
   await call({
     action: "commit",
-    feedId: "yutetsu",
+    feedId: "feed",
     versionId: p.versionId,
     expectedActiveVersionId: null,
   });
-  const f = await db.doc("transport_feeds/yutetsu").get();
-  assert.equal(f.data().activeVersionId, p.versionId);
-  const repeat = await call({
+  let f = (await db.doc("transport_feeds/feed").get()).data();
+  assert.equal(f.activeVersionId, p.versionId);
+  assert.equal(f.distribution.formatVersion, 2);
+  assert.ok(f.distribution.platformLabels);
+  assert.equal((await bucket.file(f.distribution.platformLabels.path).exists())[0],true);
+  const count = await db
+    .collection(`transport_feeds/feed/versions/${p.versionId}/transport_trips`)
+    .count()
+    .get();
+  assert.equal(count.data().count, 0, "No GTFS master documents in Firestore");
+  const duplicate = await call({
     action: "preview",
-    feedId: "yutetsu",
-    sourceFilePath,
+    feedId: "feed",
+    sourceDirectory: dir,
   });
-  assert.equal(repeat.duplicate, true);
+  assert.equal(duplicate.duplicate, true);
   await call({
     action: "commit",
-    feedId: "yutetsu",
+    feedId: "feed",
     versionId: p.versionId,
     expectedActiveVersionId: p.versionId,
   });
-  const changed = fixture();
-  changed["stop_times.txt"] += "missing,10:00:00,10:00:00,01,9,0,0\n";
-  buffer = zip(changed);
+  const invalid = fixture();
+  invalid["trips.txt"] += "missing,001,bad\n";
+  await upload(invalid, "transport_imports/admin/feed/bad");
   const bad = await call({
     action: "preview",
-    feedId: "yutetsu",
-    sourceFilePath,
+    feedId: "feed",
+    sourceDirectory: "transport_imports/admin/feed/bad",
   });
   assert.ok(bad.errors.length);
   await assert.rejects(
     call({
       action: "commit",
-      feedId: "yutetsu",
+      feedId: "feed",
       versionId: bad.versionId,
       expectedActiveVersionId: p.versionId,
     }),
   );
   assert.equal(
-    (await db.doc("transport_feeds/yutetsu").get()).data().activeVersionId,
+    (await db.doc("transport_feeds/feed").get()).data().activeVersionId,
     p.versionId,
   );
-  assert.equal(
-    (await db.doc("transport_stops/manual").get()).data().name,
-    "keep",
-  );
-  const revised = fixture();
-  revised["stops.txt"] = revised["stops.txt"].replace("03,同名", "04,同名");
-  revised["stop_times.txt"] = revised["stop_times.txt"].replace(
+  const updated = fixture();
+  updated["stops.txt"] = updated["stops.txt"].replace("03,同名", "04,同名");
+  updated["stop_times.txt"] = updated["stop_times.txt"].replace(
     ",03,2,",
     ",04,2,",
   );
-  buffer = zip(revised);
-  const update = await call({
+  await upload(updated, "transport_imports/admin/feed/two");
+  const change = await call({
     action: "preview",
-    feedId: "yutetsu",
-    sourceFilePath,
+    feedId: "feed",
+    sourceDirectory: "transport_imports/admin/feed/two",
   });
-  assert.deepEqual(update.errors, []);
-  assert.ok(update.retired > 0);
-  assert.ok(update.new > 0);
-  assert.equal(
-    (await db.doc("transport_feeds/yutetsu").get()).data().activeVersionId,
-    p.versionId,
-  );
+  assert.ok(change.retired > 0);
   await call({
     action: "commit",
-    feedId: "yutetsu",
-    versionId: update.versionId,
+    feedId: "feed",
+    versionId: change.versionId,
     expectedActiveVersionId: p.versionId,
   });
   assert.equal(
-    (await db.doc("transport_feeds/yutetsu").get()).data().activeVersionId,
-    update.versionId,
+    (await db.doc("transport_feeds/feed").get()).data().activeVersionId,
+    change.versionId,
   );
   assert.equal(
-    (await db.collection("transport_feeds/yutetsu/versions").get()).docs.length,
-    3,
+    (await bucket.file(f.distribution.manifestPath).exists())[0],
+    true,
+    "Old immutable bundle retained",
   );
-  const oldStops = await db
-    .collection(
-      `transport_feeds/yutetsu/versions/${p.versionId}/transport_stops`,
-    )
-    .get();
-  assert.equal(oldStops.size, 3);
-  console.log(
-    "PASS: valid feed update, removed-ID preview, old-version master retention",
-  );
-  buffer = zip(fixture());
-  const retry = await call({
+  await upload(fixture(), "transport_imports/admin/tamper/one");
+  const t = await call({
     action: "preview",
-    feedId: "other",
-    sourceFilePath: "transport_imports/admin/other/test.zip",
+    feedId: "tamper",
+    sourceDirectory: "transport_imports/admin/tamper/one",
   });
-  buffer = Buffer.from("tamper");
+  await bucket
+    .file("transport_imports/admin/tamper/one/agency.txt")
+    .save("changed", { metadata: { contentType: "text/plain" } });
   await assert.rejects(
     call({
       action: "commit",
-      feedId: "other",
-      versionId: retry.versionId,
+      feedId: "tamper",
+      versionId: t.versionId,
       expectedActiveVersionId: null,
     }),
   );
-  assert.equal((await db.doc("transport_feeds/other").get()).exists, false);
+  assert.equal((await db.doc("transport_feeds/tamper").get()).exists, false);
+  await assert.rejects(
+    call({
+      action: "preview",
+      feedId: "feed",
+      sourceDirectory: "transport_imports/someone/feed/one",
+    }),
+  );
   const save = (collection, id, data, creating = true) =>
-    saveManualTransport({ auth, data: { collection, id, data, creating } }, db);
-  await save("transport_agencies", "agency", { name: "手動事業者" });
-  await save("transport_routes", "route", {
-    name: "手動路線",
-    agencyId: "agency",
-  });
+    saveManualTransport({ auth, data: { collection, id, data, creating } }, db, bucket);
+  await save("transport_agencies", "agency", { name: "手動" });
+  await save("transport_routes", "route", { name: "路線", agencyId: "agency" });
   await save("transport_services", "service", {
     validFrom: "2026-01-01",
     validTo: "2026-12-31",
@@ -169,43 +170,54 @@ async function call(data) {
       sequence: i,
       arrivalMinutes: 600 + i * 10,
       departureMinutes: 601 + i * 10,
-      pickupAllowed: true,
-      dropoffAllowed: true,
     })),
   };
-  await save("transport_trips", "manual_trip", trip);
+  await save("transport_trips", "trip", trip);
   assert.deepEqual(
     (await db.doc("transport_stops/middle").get()).data().routeIds,
     ["route"],
   );
-  assert.equal(
-    (await db.doc("transport_trips/manual_trip").get()).data().stopTimes.length,
-    3,
-  );
-  await save(
-    "transport_trips",
-    "manual_trip",
-    { ...trip, isActive: false },
-    false,
-  );
+  await save("transport_trips", "trip", { ...trip, isActive: false }, false);
   assert.deepEqual(
     (await db.doc("transport_stops/middle").get()).data().routeIds,
     [],
   );
-  await assert.rejects(
-    save("transport_trips", "invalid", { ...trip, routeId: "missing" }),
+  assert.equal(
+    (await db.doc("transport_stops/manual").get()).data().name,
+    "keep",
   );
-  await assert.rejects(
-    save("transport_stops", "new_sample", {
-      name: "sample",
-      sourceType: "sample",
-    }),
-  );
+  const { searchTransportJourneys } = require("./transport_journey_api");
+  const { key } = require("./gtfs");
+  await save("transport_trips", "trip", { ...trip, isActive: true }, false);
+  const query = { date: "2026-01-05", departureSeconds: 0, maxTransfers: 3, minimumTransferSeconds: 180,
+    from: [{ stopId: "from", walkingMinutes: 0 }], to: [{ stopId: key("feed", "04"), walkingMinutes: 0 }] };
+  const search = () => searchTransportJourneys({ data: query }, db, bucket);
+  assert.equal((await search()).journeys.length, 0, "No implicit cross-feed/name connection");
+  const transfer = { name: "確認済み乗換", fromStopId: "middle", toStopId: key("feed", "01"), transferType: "2", minTransferSeconds: 600, verificationStatus: "verified", sourceUrl: "https://example.test/transfer", sourceCheckedAt: "2026-01-01", isActive: true };
+  await save("transport_transfers", "walk", transfer);
+  const found = await search();
+  assert.equal(found.journeys[0].legs.length, 2);
+  assert.equal(found.journeys[0].transfers[0].requiredSeconds, 600);
+  const timetableQuery={ ...query, timetable:true };
+  const pool=await searchTransportJourneys({data:timetableQuery},db,bucket);
+  assert.equal(pool.journeyPool.encoding,"gzip+base64");
+  const decoded=JSON.parse(require("node:zlib").gunzipSync(Buffer.from(pool.journeyPool.data,"base64")));
+  assert.ok(decoded.some(j=>j.legs.length===2));
+  const cachedPool=await searchTransportJourneys({data:timetableQuery},db,bucket);
+  assert.equal(cachedPool.stats.cacheHit,true);
+  await save("transport_transfers", "walk", { ...transfer, isActive: false }, false);
+  assert.equal((await search()).journeys.length, 0, "Manual revision invalidates warm network cache");
+  await save("transport_stops", "middle", { name: "同名", latitude: 43, longitude: 141 }, false);
+  const nearby = await search();
+  assert.ok(nearby.journeys.length > 0, "500m same-name cross-feed/manual expansion");
+  assert.equal(nearby.journeys[0].usesEstimatedWalking, true);
+  assert.equal(nearby.journeys[0].verificationStatus, "needsReview");
+  await save("transport_stops", "middle", { name: "同名", isActive: false }, false);
+  assert.equal((await search()).journeys.length, 0, "Disabling a platform removes automatic connections after revision change");
+  await assert.rejects(saveManualTransport({ data: { collection: "transport_transfers", id: "attack", data: transfer, creating: true } }, db, bucket), { code: "permission-denied" });
+  await assert.rejects(searchTransportJourneys({ data: { ...query, maxTransfers: 4 } }, db, bucket), { code: "invalid-argument" });
   console.log(
-    "PASS: manual agencies/routes/stops/services/trips, intermediate times, derived route-stop indexes, disabling, invalid references, new sample rejection",
-  );
-  console.log(
-    "PASS: preview isolation, atomic activation, idempotency, invalid import preservation, manual data isolation, tampered original rejected",
+    "PASS: journey routing, explicit cross-feed transfer, revision cache invalidation, server-only transfer writes; txt upload, preview isolation, Storage-only publication, zero GTFS Firestore records, duplicate imports, invalid/tampered source rejection, valid update, old bundle retention, admin path, manual indexes",
   );
   await db.terminate();
 })().catch((e) => {

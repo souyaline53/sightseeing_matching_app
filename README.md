@@ -151,7 +151,8 @@ dart format .
 flutter analyze
 flutter test
 flutter test --platform chrome test/browser_storage_test.dart
-flutter build web
+dart run tool/build_web.dart
+node tool/check_web_release.mjs --local-build
 ```
 
 既存のテストには、JSON保存層の復元・独立性・保存失敗・旧日時の移行・UTC・質問先行フロー・条件入力・プロフィールとプリセットCRUDなどの検証があります。画面テストでは地図タイルを無効にし、出発地の4択・地図の開閉・ピンの確認・ズーム・連続タップ・小型Android相当画面も扱います。Chrome専用テストでは実際のWebアダプターで保存・復元を確認します（通常のVMテストではChrome専用の2件をスキップ）。質問・推薦のテストも現在の4×3×3の構成に合わせています。

@@ -1,3 +1,6 @@
+import '../../model/transport_journey.dart';
+import 'transport_journey_panel.dart';
+import '../../model/stop_selection.dart';
 import '../../data/catalog_data.dart';
 import '../../model/transport.dart';
 import '../../model/search_settings.dart';
@@ -72,6 +75,7 @@ class PlanScreen extends HookConsumerWidget {
                 : '${date.month}月${date.day}日 · $origin 発',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
+          Text('出発時刻 ${transportTime(livePlan?.departureMinutes ?? 480)}'),
           const SizedBox(height: 12),
           Text(
             '${conditions.length.label} · 総予算${conditions.budget}円以内 · ${conditions.transport.label}',
@@ -87,7 +91,7 @@ class PlanScreen extends HookConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                '交通情報の確認状態は各区間に表示します。\n旅行日・運休日・臨時変更を公式情報で確認してください。',
+                '旅行日・運休日・臨時変更を公式情報で確認してください。',
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -188,11 +192,34 @@ class _SelectedTransportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = selection;
     return Card(
+      key: ValueKey('saved-transport-${s.data['selectedTripId']}'),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          '選択した便：${s.data['selectedTripId']}\n${s.data['boardingStopId']} ${transportTime(s.data['departureMinutes'] as int?)} → ${s.data['alightingStopId']} ${transportTime(s.data['arrivalMinutes'] as int?)}\n徒歩 ${s.data['walkingMinutesBefore'] ?? '未確認'}分 / ${s.data['walkingMinutesAfter'] ?? '未確認'}分\n${verificationLabel(s.data['verificationStatus'] as String? ?? 'unverified')}\n選択時点の控えです。編集画面で最新情報を確認してください。',
-        ),
+        child: s.data['journey'] is Map
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TransportJourneyDetails(
+                    journey: TransportJourney(
+                      Map<String, dynamic>.from(s.data['journey'] as Map),
+                    ),
+                  ),
+
+                  const Text('選択時点の控えです。編集画面で最新情報を確認してください。'),
+                ],
+              )
+            : Text(
+                [
+                  '${s.data['boardingStopName'] ?? '乗車停留所'} ${transportTime(s.data['departureMinutes'] as int?)} → ${s.data['alightingStopName'] ?? '降車停留所'} ${transportTime(s.data['arrivalMinutes'] as int?)}',
+                  if (s.data['headsign'] is String)
+                    transportDirection(s.data['headsign'] as String),
+                  if (s.data['walkingMinutesBefore'] != null)
+                    '乗車前 徒歩${s.data['walkingMinutesBefore']}分',
+                  if (s.data['walkingMinutesAfter'] != null)
+                    '降車後 徒歩${s.data['walkingMinutesAfter']}分',
+                  '選択時点の控えです。',
+                ].join('\n'),
+              ),
       ),
     );
   }

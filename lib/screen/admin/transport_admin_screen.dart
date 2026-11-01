@@ -254,4 +254,5 @@ const transportCollectionLabels = {
   'transport_services': '④ 運行日・例外日',
   'transport_trips': '⑤ 便・時刻表',
   'transport_fares': '⑥ 区間運賃',
+  'transport_transfers': '⑦ 乗り場間の乗換接続',
 };

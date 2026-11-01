@@ -1,3 +1,5 @@
+import '../../model/transport_journey.dart';
+import '../../model/stop_selection.dart';
 import '../../model/transport.dart';
 
 class TransportCandidate {
@@ -6,6 +8,15 @@ class TransportCandidate {
   final AccessStop before, after;
   final StopTime boarding, alighting;
   final int? fare;
+  final TransportJourney? journey;
+  final String? boardingStopName, alightingStopName;
+  String boardingLabel(String stopName) {
+    final destination = (trip.data['headsign'] as String? ?? '').trim();
+    return destination.isEmpty
+        ? stopName
+        : '$stopName／${transportDirection(destination)}';
+  }
+
   String get status =>
       route.data['sourceType'] == 'sample' ||
           route.data['verificationStatus'] == 'sample'
@@ -18,8 +29,11 @@ class TransportCandidate {
     this.after,
     this.boarding,
     this.alighting,
-    this.fare,
-  );
+    this.fare, {
+    this.journey,
+    this.boardingStopName,
+    this.alightingStopName,
+  });
 }
 
 List<TransportCandidate> findCandidates({
@@ -33,6 +47,7 @@ List<TransportCandidate> findCandidates({
   List<TransportStop> stops = const [],
 }) {
   final result = <TransportCandidate>[];
+  final stopNames = {for (final stop in stops) stop.id: stop.name};
   for (final trip in trips) {
     if (trip.data['isActive'] == false || trip.data['frequencyBased'] == true) {
       continue;
@@ -84,6 +99,10 @@ List<TransportCandidate> findCandidates({
                       start.stopId,
                       end.stopId,
                     ),
+                boardingStopName:
+                    stopNames[start.stopId] ?? a.data['stopName'] as String?,
+                alightingStopName:
+                    stopNames[end.stopId] ?? b.data['stopName'] as String?,
               ),
             );
           }
@@ -112,6 +131,7 @@ int? resolveGtfsFare(
   for (final fare in fares) {
     if (fare.data['sourceType'] != 'gtfs' ||
         fare.data['currency'] != 'JPY' ||
+        fare.data['containsUnresolved'] == true ||
         !routeId.startsWith('${fare.data['feedId']}~')) {
       continue;
     }

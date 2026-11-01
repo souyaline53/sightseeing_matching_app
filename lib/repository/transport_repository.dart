@@ -13,6 +13,7 @@ const transportCollections = [
   'transport_services',
   'transport_trips',
   'transport_fares',
+  'transport_transfers',
 ];
 
 class TransportData {
@@ -51,12 +52,15 @@ class TransportRepository {
     final gtfs = <TransportStop>[];
     for (final feed in await repo.feeds()) {
       if (feed['activeVersionId'] == null) continue;
-      final rows = await repo.all(
-        repo.collection(feed, 'transport_stops'),
-        field: 'name',
-        value: origin.trim(),
-      );
-      gtfs.addAll(rows.map((r) => TransportStop(r['id'] as String, r)));
+      // Explicit endpoint aliases choose candidate platforms; they never create transfer edges.
+      final names = {
+        origin.trim(),
+        if (origin.trim() == '札幌駅') ...['札幌駅前', '札幌駅北口'],
+      };
+      for (final name in names) {
+        final rows = await repo.findStops(feed, name);
+        gtfs.addAll(rows.map((r) => TransportStop(r['id'] as String, r)));
+      }
     }
     // Same names at distinct platforms remain separate candidates; only IDs deduplicate.
     return {
@@ -72,7 +76,7 @@ class TransportRepository {
     final db = (await cloud()).firestore;
     final stops = <TransportStop>[];
     final routeIds = <String>{};
-    for (final id in stopIds.toSet()) {
+    for (final id in stopIds.where((id) => !id.contains('~')).toSet()) {
       final doc = await db.collection('transport_stops').doc(id).get();
       if (doc.exists) {
         stops.add(TransportStop(doc.id, doc.data()!));

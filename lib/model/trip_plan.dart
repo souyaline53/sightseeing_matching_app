@@ -9,6 +9,7 @@ class TripState {
   final List<Experience> saved, stops;
   final SearchConditions conditions;
   final DateTime? travelDate;
+  final int departureMinutes;
   final List<TransportSelection> transportSelections;
   final Map<String, int> stayMinutes;
   TripState({
@@ -19,6 +20,7 @@ class TripState {
     List<Experience> stops = const [],
     this.conditions = const SearchConditions(),
     this.travelDate,
+    this.departureMinutes = 8 * 60,
     this.transportSelections = const [],
     this.stayMinutes = const {},
   }) : id =
@@ -47,6 +49,7 @@ class TripState {
     SearchConditions? conditions,
     DateTime? travelDate,
     bool clearDate = false,
+    int? departureMinutes,
     List<TransportSelection>? transportSelections,
     Map<String, int>? stayMinutes,
   }) => TripState(
@@ -70,7 +73,11 @@ class TripState {
           ).contains(true);
         })
         .map(
-          (s) => travelDate != null || clearDate
+          (s) =>
+              travelDate != null ||
+                  clearDate ||
+                  (departureMinutes != null &&
+                      departureMinutes != this.departureMinutes)
               ? TransportSelection({
                   ...s.data,
                   'serviceDate': null,
@@ -79,6 +86,7 @@ class TripState {
               : s,
         )
         .toList(),
+    departureMinutes: departureMinutes ?? this.departureMinutes,
     stayMinutes: stayMinutes ?? this.stayMinutes,
     title: title ?? this.title,
     updatedAt: DateTime.now().toUtc(),
@@ -95,6 +103,7 @@ class TripState {
     'stops': stops.map((e) => e.toJson()).toList(),
     'conditions': conditions.toJson(),
     'travelDate': travelDate?.toIso8601String(),
+    'departureMinutes': departureMinutes,
     'transportSelections': transportSelections.map((s) => s.toJson()).toList(),
     'stayMinutes': stayMinutes,
   };
@@ -116,6 +125,12 @@ class TripState {
       json['conditions'] as Map<String, dynamic>,
     ),
     travelDate: DateTime.tryParse(json['travelDate'] as String? ?? ''),
+    departureMinutes:
+        json['departureMinutes'] is int &&
+            (json['departureMinutes'] as int) >= 0 &&
+            (json['departureMinutes'] as int) < 1440
+        ? json['departureMinutes'] as int
+        : 480,
   );
 }
 

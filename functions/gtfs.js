@@ -1,86 +1,6 @@
 "use strict";
 const { createHash } = require("node:crypto");
-const { inflateRawSync } = require("node:zlib");
-const MAX_ZIP = 20 * 1024 * 1024,
-  MAX_EXPANDED = 100 * 1024 * 1024;
-function crc32(bytes) {
-  let crc = 0xffffffff;
-  for (const b of bytes) {
-    crc ^= b;
-    for (let i = 0; i < 8; i++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
 const key = (feed, id) => `${feed}~${Buffer.from(id).toString("base64url")}`;
-function unzip(buffer) {
-  if (!buffer.length || buffer.length > MAX_ZIP)
-    throw Error("ZIPは20MiB以内にしてください");
-  let end = -1;
-  for (let i = buffer.length - 22; i >= Math.max(0, buffer.length - 65557); i--)
-    if (buffer.readUInt32LE(i) === 0x06054b50) {
-      end = i;
-      break;
-    }
-  if (end < 0) throw Error("ZIP中央ディレクトリがありません");
-  const count = buffer.readUInt16LE(end + 10);
-  if (count > 100 || buffer.readUInt16LE(end + 4) !== 0)
-    throw Error("ZIP分割・ファイル数上限超過");
-  let offset = buffer.readUInt32LE(end + 16),
-    total = 0;
-  const files = {};
-  for (let i = 0; i < count; i++) {
-    if (buffer.readUInt32LE(offset) !== 0x02014b50)
-      throw Error("ZIPディレクトリ不正");
-    const flags = buffer.readUInt16LE(offset + 8),
-      method = buffer.readUInt16LE(offset + 10);
-    const packed = buffer.readUInt32LE(offset + 20),
-      size = buffer.readUInt32LE(offset + 24);
-    const n = buffer.readUInt16LE(offset + 28),
-      extra = buffer.readUInt16LE(offset + 30),
-      comment = buffer.readUInt16LE(offset + 32);
-    const name = buffer.subarray(offset + 46, offset + 46 + n).toString("utf8");
-    if (
-      name.includes("..") ||
-      name.includes("\\") ||
-      name.startsWith("/") ||
-      flags & 1 ||
-      ![0, 8].includes(method)
-    )
-      throw Error(`安全でないZIPエントリ: ${name}`);
-    total += size;
-    if (
-      total > MAX_EXPANDED ||
-      size > 50 * 1024 * 1024 ||
-      size / Math.max(packed, 1) > 1000
-    )
-      throw Error("ZIP展開容量超過");
-    const local = buffer.readUInt32LE(offset + 42);
-    if (buffer.readUInt32LE(local) !== 0x04034b50)
-      throw Error("ZIPローカルヘッダー不正");
-    const start =
-      local +
-      30 +
-      buffer.readUInt16LE(local + 26) +
-      buffer.readUInt16LE(local + 28);
-    const content = buffer.subarray(start, start + packed);
-    if (!name.endsWith("/")) {
-      if (name.includes("/") || files[name])
-        throw Error(`ファイルはZIP直下に一意に配置してください: ${name}`);
-      const raw =
-        method === 8
-          ? inflateRawSync(content, {
-              maxOutputLength: Math.min(size + 1, MAX_EXPANDED),
-            })
-          : content;
-      if (crc32(raw) !== buffer.readUInt32LE(offset + 16))
-        throw Error(`ZIP CRC不一致: ${name}`);
-      if (raw.length !== size) throw Error(`ZIPサイズ不一致: ${name}`);
-      files[name] = new TextDecoder("utf-8", { fatal: true }).decode(raw);
-    }
-    offset += 46 + n + extra + comment;
-  }
-  return files;
-}
 function csv(text, file) {
   const rows = [];
   let row = [],
@@ -187,6 +107,7 @@ function parseGtfs(files, feedId) {
     "pass_attributes",
     "pass_rules",
     "frequencies",
+    "transfers",
   ];
   for (const [file, content] of Object.entries(files)) {
     if (!known.includes(file.replace(/\.txt$/, ""))) {
@@ -451,6 +372,37 @@ function parseGtfs(files, feedId) {
     warnings.push(
       "frequencies.txt: 頻度運行の展開は未対応。対象便は通常の発車時刻候補から除外",
     );
+  // Explicit transfer edges only. A shared name/zone never creates a connection.
+  if (tables.transfers?.length) data.transfers = [];
+  const transferKeys = new Set();
+  each("transfers", (r) => {
+    required(r, ["transfer_type"]);
+    if (!/^[0-5]$/.test(r.transfer_type)) throw Error("transfer_type不正");
+    const type = Number(r.transfer_type);
+    if ([4, 5].includes(type)) {
+      if (r.from_trip_id) ref("trips", r.from_trip_id);
+      if (r.to_trip_id) ref("trips", r.to_trip_id);
+      warnings.push(`transfers.txt:${r._line}: 車内継続乗車は未対応。乗換接続には使用しません`);
+      return;
+    }
+    required(r, ["from_stop_id", "to_stop_id"]);
+    const record = { ...base, id: ns(`transfer-${r._line}`),
+      fromStopId: ref("stops", r.from_stop_id), toStopId: ref("stops", r.to_stop_id),
+      transferType: type, minTransferSeconds: null };
+    for (const [column, field, kind] of [["from_route_id", "fromRouteId", "routes"], ["to_route_id", "toRouteId", "routes"], ["from_trip_id", "fromTripId", "trips"], ["to_trip_id", "toTripId", "trips"]])
+      if (r[column]) record[field] = ref(kind, r[column]);
+    if (r.min_transfer_time) {
+      if (!/^\d+$/.test(r.min_transfer_time) || Number(r.min_transfer_time) > 86400) throw Error("min_transfer_time不正（0〜86400秒）");
+      record.minTransferSeconds = Number(r.min_transfer_time);
+    }
+    if (type === 2 && record.minTransferSeconds == null) throw Error("transfer_type=2はmin_transfer_time必須");
+    const k = JSON.stringify([record.fromStopId, record.toStopId, record.fromRouteId, record.toRouteId, record.fromTripId, record.toTripId]);
+    if (transferKeys.has(k)) throw Error("乗換ルール重複");
+    transferKeys.add(k);
+    if ([0, 1].includes(type) && record.fromStopId !== record.toStopId && record.minTransferSeconds == null)
+      warnings.push(`transfers.txt:${r._line}: 別乗り場への必要時間が不明のため乗換接続には使用しません`);
+    data.transfers.push(record);
+  });
   const patternMap = new Map();
   const stopsById = new Map(data.stops.map((s) => [s.id, s]));
   for (const t of data.trips) {
@@ -518,12 +470,12 @@ function parseGtfs(files, feedId) {
       rules: [],
     });
   });
+  const zones = new Set(data.stops.map((s) => s.zoneId).filter(Boolean));
   each("fare_rules", (r) => {
     ref("fares", r.fare_id);
     if (r.route_id) ref("routes", r.route_id);
     for (const f of ["origin_id", "destination_id", "contains_id"])
-      if (r[f] && !data.stops.some((s) => s.zoneId === r[f]))
-        throw Error(`${f}ゾーン参照先なし`);
+      if (r[f] && !zones.has(r[f])) throw Error(`${f}ゾーン参照先なし`);
     maps.fares.get(r.fare_id).rules.push({
       routeId: r.route_id ? ns(r.route_id) : null,
       originId: r.origin_id || null,
@@ -583,10 +535,6 @@ function parseGtfs(files, feedId) {
           .sort()
           .at(-1) || null,
   };
-  for (const [kind, records] of Object.entries(data))
-    for (const r of records)
-      if (Buffer.byteLength(JSON.stringify(r)) > 700000)
-        errors.push(`${kind}: ${r.id}: ドキュメント容量上限（700KB）超過`);
   return { data, summary, errors: errors.slice(0, 200), warnings };
 }
-module.exports = { crc32, unzip, csv, seconds, date, parseGtfs, key, MAX_ZIP };
+module.exports = { csv, seconds, date, parseGtfs, key };

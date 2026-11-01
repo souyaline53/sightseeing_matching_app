@@ -1,30 +1,25 @@
-// Development utility. Reads a ZIP or a directory of .txt files; never connects to Firebase.
+// Development utility. Reads a directory of .txt files; never connects to Firebase.
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
-const { unzip, parseGtfs } = require("./gtfs");
+const { parseFiles } = require("./transport_bundle");
 const input = process.argv[2];
 if (!input) {
   console.error(
-    "Usage: node functions/validate_gtfs.js <ZIP or directory> [feedId] [--expect-yutetsu]",
+    "Usage: node functions/validate_gtfs.js <txt directory> [feedId] [--expect-yutetsu]",
   );
   process.exit(2);
 }
 try {
-  const files = fs.statSync(input).isDirectory()
-    ? Object.fromEntries(
-        fs
-          .readdirSync(input)
-          .filter((name) => name.endsWith(".txt"))
-          .map((name) => [
-            name,
-            new TextDecoder("utf-8", { fatal: true }).decode(
-              fs.readFileSync(path.join(input, name)),
-            ),
-          ]),
-      )
-    : unzip(fs.readFileSync(input));
-  const result = parseGtfs(
+  if (!fs.statSync(input).isDirectory())
+    throw Error("txt一式のディレクトリを指定してください（ZIP非対応）");
+  const files = Object.fromEntries(
+    fs
+      .readdirSync(input)
+      .filter((n) => n.endsWith(".txt"))
+      .map((n) => [n, fs.readFileSync(path.join(input, n))]),
+  );
+  const result = parseFiles(
     files,
     process.argv[3] && !process.argv[3].startsWith("--")
       ? process.argv[3]

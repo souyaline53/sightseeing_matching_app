@@ -13,7 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: flutter pub get && flutter build web --release
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: dart run tool/build_web.dart
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check compiled Web app in Chrome
+        run: node tool/check_web_release.mjs --local-build
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

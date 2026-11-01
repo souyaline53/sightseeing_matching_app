@@ -1,3 +1,5 @@
+import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
+import 'package:sightseeing_matching_app/model/transport_journey.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/plan_screen.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_map.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_spot_card.dart';
@@ -76,6 +78,10 @@ void main() {
             (ref) => Stream.value(TravelCatalog(experiences: spots)),
           ),
           tripsRepositoryProvider.overrideWithValue(repo),
+          itineraryJourneysProvider.overrideWith(
+            (ref, key) async =>
+                JourneySearchResult({'journeys': [], 'warnings': []}),
+          ),
           transportDataProvider.overrideWith((ref, key) async => data),
           mapTilesEnabledProvider.overrideWithValue(false),
           experiencePhotosProvider.overrideWith((ref) async => {}),
@@ -187,7 +193,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('マイプラン'), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.textContaining('選択した便：sample_trip_1'),
+        find.byKey(const ValueKey('saved-transport-sample_trip_1')),
         180,
         scrollable: find
             .descendant(
@@ -196,7 +202,10 @@ void main() {
             )
             .first,
       );
-      expect(find.textContaining('選択した便：sample_trip_1'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('saved-transport-sample_trip_1')),
+        findsOneWidget,
+      );
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       await tester.tap(

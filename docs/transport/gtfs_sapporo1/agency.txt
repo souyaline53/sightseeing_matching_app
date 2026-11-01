@@ -1,2 +1,0 @@
-﻿agency_id,agency_name,agency_url,agency_timezone,agency_lang
-012345678901,札幌市交通局,https://www.city.sapporo.jp/st/,Asia/Tokyo,ja

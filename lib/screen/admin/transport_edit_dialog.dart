@@ -115,7 +115,14 @@ class _EditState extends State<TransportEditDialog> {
                       ? 'IDを1〜80文字で入力してください'
                       : null,
                 ),
-                AdminFieldsForm(fields: fields, data: draft, enabled: !busy),
+                AdminFieldsForm(
+                  fields: fields,
+                  data: draft,
+                  enabled: !busy,
+                  prefix: widget.collection == 'transport_transfers'
+                      ? 'transfer-'
+                      : '',
+                ),
               ],
             ),
           ),

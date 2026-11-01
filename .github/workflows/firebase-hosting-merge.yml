@@ -34,7 +34,13 @@ jobs:
 
       # 4. Flutter Webをビルド
       - name: Build Flutter Web
-        run: flutter build web --release
+        run: dart run tool/build_web.dart
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check compiled Web app in Chrome
+        run: node tool/check_web_release.mjs --local-build
 
       # 5. Firebase Hostingへ公開
       - name: Deploy to Firebase Hosting

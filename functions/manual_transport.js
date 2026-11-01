@@ -9,8 +9,9 @@ const allowed = [
   "transport_services",
   "transport_trips",
   "transport_fares",
+  "transport_transfers",
 ];
-async function saveManualTransport(request, db) {
+async function saveManualTransport(request, db, bucket) {
   admin(request);
   const { collection, id, data, creating } = request.data || {};
   const fail = (message) => {
@@ -93,6 +94,25 @@ async function saveManualTransport(request, db) {
     (!Number.isInteger(data.amountYen) || data.amountYen < 0)
   )
     fail("運賃不正");
+  let gtfsVersions = {};
+  if (collection === "transport_transfers") {
+    data.transferType = Number(data.transferType);
+    if (![2, 3].includes(data.transferType) || !Number.isInteger(data.minTransferSeconds) || data.minTransferSeconds < 0 || data.minTransferSeconds > 86400) fail("乗換種別・必要時間（秒）を確認してください");
+    if (data.verificationStatus === "verified" && (!/^https?:\/\//.test(data.sourceUrl || "") || !/^\d{4}-\d{2}-\d{2}$/.test(data.sourceCheckedAt || ""))) fail("確認済み接続は情報源URL・確認日が必要です");
+    for (const key of ["fromStopId", "toStopId"]) if (typeof data[key] !== "string" || !/^[A-Za-z0-9_~-]{1,1400}$/.test(data[key])) fail("乗換停留所ID不正");
+    if (data.fromStopId === data.toStopId) fail("別乗り場への片方向の接続を登録してください");
+    if ([data.fromStopId, data.toStopId].some((id) => id.includes("~"))) {
+      const { loadNetwork } = require("./transport_journey_api");
+      const loaded = await loadNetwork(db, bucket);
+      for (const stop of [data.fromStopId, data.toStopId].filter((id) => id.includes("~"))) {
+        if (!loaded.network.stops.has(stop)) fail("有効版の停留所がありません");
+        const feedId = stop.split("~")[0];
+        gtfsVersions[feedId] = loaded.versions[feedId];
+      }
+    }
+    // Scoped rules are GTFS-managed; a generic walking edge cannot inject trip restrictions.
+    for (const field of ["fromRouteId", "toRouteId", "fromTripId", "toTripId"]) delete data[field];
+  }
   const ref = db.collection(collection).doc(id);
   return db.runTransaction(async (tx) => {
     const old = await tx.get(ref);
@@ -108,7 +128,11 @@ async function saveManualTransport(request, db) {
       old.data()?.verificationStatus !== "sample"
     )
       fail("新しいサンプルは登録できません");
+    for (const [feedId, version] of Object.entries(gtfsVersions))
+      if ((await tx.get(db.doc(`transport_feeds/${feedId}`))).data()?.activeVersionId !== version) fail("GTFSが更新されました。乗り場を再選択してください");
     const references = [];
+    if (collection === "transport_transfers")
+      for (const stop of [data.fromStopId, data.toStopId]) if (!stop.includes("~")) references.push(["transport_stops", stop]);
     if (collection === "transport_routes")
       references.push(["transport_agencies", data.agencyId]);
     if (collection === "transport_trips")
@@ -183,6 +207,7 @@ async function saveManualTransport(request, db) {
           ? FieldValue.arrayUnion(index.routeId)
           : FieldValue.arrayRemove(index.routeId),
       });
+    tx.set(db.doc("transport_routing_state/manual"), { revision: require("node:crypto").randomUUID(), updatedAt: FieldValue.serverTimestamp() });
     return { id };
   });
 }

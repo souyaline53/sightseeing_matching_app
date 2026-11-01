@@ -120,3 +120,24 @@ flutter test --platform chrome --dart-define=AUTH_EMULATORS_TEST=true --dart-def
 ## チャット・自治体ユーザの追加について
 
 属性の保存先、管理者によるメールアドレス指定の変更、Cloud Functionsの反映手順は [chat_setup.md](chat_setup.md) を参照してください。Firestoreルールだけでなく、管理者用Functionのデプロイが必要です。
+
+
+## Webビルドと公開前の確認
+
+```sh
+dart run tool/build_web.dart
+node tool/check_web_release.mjs --local-build
+firebase deploy --only hosting --project sightseeing-matching-prototype
+node tool/check_web_release.mjs
+```
+
+Webビルドはプロジェクトのスクリプトを使ってください。現在のFlutter環境では、プラグインを追加した後でも、古いWebエントリポイントのビルドキャッシュが再利用されるケースを確認しています。Firebaseの登録漏れがあると、iOSは正常でもWebだけ観光地・交通情報の読み込みが失敗します。スクリプトはFlutterのWeb生成キャッシュだけを無効化し、全Webプラグインの登録を再生成します。iOSや保存済み旅程は変更しません。
+
+Hostingのpredeployではプラグイン登録と配信用JavaScriptを検査します。`node tool/check_web_release.mjs --local-build` はコンパイル済みのHTML・JavaScript・アセットを、公開サイトと同じオリジンの新しい隔離Chromeに読み込ませる読み取り専用テストです。観光地の実画面が表示されること、実際のFirebase Web SDKでFirestoreとStorageを読めることを確認します。Chromeが標準パスにない場合は `CHROME_EXECUTABLE` を指定してください。Node.js 22以上が必要です。
+
+2026年11月1日の修正では、不備のあった古い登録ファイルを公開前チェックが拒否すること、修正後のWebアプリで観光地と2事業者の交通データを読めることを確認しました。初期化のコードは[Firebaseの公式セットアップ](https://firebase.google.com/docs/flutter/setup)、配信用ビルドの実ブラウザー確認は[FlutterのWeb公開手順](https://docs.flutter.dev/deployment/web)も参照してください。
+
+
+公開ビルドでは起動スクリプトと`main.dart.js`のURLに、コンパイル済みJavaScriptの内容ハッシュを付けます。Hostingの再検証ヘッダーと併用し、古い起動ファイルの再利用を防ぎます。`web/flutter_bootstrap.js` はService Workerの移行用解除スタブを毎回登録せずに起動するテンプレートです。既存の交通・画像キャッシュと旅程データは消去しません。公開前チェックは起動スクリプトとJavaScriptの版の一致も検査します。
+
+最終検証では、新規Chromeと最初に不具合を再現した既存の隔離Chromeプロファイルの両方で観光地ホームが表示されました。既存プロファイルのTABISAKI保存情報が維持されていることも確認しました。ブラウザー内の実Firebase SDKによるFirestore・Storage読み取りが成功し、有効交通フィード2件を取得。静的解析は指摘なし、通常テスト115件成功・6件スキップ、Web公開前チェックの回帰テスト3件が成功しました。Firebaseのデータとセキュリティルールは変更していません。

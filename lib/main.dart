@@ -16,6 +16,7 @@ class MyApp extends HookConsumerWidget {
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       useMaterial3: true,
+      fontFamily: 'NotoSansJP',
       scaffoldBackgroundColor: const Color(0xfffafbf8),
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xff145c49),

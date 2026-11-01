@@ -331,6 +331,40 @@ List<AdminField> transportFields(String collection) => switch (collection) {
     ...provenance,
     const AdminField('note', '補足', multiline: true),
   ],
+  'transport_transfers' => [
+    const AdminField('name', '乗換接続の表示名', required: true),
+    const AdminField(
+      'fromStopId',
+      '降車する乗り場（出発側）',
+      type: AdminInput.id,
+      required: true,
+      reference: 'transport_stops',
+    ),
+    const AdminField(
+      'toStopId',
+      '次に乗車する乗り場（到着側）',
+      type: AdminInput.id,
+      required: true,
+      reference: 'transport_stops',
+    ),
+    const AdminField(
+      'minTransferSeconds',
+      '移動と余裕を含む必要時間（秒）',
+      type: AdminInput.integer,
+      required: true,
+      min: 0,
+      max: 86400,
+    ),
+    const AdminField(
+      'transferType',
+      '片方向の接続',
+      type: AdminInput.choice,
+      required: true,
+      options: {'2': '乗換可（必要時間を使用）', '3': '乗換不可'},
+    ),
+    ...provenance,
+    const AdminField('note', '道路横断・移動経路など（逆方向は別件で登録）', multiline: true),
+  ],
   _ => throw ArgumentError('Unknown collection'),
 };
 bool validAdminDate(String value) {

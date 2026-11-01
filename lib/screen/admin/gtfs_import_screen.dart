@@ -1,11 +1,11 @@
 import '../../service/transport/transport_admin_api.dart';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../service/cloud/cloud_services.dart';
-import '../../service/transport/zip_picker.dart';
+import '../../service/transport/txt_picker.dart';
+import '../../service/transport/gtfs_txt_file.dart';
 
 class GtfsImportScreen extends ConsumerStatefulWidget {
   const GtfsImportScreen({super.key});
@@ -15,7 +15,8 @@ class GtfsImportScreen extends ConsumerStatefulWidget {
 
 class _State extends ConsumerState<GtfsImportScreen> {
   final feed = TextEditingController();
-  Uint8List? bytes;
+  List<GtfsTxtFile>? files;
+  int uploaded = 0;
   Map<String, dynamic>? preview;
   bool busy = false;
   String message = '';
@@ -46,10 +47,14 @@ class _State extends ConsumerState<GtfsImportScreen> {
     final cloud = await ref.read(cloudServicesProvider.future);
     cloud.requireAdmin();
     final path =
-        'transport_imports/${cloud.auth.currentUser!.uid}/${feed.text}/${DateTime.now().microsecondsSinceEpoch}.zip';
-    await cloud.storage
-        .ref(path)
-        .putData(bytes!, SettableMetadata(contentType: 'application/zip'));
+        'transport_imports/${cloud.auth.currentUser!.uid}/${feed.text}/${DateTime.now().microsecondsSinceEpoch}';
+    uploaded = 0;
+    for (final file in files!) {
+      await cloud.storage
+          .ref('$path/${file.name}')
+          .putData(file.bytes, SettableMetadata(contentType: 'text/plain'));
+      if (mounted) setState(() => uploaded++);
+    }
     final response = await transportFunctions()
         .httpsCallable(
           'importTransport',
@@ -58,7 +63,7 @@ class _State extends ConsumerState<GtfsImportScreen> {
         .call({
           'action': 'preview',
           'feedId': feed.text,
-          'sourceFilePath': path,
+          'sourceDirectory': path,
         });
     if (mounted) {
       setState(() => preview = Map<String, dynamic>.from(response.data as Map));
@@ -101,7 +106,7 @@ class _State extends ConsumerState<GtfsImportScreen> {
         setState(() {
           message = '登録・有効化が完了しました';
           preview = null;
-          bytes = null;
+          files = null;
         });
       }
     });
@@ -114,7 +119,7 @@ class _State extends ConsumerState<GtfsImportScreen> {
       padding: const EdgeInsets.all(20),
       children: [
         const Text(
-          '同じフィードの更新には同じフィードIDを指定してください。ZIP直下にUTF-8のGTFSファイルを配置します（最大20MiB）。',
+          'UTF-8の.txtファイル一式をまとめて選択してください。更新時も同じフィードIDを使います。1ファイル50MiB・合計100MiBまで。',
         ),
         TextField(
           controller: feed,
@@ -125,25 +130,54 @@ class _State extends ConsumerState<GtfsImportScreen> {
           onPressed: busy
               ? null
               : () => run(() async {
-                  final picked = await pickGtfsZip();
+                  final picked = await pickGtfsTxtFiles();
                   if (mounted && picked != null) {
                     setState(() {
-                      bytes = picked;
+                      files = picked;
                       preview = null;
                     });
                   }
                 }),
           child: Text(
-            bytes == null
-                ? 'GTFS ZIPファイルを選択'
-                : 'ZIP選択済み（${bytes!.length} bytes）',
+            files == null
+                ? 'GTFS .txtファイルをまとめて選択'
+                : '${files!.length}ファイル選択済み（${files!.fold<int>(0, (n, f) => n + f.bytes.length)} bytes）',
           ),
         ),
         FilledButton(
-          onPressed: busy || bytes == null ? null : upload,
+          onPressed: busy || files == null ? null : upload,
           child: const Text('アップロード・検証・プレビュー'),
         ),
-        if (busy) const LinearProgressIndicator(),
+        ExpansionTile(
+          title: const Text('アップロードする標準ファイル名の一覧'),
+          initiallyExpanded: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                '別の名前で提供された場合は、内容を確認して下記の名前へ変更してください。列名・ID・ファイル内容は変更しません。異なる事業者やダイヤ版のファイルを混ぜず、一式を同時に選んでください。',
+              ),
+            ),
+            for (final entry in gtfsFileDescriptions.entries)
+              ListTile(
+                dense: true,
+                title: SelectableText(entry.key),
+                subtitle: Text(entry.value),
+                trailing: files?.any((f) => f.name == entry.key) == true
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+              ),
+          ],
+        ),
+        if (files != null)
+          for (final f in files!)
+            Text(
+              '${f.name}（${f.bytes.length} bytes）${gtfsFileDescriptions.containsKey(f.name) ? '' : '：未対応拡張。原本保存・検証時に警告'}',
+            ),
+        if (busy) ...[
+          const LinearProgressIndicator(),
+          Text('アップロード $uploaded / ${files?.length ?? 0}・サーバー検証／登録中'),
+        ],
         if (preview != null) ...[
           for (final entry in {
             'agencyNames': '交通事業者',

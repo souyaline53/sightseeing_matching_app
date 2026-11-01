@@ -1,8 +1,8 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { parseGtfs, seconds, csv, key, unzip } = require("./gtfs");
+const { parseGtfs, seconds, csv, key } = require("./gtfs");
 const { admin } = require("./transport_import");
-const { fixture, zip } = require("./test_support/gtfs_fixture");
+const { fixture } = require("./test_support/gtfs_fixture");
 
 test("preserves string IDs, intermediate times, seconds, zones, exceptions and patterns", () => {
   const p = parseGtfs(fixture(), "yutetsu");
@@ -34,10 +34,9 @@ test("errors contain file and physical row; invalid references and duplicate IDs
   assert.ok(p.errors.some((e) => e.includes("stops.txt:5")));
   assert.ok(p.errors.some((e) => e.includes("参照先なし")));
 });
-test("CSV BOM, quotes, embedded newlines and CRLF; malformed UTF-8/ZIP rejected", () => {
+test("CSV BOM, quotes, embedded newlines and CRLF", () => {
   assert.equal(csv('\uFEFFid,name\r\n01,"a,\nb"\r\n', "test")[0].name, "a,\nb");
   assert.throws(() => csv('id,name\n01,"bad', "test"));
-  assert.throws(() => unzip(Buffer.from("invalid")));
   assert.throws(() => seconds("25:60:01"));
   assert.equal(seconds("25:01:59"), 90119);
   assert.notEqual(key("a", "001"), key("b", "001"));
@@ -63,22 +62,6 @@ test("untrusted, unverified and anonymous administrators rejected on server", ()
   );
 });
 
-test("ZIP CRC, path traversal, expansion size and UTF-8 are enforced", () => {
-  const archive = zip(fixture());
-  assert.equal(parseGtfs(unzip(archive), "test").errors.length, 0);
-  const corrupt = Buffer.from(archive);
-  corrupt[corrupt.indexOf(Buffer.from("夕鉄バス"))] ^= 1;
-  assert.throws(() => unzip(corrupt), /CRC/);
-  assert.throws(() => unzip(zip({ "../agency.txt": "x" })), /安全/);
-  const expanded = zip({ "test.txt": "x" });
-  const central = expanded.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]));
-  expanded.writeUInt32LE(101 * 1024 * 1024, central + 24);
-  assert.throws(() => unzip(expanded), /容量/);
-  assert.throws(
-    () => unzip(zip({ "test.txt": Buffer.from([0xff, 0xfe]) })),
-    /encoded data/,
-  );
-});
 test("frequency templates are marked rather than misrepresented as scheduled trips", () => {
   const files = fixture();
   files["frequencies.txt"] =

@@ -1,8 +1,0 @@
-﻿fare_id,price,currency_type,payment_method,transfers
-Fare210yen_00,210,JPY,0,0
-Fare250yen_00,250,JPY,0,0
-Fare290yen_00,290,JPY,0,0
-Fare330yen_00,330,JPY,0,0
-Fare360yen_00,360,JPY,0,0
-Fare380yen_00,380,JPY,0,0
-札幌市電_10,200,JPY,1,0

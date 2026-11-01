@@ -1,3 +1,6 @@
+import '../../service/transport/itinerary_transport_options.dart';
+import '../../model/transport_journey.dart';
+import 'transport_journey_panel.dart';
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -14,6 +17,8 @@ class ItineraryTransportSheet extends StatelessWidget {
   final DateTime? date;
   final TransportSelection? selected;
   final AsyncValue<TransportData> data;
+  final AsyncValue<JourneySearchResult>? journeys;
+  final int earliestDepartureSeconds;
   final int index, segmentCount;
   final bool collapsed;
   final VoidCallback? onPrevious, onNext, onClear;
@@ -29,6 +34,8 @@ class ItineraryTransportSheet extends StatelessWidget {
     required this.date,
     required this.selected,
     required this.data,
+    this.journeys,
+    this.earliestDepartureSeconds = 8 * 3600,
     required this.index,
     required this.segmentCount,
     required this.onPrevious,
@@ -45,16 +52,19 @@ class ItineraryTransportSheet extends StatelessWidget {
     this.collapsed = false,
   });
   bool matches(TransportCandidate c) =>
-      selected != null &&
-      c.trip.id == selected!.data['selectedTripId'] &&
-      c.boarding.stopId == selected!.data['boardingStopId'] &&
-      c.alighting.stopId == selected!.data['alightingStopId'] &&
-      c.boarding.sequence == selected!.data['boardingSequence'] &&
-      c.alighting.sequence == selected!.data['alightingSequence'] &&
-      c.boarding.departure == selected!.data['departureMinutes'] &&
-      c.alighting.arrival == selected!.data['arrivalMinutes'] &&
-      (c.trip.data['versionId'] ?? c.trip.data['updatedAt'])?.toString() ==
-          selected!.data['tripVersion'];
+      c.journey != null && selected?.data['journey'] is Map
+      ? c.journey!.id == (selected!.data['journey'] as Map)['id']
+      : selected != null &&
+            c.trip.id == selected!.data['selectedTripId'] &&
+            c.boarding.stopId == selected!.data['boardingStopId'] &&
+            c.alighting.stopId == selected!.data['alightingStopId'] &&
+            c.boarding.sequence == selected!.data['boardingSequence'] &&
+            c.alighting.sequence == selected!.data['alightingSequence'] &&
+            c.boarding.departure == selected!.data['departureMinutes'] &&
+            c.alighting.arrival == selected!.data['arrivalMinutes'] &&
+            (c.trip.data['versionId'] ?? c.trip.data['updatedAt'])
+                    ?.toString() ==
+                selected!.data['tripVersion'];
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
@@ -203,57 +213,8 @@ class ItineraryTransportSheet extends StatelessWidget {
                           color: color.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      data.when(
-                        loading: () => const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: LinearProgressIndicator(),
-                        ),
-                        error: (_, stack) => const _Notice(
-                          '交通情報を取得できませんでした。情報を更新して再試行できます。編集・保存は続けられます。',
-                        ),
-                        data: (d) {
-                          final candidates = findCandidates(
-                            trips: d.trips,
-                            routes: d.routes,
-                            services: d.services,
-                            fares: d.fares,
-                            stops: d.stops,
-                            from: from!.accessStops,
-                            to: to!.accessStops,
-                            date: date,
-                          );
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (selected != null && !candidates.any(matches))
-                                const _Notice('保存した便を再確認できません。再選択してください。'),
-                              if (candidates.isEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 18,
-                                  ),
-                                  child: Text(
-                                    from!.accessStops.isEmpty ||
-                                            to!.accessStops.isEmpty
-                                        ? '最寄り駅・バス停が未登録です。\nこの区間の交通情報は未登録です。'
-                                        : 'この区間の交通情報は未登録です（旅行日の運行に該当する登録便がない場合もあります）。',
-                                    style: const TextStyle(height: 1.6),
-                                  ),
-                                ),
-                              for (var i = 0; i < candidates.length; i++)
-                                _candidate(
-                                  context,
-                                  candidates[i],
-                                  d,
-                                  featured:
-                                      matches(candidates[i]) ||
-                                      (selected == null && i == 0),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
+                      const SizedBox(height: 12),
+                      _results(context),
                     ],
                     const SizedBox(height: 10),
                     Row(
@@ -295,9 +256,6 @@ class ItineraryTransportSheet extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 9),
-                    const _Notice(
-                      '徒歩・滞在終了時刻・乗換時間を含む乗車可能性は未確認です。ご利用前に公式情報をご確認ください。',
-                    ),
                   ],
                 ],
               ),
@@ -305,6 +263,93 @@ class ItineraryTransportSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _results(BuildContext context) {
+    final d = data.value ?? TransportData([], [], [], [], []);
+    final local = findCandidates(
+      trips: d.trips,
+      routes: d.routes,
+      services: d.services,
+      fares: d.fares,
+      stops: d.stops,
+      from: from!.accessStops,
+      to: to!.accessStops,
+      date: date,
+    );
+    String identity(TransportCandidate c) =>
+        '${c.trip.id}:${c.boarding.sequence}:${c.alighting.sequence}:${c.boarding.departure}';
+    final merged = {for (final c in local) identity(c): c};
+    for (final journey in journeys?.value?.journeys ?? <TransportJourney>[]) {
+      var c = journeyCandidate(journey);
+      final existing = merged[identity(c)];
+      if (existing != null) {
+        c = TransportCandidate(
+          existing.trip,
+          existing.route,
+          existing.before,
+          existing.after,
+          existing.boarding,
+          existing.alighting,
+          existing.fare,
+          journey: journey,
+          boardingStopName: existing.boardingStopName,
+          alightingStopName: existing.alightingStopName,
+        );
+      }
+      merged[identity(c)] = c;
+    }
+    final candidates =
+        merged.values
+            .where(
+              (c) => candidateDepartureSeconds(c) >= earliestDepartureSeconds,
+            )
+            .toList()
+          ..sort(
+            (a, b) =>
+                (a.boarding.data['departureSeconds'] as int? ??
+                        a.boarding.departure! * 60)
+                    .compareTo(
+                      b.boarding.data['departureSeconds'] as int? ??
+                          b.boarding.departure! * 60,
+                    ),
+          );
+    final hasSelected = candidates.any(matches);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (data.isLoading || journeys?.isLoading == true)
+          const Padding(
+            padding: EdgeInsets.all(14),
+            child: LinearProgressIndicator(),
+          ),
+        if (data.hasError && (journeys == null || journeys!.hasError))
+          const _Notice('交通情報を取得できませんでした。情報を更新して再試行できます。編集・保存は続けられます。'),
+        if (selected != null &&
+            !candidates.any(matches) &&
+            !data.isLoading &&
+            journeys?.isLoading != true)
+          const _Notice('保存した便は現在の候補に含まれていません。別の便を選択できます。'),
+        if (candidates.isEmpty &&
+            !data.isLoading &&
+            journeys?.isLoading != true)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Text(
+              from!.accessStops.isEmpty || to!.accessStops.isEmpty
+                  ? '最寄り駅・バス停が未登録です。\nこの区間の交通情報は未登録です。'
+                  : 'この時刻以降の候補がありません。',
+            ),
+          ),
+        for (var i = 0; i < candidates.length; i++)
+          _candidate(
+            context,
+            candidates[i],
+            d,
+            featured: matches(candidates[i]) || (!hasSelected && i == 0),
+          ),
+      ],
     );
   }
 
@@ -348,14 +393,8 @@ class ItineraryTransportSheet extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  c.status == 'sample'
-                      ? 'サンプル'
-                      : c.status == 'verified'
-                      ? '確認済み'
-                      : '要確認',
-                  style: TextStyle(color: color.onSurfaceVariant, fontSize: 10),
-                ),
+                if (c.status == 'sample')
+                  const Text('サンプル', style: TextStyle(fontSize: 10)),
               ],
             ),
           ),
@@ -419,10 +458,17 @@ class ItineraryTransportSheet extends StatelessWidget {
           const SizedBox(height: 7),
           Row(
             children: [
-              Icon(Icons.directions_walk, size: 15, color: color.primary),
+              if (c.before.walkingMinutes != null ||
+                  c.after.walkingMinutes != null)
+                Icon(Icons.directions_walk, size: 15, color: color.primary),
               Expanded(
                 child: Text(
-                  '徒歩 ${c.before.walkingMinutes == null ? '不明' : '${c.before.walkingMinutes}分'} ＋ ${c.after.walkingMinutes == null ? '不明' : '${c.after.walkingMinutes}分'}',
+                  [
+                    if (c.before.walkingMinutes != null)
+                      '乗車前 徒歩${c.before.walkingMinutes}分',
+                    if (c.after.walkingMinutes != null)
+                      '降車後 徒歩${c.after.walkingMinutes}分',
+                  ].join(' ＋ '),
                   style: const TextStyle(fontSize: 11),
                 ),
               ),
@@ -530,20 +576,26 @@ class ItineraryTransportSheet extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 children: [
-                  Text(verificationLabel(c.status)),
+                  if (c.status == 'sample') Text(verificationLabel(c.status)),
                   const SizedBox(height: 12),
-                  Text(
-                    '${from!.displayName}\n↓ 徒歩 ${c.before.walkingMinutes == null ? '時間不明' : '${c.before.walkingMinutes}分'}\n${d.stopName(c.boarding.stopId)} ${transportTime(c.boarding.departure)} 発\n↓ ${c.route.name}\n${d.stopName(c.alighting.stopId)} ${transportTime(c.alighting.arrival)} 着\n↓ 徒歩 ${c.after.walkingMinutes == null ? '時間不明' : '${c.after.walkingMinutes}分'}\n${to!.displayName}',
-                    style: const TextStyle(height: 1.8),
-                  ),
-                  Text(
-                    '徒歩情報：${verificationLabel(c.before.status)} / ${verificationLabel(c.after.status)}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  if (c.journey != null)
+                    TransportJourneyDetails(journey: c.journey!)
+                  else
+                    Text(
+                      [
+                        from!.displayName,
+                        if (c.before.walkingMinutes != null)
+                          '↓ 徒歩${c.before.walkingMinutes}分',
+                        '${c.boardingLabel(c.boardingStopName ?? '乗車停留所')} ${transportTime(c.boarding.departure)} 発',
+                        '↓ ${c.route.name}',
+                        '${c.alightingStopName ?? '降車停留所'} ${transportTime(c.alighting.arrival)} 着',
+                        if (c.after.walkingMinutes != null)
+                          '↓ 徒歩${c.after.walkingMinutes}分',
+                        to!.displayName,
+                      ].join('\n'),
+                      style: const TextStyle(height: 1.8),
+                    ),
                   Text(c.fare == null ? '運賃未確認' : '大人運賃 ¥${c.fare}'),
-                  Text(
-                    '路線情報：${verificationLabel(c.route.data['verificationStatus'] as String? ?? 'unverified')}',
-                  ),
                   if (c.trip.data['sourceCheckedAt'] != null)
                     Text('情報確認日：${c.trip.data['sourceCheckedAt']}'),
                   for (final record in [c.route, c.trip])
@@ -555,13 +607,14 @@ class ItineraryTransportSheet extends StatelessWidget {
                         ),
                         child: const Text('情報源を見る'),
                       ),
-                  TransportTimetable(
-                    trip: c.trip,
-                    data: d,
-                    initiallyExpanded: true,
-                  ),
+                  if (c.journey == null ||
+                      c.journey!.legs.length == 1 && c.trip.times.length > 2)
+                    TransportTimetable(
+                      trip: c.trip,
+                      data: d,
+                      initiallyExpanded: true,
+                    ),
                   const SizedBox(height: 15),
-                  const _Notice('運行日と実際の乗車可能性は別に確認が必要です。'),
                 ],
               ),
             ),

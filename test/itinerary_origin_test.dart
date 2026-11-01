@@ -1,3 +1,5 @@
+import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
+import 'package:sightseeing_matching_app/model/transport_journey.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_transport_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -123,6 +125,10 @@ void main() {
               (ref) => Stream.value(TravelCatalog(experiences: [first])),
             ),
             mapTilesEnabledProvider.overrideWithValue(false),
+            itineraryJourneysProvider.overrideWith(
+              (ref, key) async =>
+                  JourneySearchResult({'journeys': [], 'warnings': []}),
+            ),
             transportDataProvider.overrideWith((ref, key) async => data),
             originTransportStopsProvider.overrideWith((ref, origin) async {
               originLoads++;
@@ -196,11 +202,14 @@ void main() {
           );
           await tester.pumpAndSettle();
           await tester.scrollUntilVisible(
-            find.textContaining('選択した便：t'),
+            find.byKey(const ValueKey('saved-transport-t')),
             140,
             scrollable: find.byType(Scrollable).last,
           );
-          expect(find.textContaining('選択した便：t'), findsOneWidget);
+          expect(
+            find.byKey(const ValueKey('saved-transport-t')),
+            findsOneWidget,
+          );
         } else {
           expect(find.byKey(const ValueKey('choose-t-1-2')), findsNothing);
           expect(
@@ -321,6 +330,10 @@ void main() {
             (ref) => Stream.value(TravelCatalog(experiences: planned)),
           ),
           mapTilesEnabledProvider.overrideWithValue(false),
+          itineraryJourneysProvider.overrideWith(
+            (ref, key) async =>
+                JourneySearchResult({'journeys': [], 'warnings': []}),
+          ),
           transportDataProvider.overrideWith((ref, key) async => data),
           originTransportStopsProvider.overrideWith(
             (ref, origin) async => [
@@ -358,7 +371,7 @@ void main() {
       expect(find.byKey(const ValueKey('choose-outbound-1-2')), findsNothing);
       if (target == 'no-return') {
         expect(find.byKey(const ValueKey('choose-back-1-2')), findsNothing);
-        expect(find.textContaining('この区間の交通情報は未登録です'), findsOneWidget);
+        expect(find.textContaining('この時刻以降の候補がありません'), findsOneWidget);
       } else {
         final choose = find.byKey(const ValueKey('choose-back-1-2'));
         await tester.scrollUntilVisible(
@@ -395,12 +408,15 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
         await tester.pumpAndSettle();
         await tester.scrollUntilVisible(
-          find.textContaining('選択した便：back'),
+          find.byKey(const ValueKey('saved-transport-back')),
           140,
           scrollable: find.byType(Scrollable).last,
         );
         expect(find.text('帰路'), findsOneWidget);
-        expect(find.textContaining('選択した便：back'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('saved-transport-back')),
+          findsOneWidget,
+        );
       }
       expect(tester.takeException(), isNull);
     });

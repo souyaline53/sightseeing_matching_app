@@ -51,6 +51,7 @@ dependencies:
   firebase_storage: ^14.0.1
   image: ^4.12.0
   http: ^1.6.0
+  archive: ^4.5.2
   crypto: ^3.0.8
   path_provider: ^2.1.6
   cloud_functions: ^7.0.1
@@ -83,6 +84,29 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  fonts:
+    - family: NotoSansJP
+      fonts:
+        # Variable font; register each weight used by Flutter's font matching.
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 100
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 200
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 300
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 400
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 500
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 600
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 700
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 800
+        - asset: assets/fonts/noto_sans_jp/NotoSansJP.ttf
+          weight: 900
 
   # To add assets to your application, add an assets section, like this:
   # assets:

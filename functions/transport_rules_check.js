@@ -115,28 +115,66 @@ async function write(path, token, values = fields) {
     ).status,
     403,
   );
-  const path = `transport_imports/${admin.localId}/rules/test.zip`;
-  async function upload(token, name = path, type = "application/zip") {
+  await write("transport_transfers/confirmed", "owner");
+  assert.equal((await request(`${db}/transport_transfers/confirmed`)).status, 200);
+  for (const token of [undefined, other.idToken, admin.idToken]) {
+    assert.equal((await write("transport_transfers/denied", token)).status, 403);
+    assert.equal((await request(`${db}/transport_transfers/confirmed`, { token, method: "DELETE" })).status, 403);
+  }
+  assert.equal((await request(`${db}/transport_routing_state/manual`)).status, 403);
+  const path = `transport_imports/${admin.localId}/rules/one/agency.txt`;
+  async function upload(token, name = path, type = "text/plain") {
     return request(
       `${storage}?uploadType=media&name=${encodeURIComponent(name)}`,
       {
         token,
         method: "POST",
         headers: { "Content-Type": type, "X-Goog-Upload-Protocol": "raw" },
-        body: Buffer.from("PK fake test bytes"),
+        body: Buffer.from(
+          "agency_name,agency_url,agency_timezone\nTest,https://example.test,Asia/Tokyo\n",
+        ),
       },
     );
   }
   assert.equal((await upload(other.idToken)).status, 403);
-  assert.equal((await upload(admin.idToken, path, "text/plain")).status, 403);
+  assert.equal(
+    (await upload(admin.idToken, path, "application/zip")).status,
+    403,
+  );
   assert.equal((await upload(admin.idToken)).status, 200);
   assert.equal((await upload(admin.idToken)).status, 403, "原本の上書きは禁止");
   assert.equal(
     (await request(`${storage}/${encodeURIComponent(path)}?alt=media`)).status,
     403,
   );
+  assert.equal(
+    (
+      await upload(
+        admin.idToken,
+        path.replace("agency.txt", "bad.zip"),
+        "application/zip",
+      )
+    ).status,
+    403,
+  );
+  await request(
+    `${storage}?uploadType=media&name=${encodeURIComponent("transport_data/feed/v1/catalog.json.gz")}`,
+    {
+      token: "owner",
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: Buffer.from("compiled"),
+    },
+  );
+  const compiled = `${storage}/${encodeURIComponent("transport_data/feed/v1/catalog.json.gz")}`;
+  assert.equal((await request(`${compiled}?alt=media`)).status, 200);
+  assert.equal(
+    (await request(compiled, { token: admin.idToken, method: "DELETE" }))
+      .status,
+    403,
+  );
   console.log(
-    "PASS: non-admin/unverified denial, manual writes, GTFS server-only writes, active-version reads, private immutable ZIP uploads",
+    "PASS: non-admin/unverified denial, manual writes, GTFS server-only writes, active-version reads, private immutable txt uploads",
   );
 })().catch((e) => {
   console.error(e);

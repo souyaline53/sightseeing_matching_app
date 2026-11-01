@@ -1,3 +1,4 @@
+import '../../model/stop_selection.dart';
 import 'transport_stop_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +14,9 @@ Map<String, dynamic> prepareAdminData(
   final data = {...original};
   for (final f in fields) {
     final v = data[f.key];
-    if (f.type == AdminInput.rows) {
+    if (f.key == 'transferType' && v != null) {
+      data[f.key] = v.toString();
+    } else if (f.type == AdminInput.rows) {
       final rows = v is List ? v : [];
       data[f.key] = f.children.length == 1 && f.children.first.key == 'value'
           ? [...rows]
@@ -178,6 +181,11 @@ class _InputState extends State<AdminFieldInput> {
   }
 
   void change(String s) {
+    if (f.key == 'stopId') {
+      widget.data.remove('stopName');
+      widget.data.remove('stopDestinations');
+      widget.data.remove('platformCode');
+    }
     widget.data[f.key] = switch (f.type) {
       AdminInput.integer => int.tryParse(s),
       AdminInput.decimal => double.tryParse(s),
@@ -352,7 +360,9 @@ class _InputState extends State<AdminFieldInput> {
             : null,
       ),
     );
-    if (f.key == 'stopId' || f.key == 'routeId') {
+    if (f.key == 'stopId' ||
+        f.key == 'routeId' ||
+        (f.reference == 'transport_stops' && widget.prefix == 'transfer-')) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -360,22 +370,40 @@ class _InputState extends State<AdminFieldInput> {
           TextButton.icon(
             icon: const Icon(Icons.search),
             label: Text(
-              f.key == 'stopId' ? '事業者 → 路線 → 停留所から選ぶ' : '事業者 → 路線から選ぶ',
+              f.reference == 'transport_stops'
+                  ? '事業者 → 路線 → 停留所から選ぶ'
+                  : '事業者 → 路線から選ぶ',
             ),
             onPressed: !widget.enabled
                 ? null
                 : () async {
-                    final id = await showDialog<String>(
+                    final accessStop =
+                        f.key == 'stopId' &&
+                        widget.prefix.startsWith('accessStops');
+                    final result = await showDialog<Object>(
                       context: context,
                       builder: (_) => TransportStopPicker(
                         selectRoute: f.key == 'routeId',
-                        manualOnly: !widget.prefix.startsWith('accessStops'),
+                        manualOnly:
+                            !widget.prefix.startsWith('accessStops') &&
+                            widget.prefix != 'transfer-',
+                        returnStopRecord: accessStop,
                       ),
                     );
-                    if (id != null && mounted) {
+                    if (result != null && mounted) {
                       setState(() {
+                        final stop = result is Map
+                            ? Map<String, dynamic>.from(result)
+                            : null;
+                        final id = stop?['id'] as String? ?? result as String;
                         text.text = id;
                         widget.data[f.key] = id;
+                        if (accessStop) {
+                          widget.data['stopName'] = stop?['name'];
+                          widget.data['stopDestinations'] =
+                              stop?['stopDestinations'] ?? <String>[];
+                          widget.data['platformCode'] = stop?['platformCode'];
+                        }
                       });
                     }
                   },
@@ -479,11 +507,46 @@ class _RowsState extends State<AdminRowsEditor> {
     if (scalar) widget.data['_formRows_${widget.field.key}'] = rows;
   }
 
+  Future<void> pickStops() async {
+    final picked = await showDialog<List<Json>>(
+      context: context,
+      builder: (_) => const TransportStopPicker(multipleStops: true),
+    );
+    if (picked == null || !mounted) return;
+    try {
+      final updated = appendAccessStopSelections(
+        rows,
+        picked,
+        maxRows: widget.field.maxRows,
+      );
+      setState(() {
+        rows
+          ..clear()
+          ..addAll(updated);
+        sync();
+      });
+    } on FormatException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(widget.field.label, style: Theme.of(context).textTheme.titleMedium),
+      if (widget.field.key == 'accessStops') ...[
+        OutlinedButton.icon(
+          onPressed: widget.enabled ? pickStops : null,
+          icon: const Icon(Icons.add_location_alt_outlined),
+          label: const Text('停留所を探して乗り場をまとめて追加'),
+        ),
+        const Text(
+          '同名の別乗り場をまとめて選べます。徒歩時間は乗り場別に入力し、不明なら空欄にしてください。登録済みIDは重複追加しません。',
+        ),
+      ],
       for (var i = 0; i < rows.length; i++)
         Card(
           key: ObjectKey(rows[i]),
@@ -494,7 +557,14 @@ class _RowsState extends State<AdminRowsEditor> {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text('${i + 1}件目')),
+                    Expanded(
+                      child: Text(
+                        widget.field.key == 'accessStops' &&
+                                rows[i]['stopName'] != null
+                            ? stopSelectionLabel(rows[i])
+                            : '${i + 1}件目',
+                      ),
+                    ),
                     if (widget.field.key == 'stopTimes' && i > 0)
                       IconButton(
                         tooltip: '上へ移動',

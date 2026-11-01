@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -43,7 +44,9 @@ Future<FirebaseRuntime> initializeAccountFirebase() async {
       );
     }
     return const FirebaseRuntime.ready();
-  } catch (_) {
+  } catch (error, stack) {
+    debugPrint('Firebase initialization failed: $error');
+    debugPrintStack(stackTrace: stack);
     return const FirebaseRuntime.unavailable(
       'アカウント機能に接続できません。Firebase設定を確認してください。ゲストとして引き続き利用できます。',
     );

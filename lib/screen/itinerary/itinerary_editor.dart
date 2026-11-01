@@ -1,3 +1,5 @@
+import '../../repository/transport_journey_repository.dart';
+import '../../service/transport/itinerary_transport_options.dart';
 import 'itinerary_endpoint_card.dart';
 import 'plan_screen.dart';
 import 'dart:convert';
@@ -170,6 +172,24 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
 
   void _select(TransportCandidate c, Experience from, Experience to) {
     final trip = ref.read(tripProvider);
+    if (c.journey != null) {
+      ref
+          .read(tripProvider.notifier)
+          .selectTransport(
+            c.journey!.selection(
+              from.id,
+              to.id,
+              originName:
+                  from.id == trip.originEndpointId ||
+                      to.id == trip.originEndpointId
+                  ? trip.origin
+                  : null,
+              fromOrigin: from.id == trip.originEndpointId,
+              toOrigin: to.id == trip.originEndpointId,
+            ),
+          );
+      return;
+    }
     ref
         .read(tripProvider.notifier)
         .selectTransport(
@@ -182,6 +202,10 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
               'originName': trip.origin,
             'toSpotId': to.id,
             'boardingStopId': c.boarding.stopId,
+            'boardingStopName': c.boardingStopName ?? c.before.data['stopName'],
+            'alightingStopName':
+                c.alightingStopName ?? c.after.data['stopName'],
+            'headsign': c.trip.data['headsign'],
             'alightingStopId': c.alighting.stopId,
             'boardingSequence': c.boarding.sequence,
             'alightingSequence': c.alighting.sequence,
@@ -274,6 +298,37 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     } else {
       data = ref.watch(transportDataProvider(key));
     }
+    final searchDate = trip.date;
+    final journeyKey = jsonEncode({
+      'date':
+          '${searchDate.year.toString().padLeft(4, '0')}-${searchDate.month.toString().padLeft(2, '0')}-${searchDate.day.toString().padLeft(2, '0')}',
+      'departureSeconds': trip.departureMinutes * 60,
+      'maxTransfers': 3,
+      'minimumTransferSeconds': 180,
+      'timetable': true,
+      'from':
+          from?.accessStops
+              .map(
+                (s) => {'stopId': s.stopId, 'walkingMinutes': s.walkingMinutes},
+              )
+              .toList() ??
+          [],
+      'to':
+          to?.accessStops
+              .map(
+                (s) => {'stopId': s.stopId, 'walkingMinutes': s.walkingMinutes},
+              )
+              .toList() ??
+          [],
+    });
+    final journeys =
+        from != null &&
+            to != null &&
+            from.accessStops.isNotEmpty &&
+            to.accessStops.isNotEmpty
+        ? ref.watch(itineraryJourneysProvider(journeyKey))
+        : null;
+    final earliestDepartureSeconds = segmentEarliestDeparture(trip, from?.id);
     final selected = trip.transportSelections
         .where((s) => s.from == from?.id && s.to == to?.id)
         .firstOrNull;
@@ -387,6 +442,39 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                         lastDate: DateTime(2100),
                       );
                       if (date != null) controller.setDate(date);
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: TextButton.icon(
+                    key: const ValueKey('itinerary-departure-time'),
+                    style: TextButton.styleFrom(
+                      alignment: Alignment.centerLeft,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: const Size(0, 34),
+                      foregroundColor: color.onSurfaceVariant,
+                    ),
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: Text(
+                      '出発時刻 ${transportTime(trip.departureMinutes)}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    onPressed: () async {
+                      final time = await showTimePicker(
+                        initialEntryMode: TimePickerEntryMode.input,
+                        context: context,
+                        initialTime: TimeOfDay(
+                          hour: trip.departureMinutes ~/ 60,
+                          minute: trip.departureMinutes % 60,
+                        ),
+                      );
+                      if (time != null) {
+                        controller.setDepartureMinutes(
+                          time.hour * 60 + time.minute,
+                        );
+                      }
                     },
                   ),
                 ),
@@ -529,6 +617,9 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                     date: trip.travelDate,
                                     selected: selected,
                                     data: data,
+                                    journeys: journeys,
+                                    earliestDepartureSeconds:
+                                        earliestDepartureSeconds,
                                     index: originSelected
                                         ? 0
                                         : returnSelected
@@ -559,6 +650,9 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                           )
                                         : null,
                                     onRefresh: () {
+                                      ref.invalidate(
+                                        itineraryJourneysProvider(journeyKey),
+                                      );
                                       if (endpointSelected) {
                                         ref.invalidate(
                                           originTransportStopsProvider(

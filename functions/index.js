@@ -30,5 +30,17 @@ exports.transportSampleInventory = onCall(
 const { saveManualTransport } = require("./manual_transport");
 exports.saveManualTransport = onCall(
   { region: "asia-northeast1", maxInstances: 2 },
-  (request) => saveManualTransport(request, getFirestore()),
+  (request) => saveManualTransport(request, getFirestore(), getStorage().bucket()),
+);
+
+const { searchTransportJourneys } = require("./transport_journey_api");
+exports.searchTransportJourneys = onCall(
+  {
+    region: "asia-northeast1",
+    maxInstances: 2,
+    concurrency: 1,
+    timeoutSeconds: 60,
+    memory: "1GiB",
+  },
+  (request) => searchTransportJourneys(request, getFirestore(), getStorage().bucket()),
 );

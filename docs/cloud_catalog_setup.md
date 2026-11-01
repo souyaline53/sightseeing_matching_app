@@ -128,7 +128,7 @@ flutter test
 flutter test --platform chrome test/image_cache_browser_test.dart
 flutter test --platform chrome --dart-define=AUTH_EMULATORS_TEST=true --dart-define=FIREBASE_EMULATOR_HOST=127.0.0.1 test/cloud_catalog_browser_test.dart
 node tool/check_cloud_emulators.mjs
-flutter build web
+dart run tool/build_web.dart
 ```
 
 ブラウザテストは2つの実Firebaseクライアントを使い、投稿の再取得、別ユーザーのコメント・いいね、個人別の保存・フォロー、権限、削除を確認します。テスト用の投稿・ユーザーはローカルにのみ作成します。専用の空のエミュレーターで、各コマンドを順番に実行してください。

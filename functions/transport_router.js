@@ -144,8 +144,18 @@ function tripInstances(net, q) {
   }
   return instances;
 }
+function sharesWalkingStop(net, q) {
+  for (const from of q.from) for (const to of q.to) {
+    if (from.stopId === to.stopId) return true;
+    if (!net.nearby.get(from.stopId)?.has(to.stopId)) continue;
+    const rules = (net.rules.get(`${from.stopId}\n${to.stopId}`) || []).filter((r) => !r.fromTripId && !r.toTripId && !r.fromRouteId && !r.toRouteId);
+    if (!rules.some((r) => [3, 4, 5].includes(r.transferType))) return true;
+  }
+  return false;
+}
 function searchJourneys(net, input) {
   const q = validateQuery(input), end = q.departureSeconds + HORIZON;
+  if (sharesWalkingStop(net, q)) return { walkingOnly: true, journeys: [], warnings: [], stats: { tripInstances: 0, scannedStopTimes: 0, maxTransfers: q.maxTransfers } };
   const instances = tripInstances(net, q);
   const destinations = expandAccessStops(net, q.to, false);
   let previous = new Map();

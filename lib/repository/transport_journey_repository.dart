@@ -1,3 +1,5 @@
+import '../model/trip_plan.dart';
+import '../model/experience.dart';
 import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -22,6 +24,32 @@ final journeySearchProvider =
         return JourneySearchResult(Map<String, dynamic>.from(result.data));
       },
     );
+
+String itineraryJourneyKey(TripState trip, Experience? from, Experience? to) {
+  final date = trip.date;
+  return jsonEncode({
+    'date':
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+    'departureSeconds': trip.departureMinutes * 60,
+    'maxTransfers': 3,
+    'minimumTransferSeconds': 180,
+    'timetable': true,
+    'from':
+        from?.accessStops
+            .map(
+              (s) => {'stopId': s.stopId, 'walkingMinutes': s.walkingMinutes},
+            )
+            .toList() ??
+        [],
+    'to':
+        to?.accessStops
+            .map(
+              (s) => {'stopId': s.stopId, 'walkingMinutes': s.walkingMinutes},
+            )
+            .toList() ??
+        [],
+  });
+}
 
 // The key excludes the preceding selected trip. Selecting a vehicle only filters cached results.
 final itineraryJourneysProvider =

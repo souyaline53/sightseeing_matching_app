@@ -31,6 +31,12 @@ const { parseFiles } = require("./transport_bundle"), { operates } = require("./
   const groupedText=await groupedResponse.text(), groupedResult=unpack(JSON.parse(groupedText).result);
   assert.equal(groupedResponse.status,200);assert.ok(groupedResult.journeys.some((j)=>j.usesEstimatedWalking && j.transferCount===0));
   console.log(JSON.stringify({phase:"nearby_yutetsu",requestJsonBytes:Buffer.byteLength(JSON.stringify({data:grouped})),responseJsonBytes:Buffer.byteLength(groupedText),...groupedResult.stats}));
+  const walking={...query,from:query.from.slice(0,1),to:query.from.slice(0,1)};
+  const walkingResponse=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:walking})});
+  const walkingResult=unpack((await walkingResponse.json()).result);
+  assert.equal(walkingResponse.status,200);assert.equal(walkingResult.walkingOnly,true);assert.deepEqual(walkingResult.journeys,[]);
+  assert.equal(walkingResult.stats.scannedStopTimes,0);assert.equal(walkingResult.arrivalSeconds,undefined);
+  console.log("PASS: shared station returns walking only without fabricated timing or scanning trips");
   const bad=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data:{...query,maxTransfers:4}})});
   assert.equal(bad.status,400);assert.equal((await bad.json()).error.status,"INVALID_ARGUMENT");
   console.log("PASS: production Callable, real Sapporo platform IDs, 500m Yutetsu platform expansion, active versions, transfer buffers, 4 transfers rejected");

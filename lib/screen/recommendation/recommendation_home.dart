@@ -40,14 +40,7 @@ class RecommendationHome extends HookConsumerWidget {
                 onPressed: () => controller.back(),
               )
             : const Icon(Icons.explore_outlined),
-        title: const Text(
-          'TABISAKI',
-          style: TextStyle(
-            letterSpacing: 4,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
+        title: const Text('TABISAKI'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),

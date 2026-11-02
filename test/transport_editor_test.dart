@@ -349,6 +349,8 @@ void main() {
             (afterBodyDrag - 1).abs() < .001,
         isTrue,
       );
+      await tester.ensureVisible(find.byTooltip('タイトルを編集'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('タイトルを編集'));
       await tester.pumpAndSettle();
       tester.view.viewInsets = const FakeViewPadding(bottom: 220);

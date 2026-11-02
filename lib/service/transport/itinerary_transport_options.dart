@@ -3,6 +3,14 @@ import '../../model/transport.dart';
 import '../../model/transport_journey.dart';
 import 'transport_search.dart';
 
+bool sharesAccessStop(List<AccessStop> from, List<AccessStop> to) {
+  final ids = from
+      .where((s) => s.data['isActive'] != false && s.stopId.isNotEmpty)
+      .map((s) => s.stopId)
+      .toSet();
+  return to.any((s) => s.data['isActive'] != false && ids.contains(s.stopId));
+}
+
 TransportCandidate journeyCandidate(TransportJourney journey) {
   final legs = journey.legs, first = legs.first, last = legs.last;
   final tripId = legs.length == 1 ? first['tripId'] as String : journey.id;
@@ -54,10 +62,22 @@ int candidateDepartureSeconds(TransportCandidate candidate) =>
             candidate.boarding.departure! * 60) -
         (candidate.before.walkingMinutes ?? 0) * 60;
 
-int segmentEarliestDeparture(TripState trip, String? fromId) {
+int segmentEarliestDeparture(
+  TripState trip,
+  String? fromId, {
+  bool? previousWalkingOnly,
+}) {
   final base = trip.departureMinutes * 60;
   final index = trip.stops.indexWhere((s) => s.id == fromId);
   if (index < 0) return base;
+  if (previousWalkingOnly ??
+      (index > 0 &&
+          sharesAccessStop(
+            trip.stops[index - 1].accessStops,
+            trip.stops[index].accessStops,
+          ))) {
+    return base;
+  }
   final precedingId = index == 0
       ? trip.originEndpointId
       : trip.stops[index - 1].id;

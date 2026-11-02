@@ -126,3 +126,14 @@ test("timetable pool includes direct and transferred options and honors first-de
   const found=searchJourneys(net,{...query(),timetable:true}).journeys;
   assert.deepEqual(found.map(j=>j.transferCount),[0,1]);assert.ok(found.every(j=>j.departureSeconds<115200));
 });
+
+test("shared exact stop returns walking only before scanning a looping trip, without invented timing",()=>{
+  const t={...trip("loop","a","a",28800,30600),times:[time("a",1,28800),time("remote",2,29400),time("a",3,30600)]};
+  const net=network([t],[stop("a"),stop("remote")]);
+  for (const timetable of [false,true]) {
+    const result=searchJourneys(net,{...query("a","a"),timetable});
+    assert.equal(result.walkingOnly,true);assert.deepEqual(result.journeys,[]);
+    assert.equal(result.stats.scannedStopTimes,0);assert.equal(result.stats.tripInstances,0);
+    assert.equal(result.arrivalSeconds,undefined);assert.equal(result.walkingMinutes,undefined);
+  }
+});

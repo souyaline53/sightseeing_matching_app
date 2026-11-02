@@ -1,3 +1,8 @@
+import '../../widgets/find_experiences_button.dart';
+import '../../state/app_tab.dart';
+import '../../state/discovery_state.dart';
+import '../../state/settings_state.dart';
+import '../home/trips_drawer.dart';
 import '../../repository/transport_journey_repository.dart';
 import '../../service/transport/itinerary_transport_options.dart';
 import 'itinerary_endpoint_card.dart';
@@ -35,6 +40,13 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
   void dispose() {
     sheet.dispose();
     super.dispose();
+  }
+
+  void _searchExperiences() {
+    final settings = ref.read(settingsProvider).requireValue;
+    ref.read(searchDraftProvider.notifier).replace(settings.profile.defaults());
+    ref.read(discoveryProvider.notifier).beginSearch();
+    ref.read(appTabProvider.notifier).select(AppTab.recommendation);
   }
 
   void _reorder(int from, int to) {
@@ -242,8 +254,10 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     final originSelected = segment == -1;
     final returnSelected = segment == -2;
     final endpointSelected = originSelected || returnSelected;
-    final originStops = endpointSelected && stops.isNotEmpty
-        ? ref.watch(originTransportStopsProvider(trip.origin))
+    final originProvider = originTransportStopsProvider(trip.origin);
+    final originStops =
+        stops.isNotEmpty && (endpointSelected || ref.exists(originProvider))
+        ? ref.watch(originProvider)
         : const AsyncData<List<TransportStop>>([]);
     // A view-only endpoint; departure and home never enter the sightseeing list.
     final origin = Experience(
@@ -287,8 +301,14 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
       ...?to?.accessStops.map((s) => s.stopId),
     }.toList()..sort();
     final key = jsonEncode(ids);
+    final walkingOnly = sharesAccessStop(
+      from?.accessStops ?? [],
+      to?.accessStops ?? [],
+    );
     final AsyncValue<TransportData> data;
-    if (endpointSelected && originStops.isLoading) {
+    if (walkingOnly) {
+      data = AsyncData(TransportData([], [], [], [], []));
+    } else if (endpointSelected && originStops.isLoading) {
       data = const AsyncLoading();
     } else if (endpointSelected && originStops.hasError) {
       data = AsyncError(
@@ -298,397 +318,545 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     } else {
       data = ref.watch(transportDataProvider(key));
     }
-    final searchDate = trip.date;
-    final journeyKey = jsonEncode({
-      'date':
-          '${searchDate.year.toString().padLeft(4, '0')}-${searchDate.month.toString().padLeft(2, '0')}-${searchDate.day.toString().padLeft(2, '0')}',
-      'departureSeconds': trip.departureMinutes * 60,
-      'maxTransfers': 3,
-      'minimumTransferSeconds': 180,
-      'timetable': true,
-      'from':
-          from?.accessStops
-              .map(
-                (s) => {'stopId': s.stopId, 'walkingMinutes': s.walkingMinutes},
-              )
-              .toList() ??
-          [],
-      'to':
-          to?.accessStops
-              .map(
-                (s) => {'stopId': s.stopId, 'walkingMinutes': s.walkingMinutes},
-              )
-              .toList() ??
-          [],
-    });
+    final journeyKey = itineraryJourneyKey(trip, from, to);
     final journeys =
-        from != null &&
+        !walkingOnly &&
+            from != null &&
             to != null &&
             from.accessStops.isNotEmpty &&
             to.accessStops.isNotEmpty
         ? ref.watch(itineraryJourneysProvider(journeyKey))
         : null;
-    final earliestDepartureSeconds = segmentEarliestDeparture(trip, from?.id);
+    final previousIndex = stops.indexWhere((s) => s.id == from?.id);
+    final previousPoint = previousIndex == 0
+        ? origin
+        : previousIndex > 0
+        ? stops[previousIndex - 1]
+        : null;
+    final previousPool = itineraryJourneysProvider(
+      itineraryJourneyKey(trip, previousPoint, from),
+    );
+    final cachedPreviousWalking = ref.exists(previousPool)
+        ? ref.watch(previousPool).value?.walkingOnly == true
+        : false;
+    final previousWalkingOnly =
+        sharesAccessStop(
+          previousPoint?.accessStops ?? [],
+          from?.accessStops ?? [],
+        ) ||
+        cachedPreviousWalking;
+    final earliestDepartureSeconds = segmentEarliestDeparture(
+      trip,
+      from?.id,
+      previousWalkingOnly: previousWalkingOnly,
+    );
     final selected = trip.transportSelections
         .where((s) => s.from == from?.id && s.to == to?.id)
         .firstOrNull;
     final color = Theme.of(context).colorScheme;
+    final isEmpty = trip.saved.isEmpty && trip.stops.isEmpty;
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, bounds) {
-            final compact = bounds.maxHeight < 650;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 6, 12, 0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.landscape_rounded,
-                        color: color.primary,
-                        size: 30,
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              'TABISAKI',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 4,
-                              ),
-                            ),
+      appBar: AppBar(
+        leading: Builder(
+          builder: (context) => IconButton(
+            tooltip: '旅の一覧を開く',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            icon: const Icon(Icons.menu),
+          ),
+        ),
+        title: const Text('旅程作成', style: TextStyle(fontSize: 22)),
+        actions: isEmpty
+            ? null
+            : [
+                TextButton.icon(
+                  key: const ValueKey('itinerary-view-booklet'),
+                  onPressed: trip.stops.isEmpty ? null : _openBooklet,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 32),
+                    textStyle: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  icon: const Icon(Icons.menu_book_outlined, size: 16),
+                  label: const Text('しおりを見る'),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: '旅程の操作',
+                  onSelected: (value) {
+                    if (value == 'title') _rename();
+                    if (value == 'map') _sheetTo(.22);
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'title', child: Text('タイトルを変更')),
+                    PopupMenuItem(value: 'map', child: Text('地図を広く見る')),
+                  ],
+                ),
+              ],
+      ),
+      drawer: TripsDrawer(onNewTrip: _searchExperiences),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          ExcludeSemantics(
+            excluding: isEmpty,
+            child: IgnorePointer(
+              ignoring: isEmpty,
+              child: SafeArea(
+                bottom: false,
+                child: LayoutBuilder(
+                  builder: (context, bounds) {
+                    final compact = bounds.maxHeight < 650;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: bounds.maxHeight * .6,
                           ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        key: const ValueKey('itinerary-view-booklet'),
-                        onPressed: trip.stops.isEmpty ? null : _openBooklet,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: const Size(0, 32),
-                          textStyle: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        icon: const Icon(Icons.menu_book_outlined, size: 16),
-                        label: const Text('しおりを見る'),
-                      ),
-                      PopupMenuButton<String>(
-                        tooltip: '旅程の操作',
-                        onSelected: (value) {
-                          if (value == 'title') _rename();
-                          if (value == 'map') _sheetTo(.22);
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'title', child: Text('タイトルを変更')),
-                          PopupMenuItem(value: 'map', child: Text('地図を広く見る')),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 14, 0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          trip.displayTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: compact ? 21 : 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'タイトルを編集',
-                        onPressed: _rename,
-                        icon: const Icon(Icons.edit_outlined, size: 20),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      minimumSize: const Size(0, 34),
-                      foregroundColor: color.onSurfaceVariant,
-                    ),
-                    icon: const Icon(Icons.calendar_month_outlined, size: 18),
-                    label: Text(
-                      trip.travelDate == null
-                          ? '旅行日を選ぶ（未定）'
-                          : '${trip.travelDate!.year}/${trip.travelDate!.month}/${trip.travelDate!.day}（${['月', '火', '水', '木', '金', '土', '日'][trip.travelDate!.weekday - 1]}） · ${trip.conditions.length.label}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    onPressed: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: trip.travelDate ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (date != null) controller.setDate(date);
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: TextButton.icon(
-                    key: const ValueKey('itinerary-departure-time'),
-                    style: TextButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      minimumSize: const Size(0, 34),
-                      foregroundColor: color.onSurfaceVariant,
-                    ),
-                    icon: const Icon(Icons.schedule, size: 18),
-                    label: Text(
-                      '出発時刻 ${transportTime(trip.departureMinutes)}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    onPressed: () async {
-                      final time = await showTimePicker(
-                        initialEntryMode: TimePickerEntryMode.input,
-                        context: context,
-                        initialTime: TimeOfDay(
-                          hour: trip.departureMinutes ~/ 60,
-                          minute: trip.departureMinutes % 60,
-                        ),
-                      );
-                      if (time != null) {
-                        controller.setDepartureMinutes(
-                          time.hour * 60 + time.minute,
-                        );
-                      }
-                    },
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: color.primary.withValues(alpha: .045),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                  ),
-                  margin: const EdgeInsets.fromLTRB(12, 3, 12, 0),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 0, 4, 0),
-                        child: Row(
-                          children: [
-                            /*Icon(
+                          child: SingleChildScrollView(
+                            key: const ValueKey('itinerary-scroll'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    14,
+                                    0,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          trip.displayTitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: compact ? 21 : 24,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'タイトルを編集',
+                                        onPressed: _rename,
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        alignment: Alignment.centerLeft,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        minimumSize: const Size(0, 34),
+                                        foregroundColor: color.onSurfaceVariant,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.calendar_month_outlined,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        trip.travelDate == null
+                                            ? '旅行日を選ぶ（未定）'
+                                            : '${trip.travelDate!.year}/${trip.travelDate!.month}/${trip.travelDate!.day}（${['月', '火', '水', '木', '金', '土', '日'][trip.travelDate!.weekday - 1]}） · ${trip.conditions.length.label}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      onPressed: () async {
+                                        final date = await showDatePicker(
+                                          context: context,
+                                          initialDate:
+                                              trip.travelDate ?? DateTime.now(),
+                                          firstDate: DateTime(2020),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (date != null) {
+                                          controller.setDate(date);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: OutlinedButton.icon(
+                                      key: const ValueKey(
+                                        'itinerary-departure-time',
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        alignment: Alignment.centerLeft,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                        ),
+                                        minimumSize: const Size(0, 34),
+                                        foregroundColor: color.onSurfaceVariant,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.schedule,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        '出発時刻 ${transportTime(trip.departureMinutes)}',
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      onPressed: () async {
+                                        final time = await showTimePicker(
+                                          initialEntryMode:
+                                              TimePickerEntryMode.input,
+                                          context: context,
+                                          initialTime: TimeOfDay(
+                                            hour: trip.departureMinutes ~/ 60,
+                                            minute: trip.departureMinutes % 60,
+                                          ),
+                                        );
+                                        if (time != null) {
+                                          controller.setDepartureMinutes(
+                                            time.hour * 60 + time.minute,
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: color.primary.withValues(
+                                      alpha: .045,
+                                    ),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(20),
+                                    ),
+                                  ),
+                                  margin: const EdgeInsets.fromLTRB(
+                                    12,
+                                    3,
+                                    12,
+                                    0,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          10,
+                                          0,
+                                          4,
+                                          0,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            /*Icon(
                               Icons.swap_horiz,
                               color: color.primary,
                               size: 18,
                             ),*/
-                            const SizedBox(width: 5),
-                            const Expanded(
-                              child: Text(
-                                '',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            AddExperienceButton(tripId: trip.id, compact: true),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: compact ? 142 : 170,
-                        child: ReorderableListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.only(left: 5),
-                          header: SizedBox(
-                            width: 105,
-                            child: ItineraryEndpointCard(
-                              key: const ValueKey('itinerary-departure'),
-                              departure: true,
-                              label: trip.origin,
-                              selected: originSelected,
-                              onTap: () {
-                                setState(() => segment = -1);
-                                _sheetTo(1);
-                              },
-                            ),
-                          ),
-                          footer: SizedBox(
-                            width: 85,
-                            child: ItineraryEndpointCard(
-                              key: const ValueKey('itinerary-home'),
-                              departure: false,
-                              label: trip.origin,
-                            ),
-                          ),
-                          itemCount: stops.length,
-                          buildDefaultDragHandles: false,
-                          onReorder: _reorder,
-                          itemBuilder: (context, i) => SizedBox(
-                            key: ValueKey(stops[i].id),
-                            width: (bounds.maxWidth * .355).clamp(124, 168),
-                            child: ItinerarySpotCard(
-                              spot: stops[i],
-                              index: i,
-                              stayMinutes:
-                                  trip.stayMinutes[stops[i].id] ??
-                                  stops[i].minutes,
-                              selected:
-                                  !originSelected &&
-                                  (returnSelected
-                                      ? i == stops.length - 1
-                                      : i == index),
-                              first: i == 0,
-                              last: i == stops.length - 1,
-                              compact: compact,
-                              onSelect: () => setState(
-                                () => segment = i == stops.length - 1 ? -2 : i,
-                              ),
-                              onStay: () => _stay(stops[i]),
-                              onPrevious: () => _reorder(i, i - 1),
-                              onNext: () => _reorder(i, i + 2),
-                              onRemove: () => controller.removeStop(stops[i]),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, mapBounds) {
-                      sheetViewportHeight = mapBounds.maxHeight;
-                      minimumSheet = (76 / mapBounds.maxHeight).clamp(.22, .65);
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          ItineraryMap(
-                            key: const ValueKey('itinerary-map'),
-                            origin: trip.origin,
-                          ),
-                          NotificationListener<DraggableScrollableNotification>(
-                            onNotification: (n) {
-                              final next = n.extent < minimumSheet + .08;
-                              if (next != collapsed) {
-                                setState(() => collapsed = next);
-                              }
-                              return false;
-                            },
-                            child: DraggableScrollableSheet(
-                              key: const ValueKey('itinerary-transport-sheet'),
-                              controller: sheet,
-                              initialChildSize: 1,
-                              minChildSize: minimumSheet,
-                              maxChildSize: 1,
-                              snap: true,
-                              snapSizes: [minimumSheet, 1],
-                              snapAnimationDuration: const Duration(
-                                milliseconds: 250,
-                              ),
-                              expand: true,
-                              builder: (context, scroll) =>
-                                  ItineraryTransportSheet(
-                                    collapsed: collapsed,
-                                    onHeaderDragStart: _startHeaderDrag,
-                                    onHeaderDragUpdate: _updateHeaderDrag,
-                                    onHeaderDragEnd: _endHeaderDrag,
-                                    onHeaderDragCancel: _cancelHeaderDrag,
-                                    scrollController: scroll,
-                                    from: from,
-                                    to: to,
-                                    date: trip.travelDate,
-                                    selected: selected,
-                                    data: data,
-                                    journeys: journeys,
-                                    earliestDepartureSeconds:
-                                        earliestDepartureSeconds,
-                                    index: originSelected
-                                        ? 0
-                                        : returnSelected
-                                        ? stops.length
-                                        : index + 1,
-                                    segmentCount: stops.isEmpty
-                                        ? 0
-                                        : stops.length + 1,
-                                    onPrevious:
-                                        !originSelected && stops.isNotEmpty
-                                        ? () => setState(
-                                            () => segment = returnSelected
-                                                ? stops.length > 1
-                                                      ? stops.length - 2
-                                                      : -1
-                                                : index - 1,
-                                          )
-                                        : null,
-                                    onNext: !returnSelected && stops.isNotEmpty
-                                        ? () => setState(
-                                            () => segment = originSelected
-                                                ? stops.length > 1
-                                                      ? 0
-                                                      : -2
-                                                : index < stops.length - 2
-                                                ? index + 1
-                                                : -2,
-                                          )
-                                        : null,
-                                    onRefresh: () {
-                                      ref.invalidate(
-                                        itineraryJourneysProvider(journeyKey),
-                                      );
-                                      if (endpointSelected) {
-                                        ref.invalidate(
-                                          originTransportStopsProvider(
-                                            trip.origin,
+                                            const SizedBox(width: 5),
+                                            const Expanded(
+                                              child: Text(
+                                                '',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                            AddExperienceButton(
+                                              tripId: trip.id,
+                                              compact: true,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        height: compact ? 142 : 170,
+                                        child: ReorderableListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          padding: const EdgeInsets.only(
+                                            left: 5,
                                           ),
-                                        );
-                                      }
-                                      ref.invalidate(
-                                        transportDataProvider(key),
-                                      );
-                                    },
-                                    onSelect: (c) {
-                                      if (from != null && to != null) {
-                                        _select(c, from, to);
-                                      }
-                                    },
-                                    onClear: selected == null
-                                        ? null
-                                        : () => controller.clearTransport(
-                                            from!.id,
-                                            to!.id,
+                                          header: SizedBox(
+                                            width: 105,
+                                            child: ItineraryEndpointCard(
+                                              key: const ValueKey(
+                                                'itinerary-departure',
+                                              ),
+                                              departure: true,
+                                              label: trip.origin,
+                                              selected: originSelected,
+                                              onTap: () {
+                                                setState(() => segment = -1);
+                                                _sheetTo(1);
+                                              },
+                                            ),
                                           ),
-                                    onMap: () => _sheetTo(.22),
-                                    onExpand: () => _sheetTo(1),
+                                          footer: SizedBox(
+                                            width: 85,
+                                            child: ItineraryEndpointCard(
+                                              key: const ValueKey(
+                                                'itinerary-home',
+                                              ),
+                                              departure: false,
+                                              label: trip.origin,
+                                            ),
+                                          ),
+                                          itemCount: stops.length,
+                                          buildDefaultDragHandles: false,
+                                          onReorder: _reorder,
+                                          itemBuilder: (context, i) => SizedBox(
+                                            key: ValueKey(stops[i].id),
+                                            width: (bounds.maxWidth * .355)
+                                                .clamp(124, 168),
+                                            child: ItinerarySpotCard(
+                                              spot: stops[i],
+                                              index: i,
+                                              stayMinutes:
+                                                  trip.stayMinutes[stops[i]
+                                                      .id] ??
+                                                  stops[i].minutes,
+                                              selected:
+                                                  !originSelected &&
+                                                  (returnSelected
+                                                      ? i == stops.length - 1
+                                                      : i == index),
+                                              first: i == 0,
+                                              last: i == stops.length - 1,
+                                              compact: compact,
+                                              onSelect: () => setState(
+                                                () => segment =
+                                                    i == stops.length - 1
+                                                    ? -2
+                                                    : i,
+                                              ),
+                                              onStay: () => _stay(stops[i]),
+                                              onPrevious: () =>
+                                                  _reorder(i, i - 1),
+                                              onNext: () => _reorder(i, i + 2),
+                                              onRemove: () => controller
+                                                  .removeStop(stops[i]),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                ),
+                                const SizedBox(height: 15),
+                              ],
                             ),
                           ),
+                        ),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, mapBounds) {
+                              sheetViewportHeight = mapBounds.maxHeight;
+                              minimumSheet = (76 / mapBounds.maxHeight).clamp(
+                                .22,
+                                .65,
+                              );
+                              return Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ItineraryMap(
+                                    key: const ValueKey('itinerary-map'),
+                                    origin: trip.origin,
+                                  ),
+                                  NotificationListener<
+                                    DraggableScrollableNotification
+                                  >(
+                                    onNotification: (n) {
+                                      final next =
+                                          n.extent < minimumSheet + .08;
+                                      if (next != collapsed) {
+                                        setState(() => collapsed = next);
+                                      }
+                                      return false;
+                                    },
+                                    child: DraggableScrollableSheet(
+                                      key: const ValueKey(
+                                        'itinerary-transport-sheet',
+                                      ),
+                                      controller: sheet,
+                                      initialChildSize: 1,
+                                      minChildSize: minimumSheet,
+                                      maxChildSize: 1,
+                                      snap: true,
+                                      snapSizes: [minimumSheet, 1],
+                                      snapAnimationDuration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      expand: true,
+                                      builder: (context, scroll) =>
+                                          ItineraryTransportSheet(
+                                            collapsed: collapsed,
+                                            onHeaderDragStart: _startHeaderDrag,
+                                            onHeaderDragUpdate:
+                                                _updateHeaderDrag,
+                                            onHeaderDragEnd: _endHeaderDrag,
+                                            onHeaderDragCancel:
+                                                _cancelHeaderDrag,
+                                            scrollController: scroll,
+                                            from: from,
+                                            to: to,
+                                            date: trip.travelDate,
+                                            selected: selected,
+                                            data: data,
+                                            journeys: journeys,
+                                            walkingOnly: walkingOnly,
+                                            earliestDepartureSeconds:
+                                                earliestDepartureSeconds,
+                                            index: originSelected
+                                                ? 0
+                                                : returnSelected
+                                                ? stops.length
+                                                : index + 1,
+                                            segmentCount: stops.isEmpty
+                                                ? 0
+                                                : stops.length + 1,
+                                            onPrevious:
+                                                !originSelected &&
+                                                    stops.isNotEmpty
+                                                ? () => setState(
+                                                    () =>
+                                                        segment = returnSelected
+                                                        ? stops.length > 1
+                                                              ? stops.length - 2
+                                                              : -1
+                                                        : index - 1,
+                                                  )
+                                                : null,
+                                            onNext:
+                                                !returnSelected &&
+                                                    stops.isNotEmpty
+                                                ? () => setState(
+                                                    () =>
+                                                        segment = originSelected
+                                                        ? stops.length > 1
+                                                              ? 0
+                                                              : -2
+                                                        : index <
+                                                              stops.length - 2
+                                                        ? index + 1
+                                                        : -2,
+                                                  )
+                                                : null,
+                                            onRefresh: () {
+                                              ref.invalidate(
+                                                itineraryJourneysProvider(
+                                                  journeyKey,
+                                                ),
+                                              );
+                                              if (endpointSelected) {
+                                                ref.invalidate(
+                                                  originTransportStopsProvider(
+                                                    trip.origin,
+                                                  ),
+                                                );
+                                              }
+                                              ref.invalidate(
+                                                transportDataProvider(key),
+                                              );
+                                            },
+                                            onSelect: (c) {
+                                              if (from != null && to != null) {
+                                                _select(c, from, to);
+                                              }
+                                            },
+                                            onClear: selected == null
+                                                ? null
+                                                : () =>
+                                                      controller.clearTransport(
+                                                        from!.id,
+                                                        to!.id,
+                                                      ),
+                                            onMap: () => _sheetTo(.22),
+                                            onExpand: () => _sheetTo(1),
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          if (isEmpty)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.white.withValues(alpha: .8),
+                child: SafeArea(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 28,
+                        vertical: 24,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.route_outlined,
+                            size: 56,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'まだ体験が保存されていません',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xff151515),
+                              shadows: [
+                                Shadow(color: Colors.white, blurRadius: 8),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '体験を保存すると、旅程の作成ができます。',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: color.onSurfaceVariant,
+                              fontWeight: FontWeight.w800,
+                              height: 1.7,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          FindExperiencesButton(onPressed: _searchExperiences),
                         ],
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            );
-          },
-        ),
+              ),
+            ),
+        ],
       ),
     );
   }

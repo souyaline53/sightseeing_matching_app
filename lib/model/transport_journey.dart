@@ -58,6 +58,7 @@ class TransportJourney {
 class JourneySearchResult {
   final List<TransportJourney> journeys;
   final List<String> warnings;
+  final bool walkingOnly;
   factory JourneySearchResult(Json data) {
     final pool = data['journeyPool'] as Map?;
     dynamic rows = data['journeys'];
@@ -80,7 +81,8 @@ class JourneySearchResult {
           .map((r) => TransportJourney(Map<String, dynamic>.from(r as Map)))
           .toList(),
       (data['warnings'] as List? ?? []).cast<String>(),
+      data['walkingOnly'] == true,
     );
   }
-  JourneySearchResult._(this.journeys, this.warnings);
+  JourneySearchResult._(this.journeys, this.warnings, this.walkingOnly);
 }

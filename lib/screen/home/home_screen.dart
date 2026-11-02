@@ -1,3 +1,4 @@
+import '../../widgets/find_experiences_button.dart';
 import '../../data/catalog_data.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -60,7 +61,7 @@ class HomeScreen extends HookConsumerWidget {
             icon: const Icon(Icons.menu),
           ),
         ),
-        title: const Text('TABISAKI'),
+        title: const Text('ホーム'),
         actions: [if (trip != null) TripActionsMenu(trip: trip)],
       ),
       drawer: TripsDrawer(onNewTrip: search),
@@ -174,7 +175,7 @@ class _EmptyHome extends HookConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          '行きたい気分から、新しいワクワクを見つけよう',
+                          '体験を保存すると、旅程の作成ができます。',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
@@ -182,20 +183,7 @@ class _EmptyHome extends HookConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 28),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 18,
-                              ),
-                            ),
-                            onPressed: onSearch,
-                            icon: const Icon(Icons.explore_outlined),
-                            label: const Text('新しい旅を探す'),
-                          ),
-                        ),
+                        FindExperiencesButton(onPressed: onSearch),
                       ],
                     ),
                   ),

@@ -24,6 +24,12 @@ class MyApp extends HookConsumerWidget {
       ),
       appBarTheme: const AppBarTheme(
         centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontFamily: 'NotoSansJP',
+          fontSize: 26,
+          fontWeight: FontWeight.bold,
+          color: Color(0xff1a1c19),
+        ),
         backgroundColor: Color(0xfffafbf8),
       ),
       inputDecorationTheme: const InputDecorationTheme(

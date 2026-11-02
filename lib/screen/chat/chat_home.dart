@@ -35,6 +35,7 @@ class ChatHome extends HookConsumerWidget {
         account.details != null &&
         !account.profileLoading;
     return Scaffold(
+      appBar: AppBar(title: const Text('チャット', style: TextStyle(fontSize: 26))),
       floatingActionButton: ready
           ? FloatingActionButton(
               heroTag: 'start-chat',
@@ -49,28 +50,6 @@ class ChatHome extends HookConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'COMMUNITY',
-                    style: TextStyle(
-                      fontSize: 11,
-                      letterSpacing: 2.5,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'チャット',
-                    style: TextStyle(fontSize: 29, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: account.loading || account.profileLoading
                   ? const Center(child: CircularProgressIndicator())

@@ -19,6 +19,7 @@ class ItineraryTransportSheet extends StatelessWidget {
   final AsyncValue<TransportData> data;
   final AsyncValue<JourneySearchResult>? journeys;
   final int earliestDepartureSeconds;
+  final bool walkingOnly;
   final int index, segmentCount;
   final bool collapsed;
   final VoidCallback? onPrevious, onNext, onClear;
@@ -35,6 +36,7 @@ class ItineraryTransportSheet extends StatelessWidget {
     required this.selected,
     required this.data,
     this.journeys,
+    this.walkingOnly = false,
     this.earliestDepartureSeconds = 8 * 3600,
     required this.index,
     required this.segmentCount,
@@ -267,6 +269,14 @@ class ItineraryTransportSheet extends StatelessWidget {
   }
 
   Widget _results(BuildContext context) {
+    if (walkingOnly ||
+        journeys?.value?.walkingOnly == true ||
+        sharesAccessStop(from!.accessStops, to!.accessStops)) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Text('徒歩のみ', key: ValueKey('walking-only')),
+      );
+    }
     final d = data.value ?? TransportData([], [], [], [], []);
     final local = findCandidates(
       trips: d.trips,

@@ -1,3 +1,6 @@
+import '../../repository/transport_journey_repository.dart';
+import '../../repository/transport_repository.dart';
+import '../../service/transport/itinerary_transport_options.dart';
 import '../../model/transport_journey.dart';
 import 'transport_journey_panel.dart';
 import '../../model/stop_selection.dart';
@@ -51,6 +54,25 @@ class PlanScreen extends HookConsumerWidget {
     final date = livePlan == null ? this.date : livePlan.travelDate;
     final publicTransport = livePlan?.publicTransport ?? this.publicTransport;
     final conditions = livePlan?.conditions ?? this.conditions;
+    final originProvider = originTransportStopsProvider(origin);
+    final originStops = ref.exists(originProvider)
+        ? ref.watch(originProvider).value
+        : null;
+    final originPoint = Experience(
+      livePlan?.originEndpointId ?? TripState.departureEndpointId(origin),
+      origin,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      0,
+      accessStops: [
+        for (final stop in originStops ?? <TransportStop>[])
+          AccessStop({'stopId': stop.id, 'walkingMinutes': null}),
+      ],
+    );
     return Scaffold(
       appBar: AppBar(title: Text(demo ? 'デモ用の旅程' : 'マイプラン')),
       floatingActionButton: demo
@@ -103,25 +125,11 @@ class PlanScreen extends HookConsumerWidget {
             ),
           for (var i = 0; i < stops.length; i++) ...[
             const SizedBox(height: 16),
-            if (publicTransport &&
-                livePlan != null &&
-                livePlan.transportSelections.any(
-                  (s) =>
-                      s.from ==
-                          (i == 0
-                              ? livePlan.originEndpointId
-                              : stops[i - 1].id) &&
-                      s.to == stops[i].id,
-                ))
-              _SelectedTransportCard(
-                selection: livePlan.transportSelections.firstWhere(
-                  (s) =>
-                      s.from ==
-                          (i == 0
-                              ? livePlan.originEndpointId
-                              : stops[i - 1].id) &&
-                      s.to == stops[i].id,
-                ),
+            if (publicTransport && livePlan != null)
+              _SegmentTransport(
+                trip: livePlan,
+                from: i == 0 ? originPoint : stops[i - 1],
+                to: stops[i],
               )
             else if (publicTransport)
               const Card(
@@ -148,25 +156,17 @@ class PlanScreen extends HookConsumerWidget {
               ),
             ),
           ],
-          if (publicTransport &&
-              stops.isNotEmpty &&
-              livePlan != null &&
-              livePlan.transportSelections.any(
-                (s) =>
-                    s.from == stops.last.id &&
-                    s.to == livePlan.originEndpointId,
-              )) ...[
+          if (publicTransport && stops.isNotEmpty && livePlan != null) ...[
             ListTile(
               leading: const Icon(Icons.home_outlined),
               title: Text('${stops.last.displayName} → $origin'),
               subtitle: const Text('帰路'),
             ),
-            _SelectedTransportCard(
-              selection: livePlan.transportSelections.firstWhere(
-                (s) =>
-                    s.from == stops.last.id &&
-                    s.to == livePlan.originEndpointId,
-              ),
+            _SegmentTransport(
+              trip: livePlan,
+              from: stops.last,
+              to: originPoint,
+              showUnselected: false,
             ),
           ],
           const SizedBox(height: 20),
@@ -180,6 +180,43 @@ class PlanScreen extends HookConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SegmentTransport extends ConsumerWidget {
+  final TripState trip;
+  final Experience from, to;
+  final bool showUnselected;
+  const _SegmentTransport({
+    required this.trip,
+    required this.from,
+    required this.to,
+    this.showUnselected = true,
+  });
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final provider = itineraryJourneysProvider(
+      itineraryJourneyKey(trip, from, to),
+    );
+    // Reuse an already requested classification; opening the booklet does not start a search.
+    final cached = ref.exists(provider) ? ref.watch(provider).value : null;
+    if (sharesAccessStop(from.accessStops, to.accessStops) ||
+        cached?.walkingOnly == true) {
+      return const Card(
+        child: Padding(padding: EdgeInsets.all(16), child: Text('徒歩のみ')),
+      );
+    }
+    final selected = trip.transportSelections
+        .where((s) => s.from == from.id && s.to == to.id)
+        .firstOrNull;
+    if (selected != null) return _SelectedTransportCard(selection: selected);
+    if (!showUnselected) return const SizedBox.shrink();
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('交通便は未選択です。旅程編集画面で登録済みの便を選んでください。'),
       ),
     );
   }

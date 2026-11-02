@@ -66,3 +66,13 @@ test("endpoint prohibited movement cannot be bypassed by automatic expansion",()
   const net=prepareNetwork([data(stops(),[trip("t","b","end",32000,33000)],[rule])]);
   assert.equal(searchJourneys(net,q("a","end")).journeys.length,0);
 });
+
+test("same-name 500m endpoints prefer walking, but distant names and prohibited movement do not",()=>{
+  const rows=[stop("a",0),stop("b",500),stop("c",1001)];
+  const net=prepareNetwork([data(rows)]);
+  assert.equal(searchJourneys(net,q("a","b")).walkingOnly,true);
+  assert.notEqual(searchJourneys(net,q("a","c")).walkingOnly,true);
+  const rule={id:"no-walk",sourceType:"manual",verificationStatus:"verified",fromStopId:"a",toStopId:"b",transferType:3};
+  assert.notEqual(searchJourneys(prepareNetwork([data(rows,[],[rule])]),q("a","b")).walkingOnly,true);
+  assert.equal(searchJourneys(prepareNetwork([data(rows,[],[rule])]),q("b","a")).walkingOnly,true);
+});

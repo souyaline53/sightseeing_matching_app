@@ -71,7 +71,7 @@ async function searchTransportJourneys(request, db, bucket) {
     if (loaded.results.size > 32) loaded.results.delete(loaded.results.keys().next().value);
   }
   const result = { ...base, warnings: [...base.warnings], stats: { ...base.stats } };
-  result.warnings.push(...loaded.warnings, "区間運賃・乗継割引は未確認です。検索範囲は出発から48時間以内です。");
+  if (!result.walkingOnly) result.warnings.push(...loaded.warnings, "区間運賃・乗継割引は未確認です。検索範囲は出発から48時間以内です。");
   result.versions = loaded.versions;
   result.stats.elapsedMs = Date.now() - start;
   result.stats.cacheHit = cacheHit;

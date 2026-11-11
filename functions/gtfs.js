@@ -108,14 +108,15 @@ function parseGtfs(files, feedId) {
     "pass_rules",
     "frequencies",
     "transfers",
+    "train_types",
   ];
   for (const [file, content] of Object.entries(files)) {
-    if (!known.includes(file.replace(/\.txt$/, ""))) {
+    if (!known.includes(file.replace(/\.(txt|csv)$/, ""))) {
       warnings.push(`${file}: 未対応。原本のみ保持します`);
       continue;
     }
     try {
-      tables[file.replace(".txt", "")] = csv(content, file);
+      tables[file.replace(/\.(txt|csv)$/, "")] = csv(content, file);
     } catch (e) {
       errors.push(e.message);
     }
@@ -271,6 +272,13 @@ function parseGtfs(files, feedId) {
       routeLongName: r.route_long_name,
       routeType: Number(r.route_type),
     });
+  });
+  each("train_types", (r) => {
+    required(r, ["route_id", "train_type"]);
+    ref("routes", r.route_id);
+    const route = maps.routes.get(r.route_id);
+    route.trainType = r.train_type;
+    route.requiresLimitedExpress = r.train_type === "limited_express";
   });
   each("calendar", (r) => {
     required(r, ["service_id", "start_date", "end_date"]);

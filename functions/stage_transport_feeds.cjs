@@ -9,14 +9,15 @@ const {
   immutableSave,
   publishBundle,
 } = require("./transport_bundle");
-const folders = ["yutetsu_bus", "hokkaido_chuo"];
+const jr = process.argv.includes("--jr-hokkaido");
+const folders = jr ? ["jr_hokkaido"] : ["yutetsu_bus", "hokkaido_chuo"];
 (async () => {
   const inputs = folders.map((feedId) => {
-    const dir = path.join("docs/transport", feedId),
+    const dir = jr ? "assets/jr_all_combined_with_train_types" : path.join("docs/transport", feedId),
       files = Object.fromEntries(
         fs
           .readdirSync(dir)
-          .filter((n) => n.endsWith(".txt"))
+          .filter((n) => n.endsWith(".txt") || n === "train_types.csv")
           .map((n) => [n, fs.readFileSync(path.join(dir, n))]),
       );
     const parsed = parseFiles(files, feedId);
@@ -138,7 +139,7 @@ const folders = ["yutetsu_bus", "hokkaido_chuo"];
   }
   fs.mkdirSync(".local-backups", { recursive: true });
   fs.writeFileSync(
-    ".local-backups/transport-storage-upload-report.json",
+    `.local-backups/${jr ? "jr-hokkaido" : "transport"}-storage-upload-report.json`,
     JSON.stringify(
       { projectId, createdAt: new Date().toISOString(), feeds: reports },
       null,

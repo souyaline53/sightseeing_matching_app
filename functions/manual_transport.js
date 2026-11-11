@@ -98,7 +98,6 @@ async function saveManualTransport(request, db, bucket) {
   if (collection === "transport_transfers") {
     data.transferType = Number(data.transferType);
     if (![2, 3].includes(data.transferType) || !Number.isInteger(data.minTransferSeconds) || data.minTransferSeconds < 0 || data.minTransferSeconds > 86400) fail("乗換種別・必要時間（秒）を確認してください");
-    if (data.verificationStatus === "verified" && (!/^https?:\/\//.test(data.sourceUrl || "") || !/^\d{4}-\d{2}-\d{2}$/.test(data.sourceCheckedAt || ""))) fail("確認済み接続は情報源URL・確認日が必要です");
     for (const key of ["fromStopId", "toStopId"]) if (typeof data[key] !== "string" || !/^[A-Za-z0-9_~-]{1,1400}$/.test(data[key])) fail("乗換停留所ID不正");
     if (data.fromStopId === data.toStopId) fail("別乗り場への片方向の接続を登録してください");
     if ([data.fromStopId, data.toStopId].some((id) => id.includes("~"))) {

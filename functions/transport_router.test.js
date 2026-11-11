@@ -26,7 +26,7 @@ test("without coordinates, name / zone / parent alone do not connect platforms",
   assert.equal(searchJourneys(network(trips,stops,[edge("a","b")]),query()).journeys.length,1);
   assert.equal(searchJourneys(network(trips,stops,[edge("b","a")]),query()).journeys.length,0);
   assert.equal(searchJourneys(network(trips,stops,[edge("a","b",null)]),query()).journeys.length,0);
-  assert.equal(searchJourneys(network(trips,stops,[edge("a","b",180,{sourceType:"manual",verificationStatus:"unverified"})]),query()).journeys.length,0);
+  assert.equal(searchJourneys(network(trips,stops,[edge("a","b",180,{sourceType:"manual",verificationStatus:"unverified"})]),query()).journeys.length,1);
 });
 test("transfer minimum and pickup/dropoff apply in exact seconds", () => {
   const stops=[stop("p0"),stop("a"),stop("p6")];
@@ -135,5 +135,26 @@ test("shared exact stop returns walking only before scanning a looping trip, wit
     assert.equal(result.walkingOnly,true);assert.deepEqual(result.journeys,[]);
     assert.equal(result.stats.scannedStopTimes,0);assert.equal(result.stats.tripInstances,0);
     assert.equal(result.arrivalSeconds,undefined);assert.equal(result.walkingMinutes,undefined);
+  }
+});
+
+test("paid express metadata reaches journeys while slower ordinary alternatives remain available", () => {
+  const net = prepareNetwork([{
+    stops: [stop('p0'), stop('p6')], services: [service],
+    routes: [{id:'r',name:'普通'}, {id:'paid',name:'特急',trainType:'limited_express',requiresLimitedExpress:true}],
+    trips: [trip('local','p0','p6',28800,32000), {...trip('express','p0','p6',28900,30000),routeId:'paid'}],
+  }]);
+  const journeys = searchJourneys(net, {...query(), timetable:true}).journeys;
+  assert.ok(journeys.some(j => j.legs[0].tripId === 'local' && !j.legs[0].requiresLimitedExpress));
+  assert.ok(journeys.some(j => j.legs[0].tripId === 'express' && j.legs[0].requiresLimitedExpress));
+});
+
+ test("manual connections need no verification status but inactive and sample connections stay excluded", () => {
+  const stops = [stop("p0"), stop("a"), stop("b"), stop("p6")];
+  const trips = [trip("first", "p0", "a", 28800, 29400), trip("next", "b", "p6", 30000, 30600)];
+  const rule = edge("a", "b", 300, {sourceType:"manual"});
+  assert.equal(searchJourneys(network(trips, stops, [rule]), query()).journeys.length, 1);
+  for (const extra of [{isActive:false}, {sourceType:"sample"}, {verificationStatus:"sample"}]) {
+    assert.equal(searchJourneys(network(trips, stops, [{...rule, ...extra}]), query()).journeys.length, 0);
   }
 });

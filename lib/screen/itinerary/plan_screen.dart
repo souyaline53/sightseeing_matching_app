@@ -1,3 +1,8 @@
+import '../../state/itinerary_navigation.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../data/departure_places.dart';
+import '../../service/transport/external_directions.dart';
 import '../../widgets/travel_photo.dart';
 import '../recommendation/experience_detail.dart';
 import '../../repository/transport_journey_repository.dart';
@@ -60,6 +65,10 @@ class PlanScreen extends HookConsumerWidget {
     final originStops = ref.exists(originProvider)
         ? ref.watch(originProvider).value
         : null;
+    final departure = departureNamed(
+      origin,
+      ref.watch(departurePlacesProvider).value ?? const <DeparturePlace>[],
+    );
     final originPoint = Experience(
       livePlan?.originEndpointId ?? TripState.departureEndpointId(origin),
       origin,
@@ -70,14 +79,21 @@ class PlanScreen extends HookConsumerWidget {
       '',
       '',
       0,
+      latitude: departure?.point.latitude,
+      longitude: departure?.point.longitude,
       accessStops: [
         for (final stop in originStops ?? <TransportStop>[])
           AccessStop({'walkingMinutes': null, ...stop.data, 'stopId': stop.id}),
       ],
     );
-    void editPlan() {
+    void editPlan({int? transportSegment}) {
       if (tripId != null) {
         ref.read(tripProvider.notifier).openPlan(tripId!);
+      }
+      if (transportSegment != null) {
+        ref
+            .read(itineraryTransportRequestProvider.notifier)
+            .open(transportSegment);
       }
       ref.read(appTabProvider.notifier).select(AppTab.itinerary);
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -191,7 +207,10 @@ class PlanScreen extends HookConsumerWidget {
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const Icon(Icons.report_outlined, color: Color(0xffa83333)),
+                        const Icon(
+                          Icons.report_outlined,
+                          color: Color(0xffa83333),
+                        ),
                         Text(
                           '未設定の移動が$missing件あります',
                           style: const TextStyle(
@@ -199,7 +218,21 @@ class PlanScreen extends HookConsumerWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        if (!demo) _ChooseTransport(onTap: editPlan),
+                        if (!demo)
+                          _ChooseTransport(
+                            onTap: () {
+                              final index = segments.indexWhere(
+                                (s) => !s.walking && s.selection == null,
+                              );
+                              editPlan(
+                                transportSegment: index == 0
+                                    ? -1
+                                    : index == stops.length
+                                    ? -2
+                                    : index - 1,
+                              );
+                            },
+                          ),
                       ],
                     ),
                   ),
@@ -221,7 +254,9 @@ class PlanScreen extends HookConsumerWidget {
                   child: _SegmentRow(
                     segment: segments[i],
                     publicTransport: publicTransport,
-                    onChoose: demo ? null : editPlan,
+                    onChoose: demo
+                        ? null
+                        : () => editPlan(transportSegment: i == 0 ? -1 : i - 1),
                   ),
                 ),
                 _TimelineRow(
@@ -294,7 +329,9 @@ class PlanScreen extends HookConsumerWidget {
                     segment: segments.last,
                     publicTransport: publicTransport,
                     returning: true,
-                    onChoose: demo ? null : editPlan,
+                    onChoose: demo
+                        ? null
+                        : () => editPlan(transportSegment: -2),
                   ),
                 ),
                 _TimelineRow(
@@ -392,6 +429,17 @@ class _SegmentRow extends StatelessWidget {
         ?.map((l) => l['routeName'])
         .whereType<String>()
         .join(' → ');
+    final directions = externalDirectionsUri(
+      s.from,
+      s.to,
+      mode: s.walking
+          ? DirectionsMode.walking
+          : publicTransport
+          ? DirectionsMode.transit
+          : DirectionsMode.driving,
+      platform: defaultTargetPlatform,
+      web: kIsWeb,
+    );
     return InkWell(
       key: s.selection == null || s.walking
           ? null
@@ -482,6 +530,41 @@ class _SegmentRow extends StatelessWidget {
                       '${transportTime(s.departure)} → ${transportTime(s.arrival)}',
                       style: const TextStyle(fontSize: 13),
                     ),
+                  TextButton.icon(
+                    onPressed: directions == null
+                        ? null
+                        : () async {
+                            var opened = false;
+                            try {
+                              opened = await launchUrl(
+                                directions,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            } catch (_) {
+                              opened = false;
+                            }
+                            if (!opened && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('マップを開けませんでした。時間をおいてお試しください。'),
+                                ),
+                              );
+                            }
+                          },
+                    style: TextButton.styleFrom(
+                      foregroundColor: _green,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 0,
+                        vertical: 6,
+                      ),
+                      alignment: Alignment.centerLeft,
+                    ),
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: Text(
+                      directions == null ? '位置情報未登録' : 'マップで経路を見る',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
                 ],
               ),
             ),

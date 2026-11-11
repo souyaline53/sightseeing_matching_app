@@ -11,7 +11,7 @@ import '../../repository/transport_repository.dart';
 import '../../service/transport/transport_search.dart';
 import 'transport_timetable.dart';
 
-class ItineraryTransportSheet extends StatelessWidget {
+class ItineraryTransportSheet extends StatefulWidget {
   final ScrollController scrollController;
   final Experience? from, to;
   final DateTime? date;
@@ -53,6 +53,36 @@ class ItineraryTransportSheet extends StatelessWidget {
     required this.onHeaderDragCancel,
     this.collapsed = false,
   });
+  @override
+  State<ItineraryTransportSheet> createState() =>
+      _ItineraryTransportSheetState();
+}
+
+class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
+  bool _useLimitedExpress = false;
+  ScrollController get scrollController => widget.scrollController;
+  Experience? get from => widget.from;
+  Experience? get to => widget.to;
+  DateTime? get date => widget.date;
+  TransportSelection? get selected => widget.selected;
+  AsyncValue<TransportData> get data => widget.data;
+  AsyncValue<JourneySearchResult>? get journeys => widget.journeys;
+  int get earliestDepartureSeconds => widget.earliestDepartureSeconds;
+  bool get walkingOnly => widget.walkingOnly;
+  int get index => widget.index;
+  int get segmentCount => widget.segmentCount;
+  bool get collapsed => widget.collapsed;
+  VoidCallback? get onPrevious => widget.onPrevious;
+  VoidCallback? get onNext => widget.onNext;
+  VoidCallback? get onClear => widget.onClear;
+  VoidCallback get onRefresh => widget.onRefresh;
+  VoidCallback get onMap => widget.onMap;
+  VoidCallback get onExpand => widget.onExpand;
+  ValueChanged<TransportCandidate> get onSelect => widget.onSelect;
+  VoidCallback get onHeaderDragStart => widget.onHeaderDragStart;
+  VoidCallback get onHeaderDragCancel => widget.onHeaderDragCancel;
+  ValueChanged<double> get onHeaderDragUpdate => widget.onHeaderDragUpdate;
+  ValueChanged<double> get onHeaderDragEnd => widget.onHeaderDragEnd;
   bool matches(TransportCandidate c) =>
       c.journey != null && selected?.data['journey'] is Map
       ? c.journey!.id == (selected!.data['journey'] as Map)['id']
@@ -274,7 +304,10 @@ class ItineraryTransportSheet extends StatelessWidget {
         sharesAccessStop(from!.accessStops, to!.accessStops)) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 18),
-        child: Text('徒歩のみ', key: ValueKey('walking-only')),
+        child: Text(
+          'この区間は徒歩のみで移動することができます。詳細は旅のしおりのマップからご確認いただけます。',
+          key: ValueKey('walking-only'),
+        ),
       );
     }
     final d = data.value ?? TransportData([], [], [], [], []);
@@ -310,25 +343,53 @@ class ItineraryTransportSheet extends StatelessWidget {
       }
       merged[identity(c)] = c;
     }
-    final candidates =
+    final availableCandidates =
         merged.values
             .where(
               (c) => candidateDepartureSeconds(c) >= earliestDepartureSeconds,
             )
             .toList()
-          ..sort(
-            (a, b) =>
-                (a.boarding.data['departureSeconds'] as int? ??
-                        a.boarding.departure! * 60)
+          ..sort((a, b) {
+            final arrivalOrder =
+                (a.alighting.data['arrivalSeconds'] as int? ??
+                        a.alighting.arrival! * 60)
                     .compareTo(
-                      b.boarding.data['departureSeconds'] as int? ??
-                          b.boarding.departure! * 60,
-                    ),
-          );
+                      b.alighting.data['arrivalSeconds'] as int? ??
+                          b.alighting.arrival! * 60,
+                    );
+            if (arrivalOrder != 0) return arrivalOrder;
+            return (a.boarding.data['departureSeconds'] as int? ??
+                    a.boarding.departure! * 60)
+                .compareTo(
+                  b.boarding.data['departureSeconds'] as int? ??
+                      b.boarding.departure! * 60,
+                );
+          });
+    final hasLimitedExpress = availableCandidates.any(
+      (c) => c.requiresLimitedExpress,
+    );
+    final candidates = availableCandidates
+        .where((c) => _useLimitedExpress || !c.requiresLimitedExpress)
+        .toList();
     final hasSelected = candidates.any(matches);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (hasLimitedExpress)
+          SwitchListTile(
+            key: const ValueKey('use-limited-express'),
+            title: const Text('有料特急を使う'),
+            value: _useLimitedExpress,
+            onChanged: (value) {
+              setState(() => _useLimitedExpress = value);
+              if (!value &&
+                  availableCandidates.any(
+                    (c) => matches(c) && c.requiresLimitedExpress,
+                  )) {
+                onClear?.call();
+              }
+            },
+          ),
         if (data.isLoading || journeys?.isLoading == true)
           const Padding(
             padding: EdgeInsets.all(14),
@@ -348,8 +409,10 @@ class ItineraryTransportSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 18),
             child: Text(
               from!.accessStops.isEmpty || to!.accessStops.isEmpty
-                  ? '最寄り駅・バス停が未登録です。\nこの区間の交通情報は未登録です。'
-                  : 'この時刻以降の候補がありません。',
+                  ? 'この区間の交通情報は未登録です。\n申し訳ありませんが、旅のしおりの「マップで経路を見る」から交通手段をご確認ください。'
+                  : hasLimitedExpress && !_useLimitedExpress
+                  ? '有料特急を使わない候補はありません。スイッチをオンにすると有料特急の候補を確認できます。'
+                  : '候補を検索できませんでした。\n詳細は旅のしおりの「マップで経路を見る」から交通手段をご確認ください。',
             ),
           ),
         for (var i = 0; i < candidates.length; i++)
@@ -459,7 +522,7 @@ class ItineraryTransportSheet extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              c.fare == null ? '運賃\n未確認' : '¥${c.fare}',
+              c.fare == null ? '運賃未確認' : '¥${c.fare}',
               style: const TextStyle(fontSize: 11),
             ),
           ],

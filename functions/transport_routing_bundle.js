@@ -9,7 +9,7 @@ function routingData(data, versionId) {
   return {
     stops,
     sameNameConnections: buildSameNameConnections(stops),
-    routes: data.routes.filter((r) => r.isActive !== false).map((r) => ({ id: r.id, name: r.name, feedId: r.feedId })),
+    routes: data.routes.filter((r) => r.isActive !== false).map((r) => ({ id: r.id, name: r.name, feedId: r.feedId, trainType: r.trainType || null, requiresLimitedExpress: r.requiresLimitedExpress === true })),
     services: data.services,
     trips: data.trips.filter((t) => t.isActive !== false && !t.frequencyBased && t.sourceType !== "sample" && t.verificationStatus !== "sample").map((t) => ({
       id: t.id, routeId: t.routeId, serviceId: t.serviceId, headsign: t.headsign,

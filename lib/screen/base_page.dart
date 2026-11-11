@@ -12,6 +12,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import '../state/trip_state.dart';
 import 'recommendation/recommendation_home.dart';
 import 'itinerary/itinerary_home.dart';
+import 'preparing_page.dart';
 
 class BasePage extends HookConsumerWidget {
   const BasePage({super.key});
@@ -85,9 +86,10 @@ class BasePage extends HookConsumerWidget {
                       ? const ItineraryHome()
                       : const _CatalogNotice(),
                   catalog.hasValue ? const PostsHome() : const _CatalogNotice(),
-                  chatOpened.value || tab == AppTab.chat.index
+                  /*chatOpened.value || tab == AppTab.chat.index
                       ? const ChatHome()
-                      : const SizedBox.shrink(),
+                      : const SizedBox.shrink(),*/
+                  const PreparingPage(),
                   const ProfileHome(),
                 ],
               ),

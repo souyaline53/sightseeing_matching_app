@@ -17,6 +17,16 @@ class TransportCandidate {
         : '$stopName／${transportDirection(destination)}';
   }
 
+  bool get requiresLimitedExpress =>
+      route.data['trainType'] == 'limited_express' ||
+      route.data['requiresLimitedExpress'] == true ||
+      (journey?.legs.any(
+            (l) =>
+                l['trainType'] == 'limited_express' ||
+                l['requiresLimitedExpress'] == true,
+          ) ??
+          false);
+
   String get status =>
       route.data['sourceType'] == 'sample' ||
           route.data['verificationStatus'] == 'sample'

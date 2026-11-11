@@ -8,7 +8,6 @@ import 'transport_edit_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../repository/transport_repository.dart';
-import '../../model/transport.dart';
 import '../../service/cloud/cloud_services.dart';
 
 class TransportAdminScreen extends ConsumerStatefulWidget {
@@ -202,7 +201,7 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
             Padding(
               padding: const EdgeInsets.all(12),
               child: Text(
-                '① 事業者 → 停留所 → 路線 → 運行日 → 便 → 運賃の順に登録\n② 登録済みの候補から路線や駅・バス停を選ぶ\n③ 時刻表の行を追加し、停車順と時刻を入力（例 08:10 / 25:10）\n④ 観光地編集で最寄り停留所を追加。徒歩時間不明は空欄\n⑤ 実データは情報源と確認状態を記録する。',
+                '① 事業者 → 停留所 → 路線 → 運行日 → 便 → 運賃の順に登録\n② 登録済みの候補から路線や駅・バス停を選ぶ\n③ 時刻表の行を追加し、停車順と時刻を入力（例 08:10 / 25:10）\n④ 観光地編集で最寄り停留所を追加。徒歩時間不明は空欄\n⑤ 必要に応じて情報源を記録する。',
               ),
             ),
           ],
@@ -227,9 +226,7 @@ class _TransportAdminState extends ConsumerState<TransportAdminScreen> {
                   for (final r in snapshot.data!)
                     ListTile(
                       title: Text('${r['name'] ?? r['headsign'] ?? r['id']}'),
-                      subtitle: Text(
-                        '${r['id']} / ${verificationLabel(r['verificationStatus'] as String? ?? 'unverified')}',
-                      ),
+                      subtitle: Text('${r['id']}'),
                       onTap: () => edit(r),
                       trailing: IconButton(
                         tooltip: '複製して追加',

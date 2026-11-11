@@ -85,3 +85,14 @@ test("passes remain isolated from single fares and missing extension IDs are nev
   f["pass_rules.txt"] = "custom_id,route_id\nx,01\n";
   assert.equal(parseGtfs(f, "test").data.passes[0].rules.length, 0);
 });
+
+test("custom train types survive parsing and reject missing route references", () => {
+  const f = fixture();
+  f['train_types.csv'] = '\ufeffroute_id,train_type,requires_limited_express\n01,limited_express,1\n';
+  const p = parseGtfs(f, 'jr');
+  assert.deepEqual(p.errors, []);
+  assert.equal(p.data.routes[0].trainType, 'limited_express');
+  assert.equal(p.data.routes[0].requiresLimitedExpress, true);
+  f['train_types.csv'] = 'route_id,train_type\nmissing,limited_express\n';
+  assert.ok(parseGtfs(f, 'jr').errors.length);
+});

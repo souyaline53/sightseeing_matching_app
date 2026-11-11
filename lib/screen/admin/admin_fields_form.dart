@@ -45,7 +45,6 @@ Map<String, dynamic> prepareAdminData(
       data[f.key] = switch (f.key) {
         'timezone' => 'Asia/Tokyo',
         'sourceType' => 'manual',
-        'verificationStatus' => 'unverified',
         _ => null,
       };
     } else if (f.type == AdminInput.date && v != null) {

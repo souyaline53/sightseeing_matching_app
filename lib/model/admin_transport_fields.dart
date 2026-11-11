@@ -40,11 +40,6 @@ class AdminField {
   });
 }
 
-const statuses = {
-  'verified': '確認済み',
-  'needsReview': '再確認が必要',
-  'unverified': '未確認',
-};
 const sourceTypes = {'manual': '手動登録', 'official': '公式情報'};
 const provenance = [
   AdminField('isActive', '有効な情報', type: AdminInput.toggle),
@@ -56,12 +51,6 @@ const provenance = [
   ),
   AdminField('sourceUrl', '情報源のURL', type: AdminInput.url),
   AdminField('sourceCheckedAt', '情報の最終確認日', type: AdminInput.date),
-  AdminField(
-    'verificationStatus',
-    '確認状態',
-    type: AdminInput.choice,
-    options: statuses,
-  ),
 ];
 const stopTimeFields = [
   AdminField(

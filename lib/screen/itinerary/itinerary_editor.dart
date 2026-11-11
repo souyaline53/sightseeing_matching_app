@@ -1,3 +1,4 @@
+import '../../state/itinerary_navigation.dart';
 import '../../widgets/find_experiences_button.dart';
 import '../../state/app_tab.dart';
 import '../../state/discovery_state.dart';
@@ -241,6 +242,19 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final transportRequest = ref.watch(itineraryTransportRequestProvider);
+    if (transportRequest != null) {
+      segment = transportRequest;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted ||
+            !sheet.isAttached ||
+            ref.read(itineraryTransportRequestProvider) != transportRequest) {
+          return;
+        }
+        ref.read(itineraryTransportRequestProvider.notifier).clear();
+        _sheetTo(1);
+      });
+    }
     final trip = ref.watch(tripProvider);
     final controller = ref.read(tripProvider.notifier);
     final catalog = ref.watch(catalogProvider).value;

@@ -10,6 +10,7 @@ const FORMAT = 2,
 const hash = (b) => createHash("sha256").update(b).digest("hex");
 const shard = (id) => hash(id).slice(0, 2);
 const standardFiles = {
+  "train_types.csv": "任意：路線別の独自列車種別",
   "agency.txt": "必須：交通事業者",
   "stops.txt": "必須：駅・停留所",
   "routes.txt": "必須：路線",
@@ -38,7 +39,7 @@ function inspectFiles(files) {
   const canonical = createHash("sha256"),
     sourceFiles = [];
   for (const name of names) {
-    if (!/^[a-z][a-z0-9_]*\.txt$/.test(name))
+    if (name !== "train_types.csv" && !/^[a-z][a-z0-9_]*\.txt$/.test(name))
       throw Error(`ファイル名を標準名へ変更してください: ${name}`);
     const raw = Buffer.isBuffer(files[name])
       ? files[name]

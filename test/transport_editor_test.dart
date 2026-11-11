@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/screen/itinerary/itinerary_transport_sheet.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
@@ -366,6 +367,25 @@ void main() {
       tester.view.resetViewInsets();
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).title, '週末の小さな旅');
+      // Returning from the booklet must expand a previously collapsed sheet.
+      sheet.controller!.jumpTo(sheet.minChildSize);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
+      await tester.pumpAndSettle();
+      final chooseTransport = find.text('交通を選択 ›');
+      await tester.ensureVisible(chooseTransport);
+      await tester.tap(chooseTransport);
+      await tester.pumpAndSettle();
+      expect(find.byType(PlanScreen), findsNothing);
+      expect(sheet.controller!.size, closeTo(1, .001));
+      final transportSheet = tester.widget<ItineraryTransportSheet>(
+        find.byType(ItineraryTransportSheet),
+      );
+      expect(
+        transportSheet.from?.id,
+        container.read(tripProvider).originEndpointId,
+      );
+      expect(transportSheet.collapsed, isFalse);
       expect(tester.takeException(), isNull);
     });
   }

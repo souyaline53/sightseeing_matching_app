@@ -42,7 +42,7 @@ function prepareNetwork(parts) {
       }
       trips.push({ ...t, firstTime, lastTime });
     }
-    transfers.push(...(part.transfers || []).filter((r) => r.isActive !== false && (r.sourceType === "gtfs" || r.verificationStatus === "verified")));
+    transfers.push(...(part.transfers || []).filter((r) => r.isActive !== false && r.sourceType !== "sample" && r.verificationStatus !== "sample"));
   }
   // A rule on a parent station applies to its platforms, but parent/name alone adds no edge.
   const children = new Map();
@@ -154,6 +154,21 @@ function sharesWalkingStop(net, q) {
   return false;
 }
 function searchJourneys(net, input) {
+  const result = searchJourneyOptions(net, input);
+  // Preserve ordinary alternatives even when a faster paid train dominates the timetable.
+  if (!input.timetable || result.walkingOnly) return result;
+  const ordinaryTrips = net.trips.filter((t) => {
+    const route = net.routes.get(t.routeId);
+    return route?.trainType !== "limited_express" && !route?.requiresLimitedExpress;
+  });
+  if (ordinaryTrips.length === net.trips.length) return result;
+  const ordinary = searchJourneyOptions({ ...net, trips: ordinaryTrips }, input);
+  result.journeys = [...new Map([...result.journeys, ...ordinary.journeys].map((j) => [j.id, j])).values()]
+    .sort((a, b) => a.arrivalSeconds - b.arrivalSeconds || a.transferCount - b.transferCount);
+  result.stats.scannedStopTimes += ordinary.stats.scannedStopTimes;
+  return result;
+}
+function searchJourneyOptions(net, input) {
   const q = validateQuery(input), end = q.departureSeconds + HORIZON;
   if (sharesWalkingStop(net, q)) return { walkingOnly: true, journeys: [], warnings: [], stats: { tripInstances: 0, scannedStopTimes: 0, maxTransfers: q.maxTransfers } };
   const instances = tripInstances(net, q);
@@ -234,6 +249,8 @@ function serialize(net, q, result, round) {
   for (let label = result.label; label.trip; label = label.parent) labels.push(label);
   labels.reverse();
   const legs = labels.map((l) => ({ tripId: l.trip.id, routeId: l.trip.routeId, routeName: net.routes.get(l.trip.routeId)?.name || l.trip.routeId,
+    trainType: net.routes.get(l.trip.routeId)?.trainType || null,
+    requiresLimitedExpress: net.routes.get(l.trip.routeId)?.requiresLimitedExpress === true,
     feedId: l.trip.feedId ?? null, versionId: l.trip.versionId ?? null, serviceDate: l.serviceDate, headsign: l.trip.headsign || "",
     boardingStopId: l.board[0], boardingStopName: net.stops.get(l.board[0])?.name || l.board[0], boardingPlatformCode: net.stops.get(l.board[0])?.platformCode || null,
     alightingStopId: l.alight[0], alightingStopName: net.stops.get(l.alight[0])?.name || l.alight[0], alightingPlatformCode: net.stops.get(l.alight[0])?.platformCode || null,

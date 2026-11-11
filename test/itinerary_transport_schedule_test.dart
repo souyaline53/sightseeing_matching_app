@@ -1,3 +1,5 @@
+import 'departure_fixtures.dart';
+import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -132,6 +134,9 @@ void main() {
       ];
       final container = ProviderContainer(
         overrides: [
+          departurePlacesProvider.overrideWith(
+            (ref) => Stream.value(departurePlaces),
+          ),
           catalogProvider.overrideWith(
             (ref) => Stream.value(TravelCatalog(experiences: spots)),
           ),

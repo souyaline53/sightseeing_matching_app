@@ -1,3 +1,4 @@
+import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -12,13 +13,13 @@ class DepartureMap extends HookConsumerWidget {
   final String selected;
   final bool highlightSelected;
   final ValueChanged<DeparturePlace> onSelect;
-  final List<DeparturePlace> places;
+  final List<DeparturePlace>? places;
   const DepartureMap({
     super.key,
     required this.selected,
     this.highlightSelected = true,
     required this.onSelect,
-    this.places = departurePlaces,
+    this.places,
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,11 +28,15 @@ class DepartureMap extends HookConsumerWidget {
     final ready = useRef(false);
     final failed = useState(false);
     final enabled = ref.watch(mapTilesEnabledProvider);
-    final place = departureNamed(selected);
+    final places =
+        this.places ??
+        ref.watch(departurePlacesProvider).value ??
+        <DeparturePlace>[];
+    final place = departureNamed(selected, places);
     useEffect(() {
       if (ready.value && place != null) map.move(place.point, map.camera.zoom);
       return null;
-    }, [selected]);
+    }, [selected, place?.point]);
     return SizedBox(
       height: 290,
       child: ClipRRect(
@@ -41,7 +46,10 @@ class DepartureMap extends HookConsumerWidget {
             FlutterMap(
               mapController: map,
               options: MapOptions(
-                initialCenter: (place ?? departurePlaces.first).point,
+                initialCenter:
+                    place?.point ??
+                    places.firstOrNull?.point ??
+                    const LatLng(43.0687, 141.3508),
                 initialZoom: 13,
                 minZoom: 5,
                 maxZoom: 17,

@@ -1,3 +1,5 @@
+import 'departure_fixtures.dart';
+import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
 import 'package:sightseeing_matching_app/model/transport_journey.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_transport_sheet.dart';
@@ -120,6 +122,9 @@ void main() {
         var originLoads = 0;
         final container = ProviderContainer(
           overrides: [
+            departurePlacesProvider.overrideWith(
+              (ref) => Stream.value(departurePlaces),
+            ),
             tripsRepositoryProvider.overrideWithValue(repo),
             catalogProvider.overrideWith(
               (ref) => Stream.value(TravelCatalog(experiences: [first])),
@@ -325,6 +330,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          departurePlacesProvider.overrideWith(
+            (ref) => Stream.value(departurePlaces),
+          ),
           tripsRepositoryProvider.overrideWithValue(repo),
           catalogProvider.overrideWith(
             (ref) => Stream.value(TravelCatalog(experiences: planned)),

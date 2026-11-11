@@ -1,3 +1,5 @@
+import '../../data/departure_places.dart';
+import '../../repository/transport_repository.dart';
 import 'dart:typed_data';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../data/catalog_data.dart';
@@ -41,6 +43,10 @@ class CatalogAdminService {
   void _refresh(CatalogKind kind) {
     ref.invalidate(adminRecordsProvider(kind));
     ref.invalidate(catalogProvider);
+    if (kind == CatalogKind.departure) {
+      ref.invalidate(departurePlacesProvider);
+      ref.invalidate(originTransportStopsProvider);
+    }
   }
 
   Future<List<String>> save(
@@ -51,8 +57,21 @@ class CatalogAdminService {
     CatalogRecord? original,
   }) async {
     (await ref.read(cloudServicesProvider.future)).requireAdmin();
+    if (values['latitude'] == null ||
+        values['longitude'] == null ||
+        values['address'] is! String) {
+      throw StateError('住所の変換を行うか、緯度・経度を指定してください。');
+    }
     final error = validateCatalogRecord(kind, id, values);
     if (error != null) throw StateError(error);
+    if (kind == CatalogKind.departure) {
+      if (photos.isNotEmpty) throw StateError('出発地に写真は登録できません。');
+      await ref
+          .read(adminCatalogRepositoryProvider)
+          .save(kind, id, values, creating: original == null);
+      _refresh(kind);
+      return [];
+    }
     if (photos.length > (kind == CatalogKind.sightseeing ? 6 : 1)) {
       throw StateError('写真の枚数を確認してください。');
     }

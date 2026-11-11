@@ -24,7 +24,7 @@ async function commit(user, collection, id, fields, creating = true) {
 }
 const str = stringValue => ({stringValue}); const num = value => ({integerValue: String(value)});
 const empty = {arrayValue: {values: []}};
-const spot = {title: str('クラウドの体験'), area: str('北海道'), category: str('自然'), description: str('紹介'), story: str('物語'), surprise: str('発見'), minutes: num(60), accessMinutes: num(90), order: num(0), photo: str(''), photoPath: str(''), additionalPhotos: empty, additionalPhotoPaths: empty};
+const spot = {address:str('北海道夕張市高松7番地'),latitude:{doubleValue:43.065662},longitude:{doubleValue:141.98732},title: str('クラウドの体験'), area: str('北海道'), category: str('自然'), description: str('紹介'), story: str('物語'), surprise: str('発見'), minutes: num(60), accessMinutes: num(90), order: num(0), photo: str(''), photoPath: str(''), additionalPhotos: empty, additionalPhotoPaths: empty};
 async function upload(user, path, bytes = png, type = 'image/png') {
   const result = await request(`${storage}?name=${encodeURIComponent(path)}&uploadType=media`, {
     token: user?.idToken, method: 'POST', headers: {'Content-Type': type, 'X-Goog-Upload-Protocol': 'raw'}, body: bytes,
@@ -45,6 +45,16 @@ try {
   const login = await request(`${auth}/accounts:signInWithPassword?key=local-only`, {method: 'POST', body: JSON.stringify({email: admin.email, password: 'abcdef', returnSecureToken: true})});
   admin = {...admin, ...login.body};
   assert.equal((await commit(admin, 'sightseeing_spot', 'security-test', spot)).status, 200, '確認済み管理者が追加可能');
+  const departure = {address:str('北海道札幌市北区北6条西4丁目'),latitude:{doubleValue:43.068455},longitude:{doubleValue:141.349243},accessStops:empty};
+  assert.equal((await commit(null,'departure_places','security-test',departure)).status,403);
+  assert.equal((await commit(other,'departure_places','security-test',departure)).status,403);
+  assert.equal((await commit(admin,'departure_places','security-test',departure)).status,200);
+  const departureRead = await request(`${db}/departure_places/security-test`);
+  assert.equal(departureRead.status,200);
+  assert.equal((await commit(admin,'departure_places','security-test',{...departureRead.body.fields,latitude:num(91)},false)).status,403);
+  assert.equal((await commit(admin,'departure_places','security-test',{...departureRead.body.fields,photo:str('unexpected')},false)).status,403);
+  assert.equal((await commit(admin,'departure_places','security-test',{...departureRead.body.fields,address:str('変更した住所')},false)).status,200);
+
   const read = await request(`${db}/sightseeing_spot/security-test`); assert.equal(read.status, 200, 'ゲストも閲覧可能');
   assert.equal((await commit(admin, 'sightseeing_spot', 'security-test', {...read.body.fields, minutes: num(-1)}, false)).status, 403);
   assert.equal((await commit(admin, 'sightseeing_spot', 'security-test', {...read.body.fields, title: str('変更済み')}, false)).status, 200);
@@ -130,7 +140,7 @@ try {
       ...created.map(target => `users/${u.localId}/post_follows/${target.localId}`)])]) {
     await request(`${db}/${path}`, {token:'owner', method:'DELETE'});
   }
-  if (admin) for (const collection of ['sightseeing_spot', 'transit']) await request(`${db}/${collection}/security-test`, {token: admin.idToken, method: 'DELETE'});
+  if (admin) for (const collection of ['sightseeing_spot', 'transit', 'departure_places']) await request(`${db}/${collection}/security-test`, {token: admin.idToken, method: 'DELETE'});
   for (const {user, path} of files) await request(`${storage}/${encodeURIComponent(path)}`, {token: user.idToken, method: 'DELETE'});
   for (const user of created) await request(`${auth}/accounts:delete?key=local-only`, {method: 'POST', body: JSON.stringify({idToken: user.idToken})});
 }

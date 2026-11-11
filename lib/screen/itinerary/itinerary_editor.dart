@@ -274,11 +274,12 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
       accessStops: [
         for (final stop in originStops.value ?? <TransportStop>[])
           AccessStop({
-            'stopId': stop.id,
             'walkingMinutes': null,
             'sourceType': stop.data['sourceType'] ?? 'manual',
             'verificationStatus':
                 stop.data['verificationStatus'] ?? 'unverified',
+            ...stop.data,
+            'stopId': stop.id,
           }),
       ],
     );
@@ -676,9 +677,15 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                               return Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  ItineraryMap(
-                                    key: const ValueKey('itinerary-map'),
-                                    origin: trip.origin,
+                                  AnimatedBuilder(
+                                    animation: sheet,
+                                    builder: (context, _) => ItineraryMap(
+                                      key: const ValueKey('itinerary-map'),
+                                      origin: trip.origin,
+                                      bottomInset:
+                                          (sheet.isAttached ? sheet.size : 1) *
+                                          mapBounds.maxHeight,
+                                    ),
                                   ),
                                   NotificationListener<
                                     DraggableScrollableNotification

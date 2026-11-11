@@ -223,7 +223,7 @@ class PostCard extends HookConsumerWidget {
                     },
               icon: const Icon(Icons.place_outlined, size: 16),
               label: Text(
-                spot == null ? 'スポット未登録' : '${spot.area} · ${spot.title}',
+                spot == null ? 'スポット未登録' : '${spot.area} · ${spot.displayName}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12),

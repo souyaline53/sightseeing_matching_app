@@ -136,7 +136,9 @@ class DepartureStepPage extends HookConsumerWidget {
     final draft = ref.watch(searchDraftProvider);
     final selections = ref.watch(searchSelectionProvider);
     final mapExpanded = useState(false);
-    const origins = ['札幌駅', '新千歳空港', '小樽駅', '旭川駅'];
+    final departures = ref.watch(departurePlacesProvider);
+    final places = departures.value ?? <DeparturePlace>[];
+    final origins = places.map((p) => p.name).toList();
     void select(String name, {bool confirm = false}) {
       if (ref.read(discoveryProvider).step != 1 ||
           ref.read(conditionsStepProvider) != 0) {
@@ -156,6 +158,16 @@ class DepartureStepPage extends HookConsumerWidget {
       title: 'どこから旅を始める？',
       subtitle: '出発地をタップすると、移動手段の選択へ進みます。',
       children: [
+        if (departures.isLoading) const LinearProgressIndicator(),
+        if (departures.hasError) ...[
+          const Text('出発地を読み込めませんでした。'),
+          TextButton(
+            onPressed: () => ref.invalidate(departurePlacesProvider),
+            child: const Text('再読み込み'),
+          ),
+        ],
+        if (!departures.isLoading && !departures.hasError && places.isEmpty)
+          const Text('出発地が未登録です。管理者に登録を依頼してください。'),
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
             spacing: 12,
@@ -192,9 +204,7 @@ class DepartureStepPage extends HookConsumerWidget {
               DepartureMap(
                 selected: draft.origin,
                 highlightSelected: selections.contains(SearchSelection.origin),
-                places: departurePlaces
-                    .where((p) => origins.contains(p.name))
-                    .toList(),
+                places: places,
                 onSelect: (p) => select(p.name),
               ),
           ],
@@ -207,7 +217,7 @@ class DepartureStepPage extends HookConsumerWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          '地図上の位置はサンプルです。実際の運行情報ではありません。',
+          '登録された住所・座標を表示しています。運行情報とは異なります。',
           style: TextStyle(fontSize: 11),
         ),
       ],

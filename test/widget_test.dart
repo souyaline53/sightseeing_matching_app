@@ -1,3 +1,6 @@
+import 'departure_fixtures.dart';
+import 'package:sightseeing_matching_app/data/departure_places.dart';
+import 'package:sightseeing_matching_app/service/address_geocoder.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_spot_card.dart';
 import 'package:sightseeing_matching_app/service/cloud/cloud_services.dart';
 import 'package:sightseeing_matching_app/service/cloud/catalog_admin_service.dart';
@@ -52,12 +55,18 @@ Future<ProviderContainer> boot(
   CloudServices? cloudServices,
   FirestoreCatalogRepository? adminRepository,
   Object? catalogFailure,
+  AddressGeocoder? geocoder,
+  List<DeparturePlace>? departures,
   Future<Map<String, ImageInfo?>> Function()? photos,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final container = ProviderContainer(
     overrides: [
+      departurePlacesProvider.overrideWith(
+        (ref) => Stream.value(departures ?? departurePlaces),
+      ),
+      if (geocoder != null) addressGeocoderProvider.overrideWithValue(geocoder),
       guestIdentityRepositoryProvider.overrideWithValue(
         MemoryGuestIdentityRepository(),
       ),

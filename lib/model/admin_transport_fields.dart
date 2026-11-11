@@ -1,4 +1,3 @@
-import '../data/departure_places.dart';
 import 'dart:convert';
 
 // Form definitions and validation are shared by the UI and save boundary.
@@ -135,15 +134,6 @@ List<AdminField> transportFields(String collection) => switch (collection) {
   ],
   'transport_stops' => [
     const AdminField('name', '駅・バス停名', required: true),
-    AdminField(
-      'departurePlaceId',
-      '検索の出発地との対応（任意）',
-      type: AdminInput.choice,
-      options: {
-        '': '対応なし',
-        for (final place in departurePlaces) place.id: place.name,
-      },
-    ),
     const AdminField(
       'type',
       '交通拠点の種類',

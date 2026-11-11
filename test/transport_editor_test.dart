@@ -1,3 +1,5 @@
+import 'departure_fixtures.dart';
+import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
 import 'package:sightseeing_matching_app/model/transport_journey.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/plan_screen.dart';
@@ -74,6 +76,9 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
+          departurePlacesProvider.overrideWith(
+            (ref) => Stream.value(departurePlaces),
+          ),
           catalogProvider.overrideWith(
             (ref) => Stream.value(TravelCatalog(experiences: spots)),
           ),
@@ -102,7 +107,7 @@ void main() {
       final list = find.byType(ListView).last;
       expect(find.byKey(const ValueKey('itinerary-map')), findsOneWidget);
       expect(find.byType(DraggableScrollableSheet), findsOneWidget);
-      expect(find.byType(MarkerLayer), findsNothing);
+      expect(find.byType(MarkerLayer), findsOneWidget);
       final select = find.byKey(const ValueKey('choose-sample_trip_0-2-3'));
       await tester.scrollUntilVisible(
         select,

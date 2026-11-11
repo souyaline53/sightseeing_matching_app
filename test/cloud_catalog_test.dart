@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/service/address_geocoder.dart';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,6 +19,14 @@ import 'package:sightseeing_matching_app/state/account_state.dart';
 import 'package:sightseeing_matching_app/data/catalog_data.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot;
+
+class _Geocoder extends AddressGeocoder {
+  @override
+  Future<({double latitude, double longitude})> resolve(String address) async {
+    if (address == '不明な住所') throw StateError('住所を変換できません。');
+    return (latitude: 35.5, longitude: 139.5);
+  }
+}
 
 class _User extends Fake implements User {
   final bool verified;
@@ -66,6 +75,9 @@ class _Catalog extends FirestoreCatalogRepository {
 }
 
 const spotValues = {
+  'address': '北海道夕張市高松7番地',
+  'latitude': 43.065662,
+  'longitude': 141.98732,
   'title': '新しい冒険',
   'area': '夕張',
   'category': '自然',
@@ -210,6 +222,7 @@ void main() {
         tester,
         accountRepository: account,
         adminRepository: repository,
+        geocoder: _Geocoder(),
         cloudServices: CloudServices(
           _Firestore(),
           _Storage(),
@@ -238,17 +251,113 @@ void main() {
       final title = find.byKey(const ValueKey('catalog-title'));
       await revealEditor(tester, title);
       await tester.enterText(title, '変更した冒険');
+      final address = find.byKey(const ValueKey('catalog-address'));
+      await revealEditor(tester, address);
+      await tester.enterText(address, '新しい住所');
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
       final save = find.byKey(const ValueKey('catalog-save'));
       await revealEditor(tester, save);
       await tester.tap(save);
       await tester.pumpAndSettle();
       expect(repository.data['test-spot']!.title, '変更した冒険');
       expect(repository.data['test-spot']!.toExperience().name, '検証用公園');
+      expect(repository.data['test-spot']!.data['latitude'], 35.5);
+      expect(repository.data['test-spot']!.data['longitude'], 139.5);
+      await tester.tap(find.text('検証用公園'));
+      await tester.pumpAndSettle();
+      await revealEditor(tester, address);
+      await tester.enterText(address, '不明な住所');
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      final manual = find.text('緯度・経度を直接指定する');
+      await revealEditor(tester, manual);
+      expect(find.text('住所を変換できません。'), findsOneWidget);
+      await tester.tap(manual);
+      await tester.pumpAndSettle();
+      final latitude = find.widgetWithText(TextField, '緯度（−90〜90）');
+      final longitude = find.widgetWithText(TextField, '経度（−180〜180）');
+      await revealEditor(tester, latitude);
+      await tester.enterText(latitude, '43.1');
+      await revealEditor(tester, longitude);
+      await tester.enterText(longitude, '142.1');
+      await revealEditor(tester, save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(repository.data['test-spot']!.data['address'], '不明な住所');
+      expect(repository.data['test-spot']!.data['latitude'], 43.1);
+      expect(repository.data['test-spot']!.data['longitude'], 142.1);
       await tester.tap(find.byTooltip('削除'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, '削除'));
       await tester.pumpAndSettle();
       expect(repository.data, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'admin creates a departure with shared geocoder and access-stop form',
+    (tester) async {
+      final repository = _Catalog();
+      final account = FakeAccountRepository(
+        identity: const AccountIdentity(
+          uid: 'admin-test',
+          email: adminEmail,
+          registered: true,
+          emailVerified: true,
+        ),
+      );
+      await boot(
+        tester,
+        accountRepository: account,
+        adminRepository: repository,
+        geocoder: _Geocoder(),
+        cloudServices: CloudServices(
+          _Firestore(),
+          _Storage(),
+          _Auth(_User(true)),
+        ),
+      );
+      await tester.tap(find.text('プロフィール'));
+      await tester.pumpAndSettle();
+      final menu = find.byKey(const ValueKey('admin-menu'));
+      await tester.scrollUntilVisible(
+        menu,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('出発地情報'));
+      await tester.tap(find.text('出発地情報'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('追加'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const ValueKey('catalog-id')), '札幌駅');
+      await tester.enterText(
+        find.byKey(const ValueKey('catalog-address')),
+        '北海道札幌市北区北6条西4丁目',
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('catalog-title')), findsNothing);
+      expect(find.byKey(const ValueKey('catalog-add-photo')), findsNothing);
+      final stops = find.text('最寄り駅・バス停');
+      await revealEditor(tester, stops);
+      expect(stops, findsOneWidget);
+      final save = find.byKey(const ValueKey('catalog-save'));
+      await revealEditor(tester, save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final record = repository.data['札幌駅']!;
+      expect(record.kind, CatalogKind.departure);
+      expect(record.data['latitude'], 35.5);
+      expect(record.data['longitude'], 139.5);
+      expect(record.data['address'], '北海道札幌市北区北6条西4丁目');
+      expect(record.data['accessStops'], isEmpty);
+      expect(record.data.containsKey('photo'), isFalse);
+      expect(record.displayName, '札幌駅');
       expect(tester.takeException(), isNull);
     },
   );

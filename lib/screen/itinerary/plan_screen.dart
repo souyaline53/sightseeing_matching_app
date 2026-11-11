@@ -1,3 +1,5 @@
+import '../../widgets/travel_photo.dart';
+import '../recommendation/experience_detail.dart';
 import '../../repository/transport_journey_repository.dart';
 import '../../repository/transport_repository.dart';
 import '../../service/transport/itinerary_transport_options.dart';
@@ -70,194 +72,663 @@ class PlanScreen extends HookConsumerWidget {
       0,
       accessStops: [
         for (final stop in originStops ?? <TransportStop>[])
-          AccessStop({'stopId': stop.id, 'walkingMinutes': null}),
+          AccessStop({'walkingMinutes': null, ...stop.data, 'stopId': stop.id}),
       ],
     );
+    void editPlan() {
+      if (tripId != null) {
+        ref.read(tripProvider.notifier).openPlan(tripId!);
+      }
+      ref.read(appTabProvider.notifier).select(AppTab.itinerary);
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
+    final points = [originPoint, ...stops, originPoint];
+    final segments = [
+      for (var i = 0; i < points.length - 1; i++)
+        if (stops.isNotEmpty)
+          _PlanSegment.resolve(ref, livePlan, points[i], points[i + 1]),
+    ];
+    final missing = publicTransport
+        ? segments.where((s) => !s.walking && s.selection == null).length
+        : 0;
+    final returning = segments.isEmpty ? null : segments.last.arrival;
     return Scaffold(
-      appBar: AppBar(title: Text(demo ? 'デモ用の旅程' : 'マイプラン')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
+        title: Text(
+          demo ? 'デモ用の旅程' : 'マイプラン',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 24),
+        ),
+      ),
       floatingActionButton: demo
           ? null
           : FloatingActionButton.extended(
-              onPressed: () {
-                if (tripId != null) {
-                  ref.read(tripProvider.notifier).openPlan(tripId!);
-                }
-                ref.read(appTabProvider.notifier).select(AppTab.itinerary);
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
+              backgroundColor: const Color(0xffa7f3d8),
+              foregroundColor: _green,
+              elevation: 3,
+              onPressed: editPlan,
               icon: const Icon(Icons.route_outlined),
-              label: const Text('旅を組み立てる'),
-            ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
-        children: [
-          Text(
-            date == null
-                ? '旅行日未確定 · $origin 発'
-                : '${date.month}月${date.day}日 · $origin 発',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          Text('出発時刻 ${transportTime(livePlan?.departureMinutes ?? 480)}'),
-          const SizedBox(height: 12),
-          Text(
-            '${conditions.length.label} · 総予算${conditions.budget}円以内 · ${conditions.transport.label}',
-          ),
-          Text(
-            '片道${conditions.maxMinutes}分以内 · 徒歩${conditions.walking.label} · ${conditions.company.label}',
-          ),
-          const Text(
-            '下記は保存した訪問順です。予算・移動上限・旅行期間を満たすかは未検証です。複数日でも宿泊や日別の割当は行いません。',
-            style: TextStyle(fontSize: 12),
-          ),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                '旅行日・運休日・臨時変更を公式情報で確認してください。',
-                style: TextStyle(fontSize: 12),
+              label: const Text(
+                '旅を組み立てる',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
               ),
+              shape: const StadiumBorder(),
             ),
-          ),
-          if (demo)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('デモ用の旅程：AIには接続していません。'),
-            ),
-          for (var i = 0; i < stops.length; i++) ...[
-            const SizedBox(height: 16),
-            if (publicTransport && livePlan != null)
-              _SegmentTransport(
-                trip: livePlan,
-                from: i == 0 ? originPoint : stops[i - 1],
-                to: stops[i],
-              )
-            else if (publicTransport)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('交通便は未選択です。旅程編集画面で登録済みの便を選んでください。'),
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+            children: [
+              Stack(
+                children: [
+                  const Positioned(
+                    right: -15,
+                    top: 0,
+                    child: SizedBox(
+                      width: 185,
+                      height: 84,
+                      child: CustomPaint(painter: _LandscapePainter()),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          date == null
+                              ? '旅行日未確定・$origin 発'
+                              : '${date.month}月${date.day}日・$origin 発',
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        _Metadata(
+                          Icons.calendar_today_outlined,
+                          '出発時刻 ${transportTime(livePlan?.departureMinutes ?? 480)}',
+                        ),
+                        const SizedBox(height: 7),
+                        _Metadata(
+                          Icons.sell_outlined,
+                          '${conditions.length.label}・予算${conditions.budget}円以内・${conditions.transport.label}・徒歩${conditions.walking.label}・${conditions.company.label}',
+                        ),
+                        const SizedBox(height: 5),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 27),
+                          child: Text(
+                            '片道${conditions.maxMinutes}分以内',
+                            style: const TextStyle(color: _muted, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (demo)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('デモ用の旅程：AIには接続していません。'),
                 ),
-              )
-            else
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    '車で移動 · ${i == 0 ? origin : stops[i - 1].area} → ${stops[i].area}\n所要時間・費用は未登録です',
+              if (missing > 0) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xffffeeee),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Icon(Icons.report_outlined, color: Color(0xffa83333)),
+                        Text(
+                          '未設定の移動が$missing件あります',
+                          style: const TextStyle(
+                            color: Color(0xffa83333),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (!demo) _ChooseTransport(onTap: editPlan),
+                      ],
+                    ),
                   ),
                 ),
+                const SizedBox(height: 18),
+              ],
+              _TimelineRow(
+                label: '出発',
+                first: true,
+                child: _EndpointCard(
+                  name: origin,
+                  subtitle:
+                      '出発 ${transportTime(livePlan?.departureMinutes ?? 480)}',
+                  publicTransport: publicTransport,
+                ),
               ),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              leading: CircleAvatar(child: Text('${i + 1}')),
-              title: Text(stops[i].displayName),
-              subtitle: Text(
-                '${stops[i].area} · 滞在 ${livePlan?.stayMinutes[stops[i].id] ?? stops[i].minutes}分',
+              for (var i = 0; i < stops.length; i++) ...[
+                _TimelineRow(
+                  child: _SegmentRow(
+                    segment: segments[i],
+                    publicTransport: publicTransport,
+                    onChoose: demo ? null : editPlan,
+                  ),
+                ),
+                _TimelineRow(
+                  label: '${i + 1}',
+                  child: _MintCard(
+                    onTap: () => showExperience(context, stops[i]),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(13),
+                              child: TravelPhoto(stops[i]),
+                            ),
+                          ),
+                          const SizedBox(width: 13),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  stops[i].displayName,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  '${stops[i].area}・滞在${livePlan?.stayMinutes[stops[i].id] ?? stops[i].minutes}分',
+                                  style: const TextStyle(color: _muted),
+                                ),
+                                if (segments[i].arrival != null) ...[
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xffdcefe8),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      '◷ ${transportTime(segments[i].arrival)} 着'
+                                      '${segments[i + 1].departure == null ? '' : ' / ${transportTime(segments[i + 1].departure)} 発'}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: _muted,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (stops.isNotEmpty) ...[
+                _TimelineRow(
+                  child: _SegmentRow(
+                    segment: segments.last,
+                    publicTransport: publicTransport,
+                    returning: true,
+                    onChoose: demo ? null : editPlan,
+                  ),
+                ),
+                _TimelineRow(
+                  label: '帰着',
+                  last: true,
+                  child: _EndpointCard(
+                    name: origin,
+                    publicTransport: publicTransport,
+                    subtitle: returning == null
+                        ? '到着時刻未定'
+                        : '${transportTime(returning)} 着',
+                  ),
+                ),
+              ] else
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    '訪問先を追加して、旅を組み立てましょう。',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const _green = Color(0xff006743);
+const _muted = Color(0xff56615f);
+
+class _PlanSegment {
+  final Experience from, to;
+  final bool walking;
+  final TransportSelection? selection;
+  const _PlanSegment(this.from, this.to, this.walking, this.selection);
+  factory _PlanSegment.resolve(
+    WidgetRef ref,
+    TripState? trip,
+    Experience from,
+    Experience to,
+  ) {
+    final provider = trip == null
+        ? null
+        : itineraryJourneysProvider(itineraryJourneyKey(trip, from, to));
+    final cached = provider != null && ref.exists(provider)
+        ? ref.watch(provider).value
+        : null;
+    return _PlanSegment(
+      from,
+      to,
+      sharesAccessStop(from.accessStops, to.accessStops) ||
+          cached?.walkingOnly == true,
+      trip?.transportSelections
+          .where((s) => s.from == from.id && s.to == to.id)
+          .firstOrNull,
+    );
+  }
+  Map? get journey => selection?.data['journey'] as Map?;
+  int? get departure => walking
+      ? null
+      : journey?['departureFromSpotSeconds'] is int
+      ? (journey!['departureFromSpotSeconds'] as int) ~/ 60
+      : selection?.data['departureMinutes'] as int?;
+  int? get arrival => walking
+      ? null
+      : journey?['arrivalSeconds'] is int
+      ? (journey!['arrivalSeconds'] as int) ~/ 60
+      : selection?.data['arrivalMinutes'] == null
+      ? null
+      : (selection!.data['arrivalMinutes'] as int) +
+            (selection!.data['walkingMinutesAfter'] as int? ?? 0);
+}
+
+class _SegmentRow extends StatelessWidget {
+  final _PlanSegment segment;
+  final bool publicTransport, returning;
+  final VoidCallback? onChoose;
+  const _SegmentRow({
+    required this.segment,
+    required this.publicTransport,
+    this.returning = false,
+    this.onChoose,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final s = segment;
+    final missing = publicTransport && !s.walking && s.selection == null;
+    final duration = s.arrival != null && s.departure != null
+        ? s.arrival! - s.departure!
+        : null;
+    final legs = s.journey?['legs'] as List?;
+    final route = legs
+        ?.map((l) => l['routeName'])
+        .whereType<String>()
+        .join(' → ');
+    return InkWell(
+      key: s.selection == null || s.walking
+          ? null
+          : ValueKey('saved-transport-${s.selection!.data['selectedTripId']}'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: missing
+          ? onChoose
+          : s.selection == null
+          ? null
+          : () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              builder: (context) => SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: s.journey != null
+                    ? TransportJourneyDetails(
+                        journey: TransportJourney(
+                          Map<String, dynamic>.from(s.journey!),
+                        ),
+                      )
+                    : Text(
+                        '${s.selection!.data['boardingStopName'] ?? '乗車停留所'} ${transportTime(s.departure)} → ${s.selection!.data['alightingStopName'] ?? '降車停留所'} ${transportTime(s.arrival)}\n${s.selection!.data['headsign'] == null ? '' : transportDirection(s.selection!.data['headsign'] as String)}\n乗車前 徒歩${s.selection!.data['walkingMinutesBefore'] ?? '未登録'}分・降車後 徒歩${s.selection!.data['walkingMinutesAfter'] ?? '未登録'}分',
+                      ),
               ),
             ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              missing
+                  ? Icons.warning_amber_rounded
+                  : s.walking
+                  ? Icons.directions_walk
+                  : publicTransport
+                  ? Icons.directions_bus_outlined
+                  : Icons.directions_car_outlined,
+              color: missing ? const Color(0xffdd5b14) : _green,
+              size: 26,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 5,
+                    children: [
+                      Text(
+                        missing
+                            ? '移動手段が未設定'
+                            : s.walking
+                            ? '徒歩のみ'
+                            : returning
+                            ? '帰路'
+                            : publicTransport
+                            ? '公共交通で移動'
+                            : '車で移動',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: missing ? const Color(0xffd9540c) : null,
+                        ),
+                      ),
+                      if (!missing && !s.walking && duration != null)
+                        Text(
+                          '$duration分',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    missing
+                        ? '${s.from.displayName} → ${s.to.displayName}'
+                        : route?.isNotEmpty == true
+                        ? route!
+                        : s.walking
+                        ? '共通の最寄り停留所間'
+                        : '所要時間・費用は未登録です',
+                    style: const TextStyle(fontSize: 12, color: _muted),
+                  ),
+                  if (!missing &&
+                      !s.walking &&
+                      s.departure != null &&
+                      s.arrival != null)
+                    Text(
+                      '${transportTime(s.departure)} → ${transportTime(s.arrival)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                ],
+              ),
+            ),
+            if (missing && onChoose != null)
+              IconButton(
+                tooltip: '交通を選択',
+                onPressed: onChoose,
+                icon: const Icon(Icons.chevron_right, color: _green),
+              ),
+            if (s.selection != null && !s.walking)
+              const Icon(Icons.expand_more, color: _muted, size: 18),
           ],
-          if (publicTransport && stops.isNotEmpty && livePlan != null) ...[
-            ListTile(
-              leading: const Icon(Icons.home_outlined),
-              title: Text('${stops.last.displayName} → $origin'),
-              subtitle: const Text('帰路'),
-            ),
-            _SegmentTransport(
-              trip: livePlan,
-              from: stops.last,
-              to: originPoint,
-              showUnselected: false,
-            ),
-          ],
-          const SizedBox(height: 20),
-          const Card(
-            color: Color(0xfffff0d6),
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                '帰りの便も確認しましょう\n登録された帰路でも、最終便・運休日・乗換時間を公式情報で確認し、余裕のある帰路を確保してください。',
+        ),
+      ),
+    );
+  }
+}
+
+class _MintCard extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  const _MintCard({required this.child, this.onTap});
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(16),
+    child: Ink(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xffeaf6f0), Color(0xffeef7f6)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12004934),
+            offset: Offset(0, 2),
+            blurRadius: 3,
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: child,
+      ),
+    ),
+  );
+}
+
+class _TimelineRow extends StatelessWidget {
+  final String? label;
+  final bool first, last;
+  final Widget child;
+  const _TimelineRow({
+    this.label,
+    this.first = false,
+    this.last = false,
+    required this.child,
+  });
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 43,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 12,
+                child: first
+                    ? null
+                    : const VerticalDivider(
+                        width: 2,
+                        thickness: 1.5,
+                        color: Color(0xff38bc88),
+                      ),
               ),
+              if (label != null)
+                Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 30,
+                    minHeight: 30,
+                  ),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: first || last ? _green : const Color(0xffa9f1d7),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Text(
+                    label!,
+                    style: TextStyle(
+                      color: first || last ? Colors.white : _green,
+                      fontSize: first || last ? 12 : 21,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xff38bc88),
+                      width: 2,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: last
+                    ? const SizedBox()
+                    : const VerticalDivider(
+                        width: 2,
+                        thickness: 1.5,
+                        color: Color(0xff38bc88),
+                      ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [child, const SizedBox(height: 16)],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _EndpointCard extends StatelessWidget {
+  final String name, subtitle;
+  final bool publicTransport;
+  const _EndpointCard({
+    required this.name,
+    required this.subtitle,
+    required this.publicTransport,
+  });
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: const Color(0xffe0e6e3)),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Icon(
+            publicTransport
+                ? Icons.train_outlined
+                : Icons.directions_car_outlined,
+            color: _green,
+            size: 29,
+          ),
+          const SizedBox(width: 17),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(subtitle, style: const TextStyle(color: _muted)),
+              ],
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _SegmentTransport extends ConsumerWidget {
-  final TripState trip;
-  final Experience from, to;
-  final bool showUnselected;
-  const _SegmentTransport({
-    required this.trip,
-    required this.from,
-    required this.to,
-    this.showUnselected = true,
-  });
+class _Metadata extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Metadata(this.icon, this.text);
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final provider = itineraryJourneysProvider(
-      itineraryJourneyKey(trip, from, to),
-    );
-    // Reuse an already requested classification; opening the booklet does not start a search.
-    final cached = ref.exists(provider) ? ref.watch(provider).value : null;
-    if (sharesAccessStop(from.accessStops, to.accessStops) ||
-        cached?.walkingOnly == true) {
-      return const Card(
-        child: Padding(padding: EdgeInsets.all(16), child: Text('徒歩のみ')),
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 19, color: _muted),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(text, style: const TextStyle(fontSize: 14, height: 1.5)),
+      ),
+    ],
+  );
+}
+
+class _ChooseTransport extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ChooseTransport({required this.onTap});
+  @override
+  Widget build(BuildContext context) => OutlinedButton(
+    onPressed: onTap,
+    style: OutlinedButton.styleFrom(
+      foregroundColor: _green,
+      backgroundColor: Colors.white,
+      side: const BorderSide(color: Color(0xffb6dfce)),
+      visualDensity: VisualDensity.compact,
+    ),
+    child: const Text('交通を選択 ›', style: TextStyle(fontWeight: FontWeight.w700)),
+  );
+}
+
+class _LandscapePainter extends CustomPainter {
+  const _LandscapePainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < 3; i++) {
+      final y = size.height * (.35 + i * .18);
+      final path = Path()
+        ..moveTo(0, size.height)
+        ..lineTo(0, y + 18)
+        ..cubicTo(
+          size.width * .3,
+          y - 24,
+          size.width * .5,
+          y + 28,
+          size.width * .7,
+          y,
+        )
+        ..quadraticBezierTo(size.width * .9, y - 25, size.width, y - 10)
+        ..lineTo(size.width, size.height)
+        ..close();
+      canvas.drawPath(
+        path,
+        Paint()..color = Color(0xffa8ebd1).withValues(alpha: .15 + i * .08),
       );
     }
-    final selected = trip.transportSelections
-        .where((s) => s.from == from.id && s.to == to.id)
-        .firstOrNull;
-    if (selected != null) return _SelectedTransportCard(selection: selected);
-    if (!showUnselected) return const SizedBox.shrink();
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('交通便は未選択です。旅程編集画面で登録済みの便を選んでください。'),
-      ),
-    );
   }
-}
 
-class _SelectedTransportCard extends StatelessWidget {
-  final TransportSelection selection;
-  const _SelectedTransportCard({required this.selection});
   @override
-  Widget build(BuildContext context) {
-    final s = selection;
-    return Card(
-      key: ValueKey('saved-transport-${s.data['selectedTripId']}'),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: s.data['journey'] is Map
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TransportJourneyDetails(
-                    journey: TransportJourney(
-                      Map<String, dynamic>.from(s.data['journey'] as Map),
-                    ),
-                  ),
-
-                  const Text('選択時点の控えです。編集画面で最新情報を確認してください。'),
-                ],
-              )
-            : Text(
-                [
-                  '${s.data['boardingStopName'] ?? '乗車停留所'} ${transportTime(s.data['departureMinutes'] as int?)} → ${s.data['alightingStopName'] ?? '降車停留所'} ${transportTime(s.data['arrivalMinutes'] as int?)}',
-                  if (s.data['headsign'] is String)
-                    transportDirection(s.data['headsign'] as String),
-                  if (s.data['walkingMinutesBefore'] != null)
-                    '乗車前 徒歩${s.data['walkingMinutesBefore']}分',
-                  if (s.data['walkingMinutesAfter'] != null)
-                    '降車後 徒歩${s.data['walkingMinutesAfter']}分',
-                  '選択時点の控えです。',
-                ].join('\n'),
-              ),
-      ),
-    );
-  }
+  bool shouldRepaint(covariant _LandscapePainter oldDelegate) => false;
 }

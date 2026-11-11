@@ -26,6 +26,21 @@ class FirestoreCatalogRepository implements CatalogRepository {
     return records;
   }
 
+  Stream<List<CatalogRecord>> watchRecords(CatalogKind kind) async* {
+    final cloud = await services();
+    yield* cloud.firestore.collection(kind.collection).snapshots().map((
+      snapshot,
+    ) {
+      return snapshot.docs.map((doc) {
+        final error = validateCatalogRecord(kind, doc.id, doc.data());
+        if (error != null) {
+          throw FormatException('${kind.label}/${doc.id}: $error');
+        }
+        return CatalogRecord(doc.id, kind, doc.data());
+      }).toList()..sort((a, b) => a.id.compareTo(b.id));
+    });
+  }
+
   @override
   Future<TravelCatalog> load() async {
     final spots = await records(CatalogKind.sightseeing);

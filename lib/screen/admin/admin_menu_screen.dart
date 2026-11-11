@@ -16,7 +16,7 @@ class AdminMenuScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final account = ref.watch(currentAccountProvider);
-    final tabs = useTabController(initialLength: 3);
+    final tabs = useTabController(initialLength: 4);
     useListenable(tabs);
     final busy = useState(false);
     final progress = useState('');
@@ -111,19 +111,22 @@ class AdminMenuScreen extends HookConsumerWidget {
           bottom: authorized
               ? TabBar(
                   controller: tabs,
+                  isScrollable: true,
                   tabs: const [
                     Tab(text: '観光地情報'),
+                    Tab(text: '出発地情報'),
                     Tab(text: '交通時刻表'),
                     Tab(text: 'ユーザー属性'),
                   ],
                 )
               : null,
         ),
-        floatingActionButton: authorized && tabs.index == 0
+        floatingActionButton:
+            authorized && tabs.index < CatalogKind.values.length
             ? FloatingActionButton.extended(
                 onPressed: busy.value
                     ? null
-                    : () => open(CatalogKind.sightseeing),
+                    : () => open(CatalogKind.values[tabs.index]),
                 icon: const Icon(Icons.add),
                 label: const Text('追加'),
               )
@@ -229,7 +232,9 @@ class _RecordsList extends HookConsumerWidget {
                                   builder: (context) => AlertDialog(
                                     title: const Text('削除しますか？'),
                                     content: Text(
-                                      '「${record.title}」とその写真をクラウドから削除します。既存の旅程の控えは残ります。',
+                                      kind == CatalogKind.departure
+                                          ? '「${record.id}」を削除します。既存の旅程の出発地名は残ります。'
+                                          : '「${record.title}」とその写真をクラウドから削除します。既存の旅程の控えは残ります。',
                                     ),
                                     actions: [
                                       TextButton(

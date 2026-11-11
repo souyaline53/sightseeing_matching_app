@@ -1,5 +1,5 @@
-import 'gtfs_repository.dart';
 import '../data/departure_places.dart';
+import 'gtfs_repository.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -30,47 +30,6 @@ class TransportData {
 class TransportRepository {
   final Future<CloudServices> Function() cloud;
   TransportRepository(this.cloud);
-  Future<List<TransportStop>> findOriginStops(String origin) async {
-    if (origin.trim().isEmpty) return [];
-    final db = (await cloud()).firestore;
-    final place = departureNamed(origin.trim());
-    final queries = [
-      db
-          .collection('transport_stops')
-          .where('name', isEqualTo: origin.trim())
-          .limit(100)
-          .get(),
-      if (place != null)
-        db
-            .collection('transport_stops')
-            .where('departurePlaceId', isEqualTo: place.id)
-            .limit(100)
-            .get(),
-    ];
-    final snapshots = await Future.wait(queries);
-    final repo = GtfsRepository(db);
-    final gtfs = <TransportStop>[];
-    for (final feed in await repo.feeds()) {
-      if (feed['activeVersionId'] == null) continue;
-      // Explicit endpoint aliases choose candidate platforms; they never create transfer edges.
-      final names = {
-        origin.trim(),
-        if (origin.trim() == '札幌駅') ...['札幌駅前', '札幌駅北口'],
-      };
-      for (final name in names) {
-        final rows = await repo.findStops(feed, name);
-        gtfs.addAll(rows.map((r) => TransportStop(r['id'] as String, r)));
-      }
-    }
-    // Same names at distinct platforms remain separate candidates; only IDs deduplicate.
-    return {
-      for (final stop in gtfs) stop.id: stop,
-      for (final snapshot in snapshots)
-        for (final doc in snapshot.docs)
-          doc.id: TransportStop(doc.id, doc.data()),
-    }.values.toList();
-  }
-
   Future<TransportData> load(List<String> stopIds) async {
     if (stopIds.isEmpty) return TransportData([], [], [], [], []);
     final db = (await cloud()).firestore;
@@ -150,7 +109,15 @@ final transportDataProvider = FutureProvider.family<TransportData, String>(
 );
 
 final originTransportStopsProvider =
-    FutureProvider.family<List<TransportStop>, String>(
-      (ref, origin) =>
-          ref.watch(transportRepositoryProvider).findOriginStops(origin),
-    );
+    FutureProvider.family<List<TransportStop>, String>((ref, origin) async {
+      final places = await ref.watch(departurePlacesProvider.future);
+      return [
+        for (final stop
+            in departureNamed(origin, places)?.accessStops ?? <AccessStop>[])
+          if (stop.data['isActive'] != false)
+            TransportStop(stop.stopId, {
+              ...stop.data,
+              'name': stop.data['stopName'] ?? stop.stopId,
+            }),
+      ];
+    });

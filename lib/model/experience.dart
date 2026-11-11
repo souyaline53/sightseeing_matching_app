@@ -5,6 +5,8 @@ class Experience {
 
   /// Short place name, separate from the promotional title.
   final String name;
+  final String address;
+  final double? latitude, longitude;
   String get displayName => name.trim().isNotEmpty ? name.trim() : title;
   final int minutes, accessMinutes;
   final List<String> additionalPhotos;
@@ -24,6 +26,9 @@ class Experience {
     this.photo,
     this.minutes, {
     this.name = '',
+    this.address = '',
+    this.latitude,
+    this.longitude,
     this.additionalPhotos = const [],
     this.accessMinutes = 120,
     this.photoPath = '',
@@ -36,6 +41,9 @@ class Experience {
     'id': id,
     'title': title,
     'name': name,
+    'address': address,
+    'latitude': latitude,
+    'longitude': longitude,
     'area': area,
     'category': category,
     'description': description,
@@ -62,6 +70,9 @@ class Experience {
     json['photo'] as String,
     json['minutes'] as int,
     name: json['name'] as String? ?? '',
+    address: json['address'] as String? ?? '',
+    latitude: (json['latitude'] as num?)?.toDouble(),
+    longitude: (json['longitude'] as num?)?.toDouble(),
     accessStops: (json['accessStops'] as List? ?? [])
         .map((e) => AccessStop(Map<String, dynamic>.from(e as Map)))
         .toList(),

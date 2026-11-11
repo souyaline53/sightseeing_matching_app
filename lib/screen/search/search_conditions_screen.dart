@@ -1,3 +1,4 @@
+import '../../data/departure_places.dart';
 import '../../state/search_selection_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -124,11 +125,11 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       child: FilledButton(
                         onPressed: () {
                           if (ref.read(conditionsStepProvider) != 0) return;
-                          if (ref
-                              .read(searchDraftProvider)
-                              .origin
-                              .trim()
-                              .isEmpty) {
+                          if (departureNamed(
+                                ref.read(searchDraftProvider).origin,
+                                ref.read(departurePlacesProvider).value ?? [],
+                              ) ==
+                              null) {
                             showMessage(pageContext, '出発地を選択してください。');
                             return;
                           }

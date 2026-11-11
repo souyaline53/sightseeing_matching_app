@@ -117,7 +117,10 @@ service cloud.firestore {
       let d = request.resource.data;
       return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
         && d.keys().hasAll(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
-        && d.keys().hasOnly(['name','title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt'])
+        && d.keys().hasOnly(['address','latitude','longitude','name','title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt'])
+        && d.address is string && d.address.size() <= 500
+        && d.latitude is number && d.latitude >= -90 && d.latitude <= 90
+        && d.longitude is number && d.longitude >= -180 && d.longitude <= 180
         && d.get('name', '') is string && d.get('name', '').size() <= 120
         && d.get('accessStops', []) is list && d.get('accessStops', []).size() <= 30
         && d.get('accessNotes', '') is string
@@ -134,6 +137,24 @@ service cloud.firestore {
       allow read: if true;
       allow create: if admin() && spot(id, true);
       allow update: if admin() && spot(id, false);
+      allow delete: if admin();
+    }
+    function departure(id, creating) {
+      let d = request.resource.data;
+      return id.size() > 0 && id.size() <= 80
+        && id != '.' && id != '..' && !id.matches('.*[\\x00-\\x1f\\x7f].*')
+        && d.keys().hasAll(['address','latitude','longitude','accessStops','createdAt','updatedAt'])
+        && d.keys().hasOnly(['address','latitude','longitude','accessStops','createdAt','updatedAt'])
+        && d.address is string && d.address.size() <= 500
+        && d.latitude is number && d.latitude >= -90 && d.latitude <= 90
+        && d.longitude is number && d.longitude >= -180 && d.longitude <= 180
+        && d.accessStops is list && d.accessStops.size() <= 30
+        && catalogTimes(creating);
+    }
+    match /departure_places/{id} {
+      allow read: if true;
+      allow create: if admin() && departure(id, true);
+      allow update: if admin() && departure(id, false);
       allow delete: if admin();
     }
     // Legacy dummy collection retired. No client reads/writes.

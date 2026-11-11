@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -37,9 +39,12 @@ void main() {
       expect(controller.camera.zoom, greaterThan(oldZoom));
       await tester.tap(find.byTooltip('地図を縮小'));
       await tester.pumpAndSettle();
-      controller.move(departureNamed('小樽駅')!.point, controller.camera.zoom);
+      controller.move(
+        departureNamed('小樽駅', departurePlaces)!.point,
+        controller.camera.zoom,
+      );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('map-pin-otaru')));
+      await tester.tap(find.byKey(const ValueKey('map-pin-小樽駅')));
       await tester.pumpAndSettle();
       expect(container.read(conditionsStepProvider), 0);
       expect(container.read(searchDraftProvider).origin, '小樽駅');
@@ -64,6 +69,30 @@ void main() {
       expect(container.read(discoveryProvider).question, 2);
       expect(container.read(discoveryProvider).answers, [0, 0]);
       expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'registered departures replace fixed choices and can be selected',
+    (tester) async {
+      final container = await boot(
+        tester,
+        departures: const [
+          DeparturePlace('追加した出発地', '追加した出発地', '', LatLng(43, 141)),
+        ],
+      );
+      await tester.tap(find.text('新しい旅を探す'));
+      await tester.pumpAndSettle();
+      await answerQuestions(tester);
+      expect(find.byKey(const ValueKey('origin-chip-札幌駅')), findsNothing);
+      expect(find.byKey(const ValueKey('origin-chip-追加した出発地')), findsOneWidget);
+      await tester.tap(find.text('この出発地にする'));
+      await tester.pumpAndSettle();
+      expect(container.read(conditionsStepProvider), 0);
+      expect(find.text('出発地を選択してください。'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('origin-chip-追加した出発地')));
+      await tester.pumpAndSettle();
+      expect(container.read(searchDraftProvider).origin, '追加した出発地');
+      expect(container.read(conditionsStepProvider), 1);
     },
   );
   testWidgets('exactly four departure buttons form two rows and confirm once', (

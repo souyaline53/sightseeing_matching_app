@@ -44,3 +44,8 @@ exports.searchTransportJourneys = onCall(
   },
   (request) => searchTransportJourneys(request, getFirestore(), getStorage().bucket()),
 );
+
+exports.geocodeAddress = onCall(
+  { region: 'asia-northeast1', maxInstances: 2 },
+  require('./geocode').geocodeAddress,
+);

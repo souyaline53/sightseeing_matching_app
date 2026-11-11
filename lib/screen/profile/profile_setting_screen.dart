@@ -1,3 +1,4 @@
+import '../../data/departure_places.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -251,7 +252,10 @@ class ProfileSettingScreen extends HookConsumerWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final name in ['札幌駅', '新千歳空港', '小樽駅', '旭川駅'])
+                          for (final name
+                              in (ref.watch(departurePlacesProvider).value ??
+                                      <DeparturePlace>[])
+                                  .map((p) => p.name))
                             ActionChip(
                               label: Text(name),
                               onPressed: busy.value

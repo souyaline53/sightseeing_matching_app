@@ -26,7 +26,7 @@ class PostCreateScreen extends HookConsumerWidget {
     final colors = Theme.of(context).colorScheme;
     final candidates = catalog
         .where(
-          (spot) => '${spot.area} ${spot.title} ${spot.category}'
+          (spot) => '${spot.area} ${spot.displayName} ${spot.category}'
               .toLowerCase()
               .contains(query.value.trim().toLowerCase()),
         )
@@ -135,7 +135,7 @@ class PostCreateScreen extends HookConsumerWidget {
                 key: const ValueKey('post-spot-search'),
                 enabled: !busy.value,
                 decoration: const InputDecoration(
-                  hintText: '地域・スポット・体験を検索',
+                  hintText: '地域・観光地名称・カテゴリを検索',
                   prefixIcon: Icon(Icons.search),
                 ),
                 onChanged: (value) => query.value = value,
@@ -161,7 +161,7 @@ class PostCreateScreen extends HookConsumerWidget {
                         ),
                         leading: const Icon(Icons.place_outlined),
                         title: Text(
-                          spot.title,
+                          spot.displayName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 13),
@@ -181,7 +181,7 @@ class PostCreateScreen extends HookConsumerWidget {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.check_circle, color: colors.primary),
-                title: Text(selected.value!.title),
+                title: Text(selected.value!.displayName),
                 subtitle: Text(selected.value!.area),
                 trailing: IconButton(
                   tooltip: 'スポットを選び直す',

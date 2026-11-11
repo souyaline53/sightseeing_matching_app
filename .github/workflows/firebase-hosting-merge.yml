@@ -14,12 +14,12 @@ permissions:
 
 jobs:
   build_and_deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       # 1. GitHubからコードを取得
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 2. Flutterをインストール
       - name: Set up Flutter
@@ -36,11 +36,14 @@ jobs:
       - name: Build Flutter Web
         run: dart run tool/build_web.dart
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Check compiled Web app in Chrome
         run: node tool/check_web_release.mjs --local-build
+        env:
+          # Hosted Linux runners restrict Chrome sandbox namespaces.
+          CHROME_NO_SANDBOX: "true"
 
       # 5. Firebase Hostingへ公開
       - name: Deploy to Firebase Hosting

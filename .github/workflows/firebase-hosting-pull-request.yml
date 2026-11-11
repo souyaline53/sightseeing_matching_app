@@ -10,19 +10,22 @@ permissions:
 jobs:
   build_and_preview:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: dart run tool/build_web.dart
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Check compiled Web app in Chrome
         run: node tool/check_web_release.mjs --local-build
+        env:
+          # Hosted Linux runners restrict Chrome sandbox namespaces.
+          CHROME_NO_SANDBOX: "true"
 
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

@@ -20,6 +20,7 @@ const chrome = spawn(
   chromePath,
   [
     "--headless=new",
+    ...(process.env.CHROME_NO_SANDBOX === "true" ? ["--no-sandbox"] : []),
     "--remote-debugging-port=0",
     `--user-data-dir=${profile}`,
     "--no-first-run",
@@ -27,11 +28,16 @@ const chrome = spawn(
     "--disable-extensions",
     "about:blank",
   ],
-  { stdio: ["ignore", "ignore", "ignore"] },
+  { stdio: ["ignore", "ignore", "pipe"] },
 );
-chrome.on("error", (e) => {
-  console.error(e.message);
-  process.exitCode = 1;
+let startupError;
+let chromeStderr = "";
+chrome.stderr.setEncoding("utf8");
+chrome.stderr.on("data", (chunk) => {
+  chromeStderr = (chromeStderr + chunk).slice(-8000);
+});
+chrome.on("error", (error) => {
+  startupError = error;
 });
 let socket;
 let sequence = 0;
@@ -51,6 +57,8 @@ const send = (method, params = {}) =>
 try {
   let port;
   for (let n = 0; n < 60; n++) {
+    if (startupError) throw startupError;
+    if (chrome.exitCode !== null || chrome.signalCode !== null) break;
     const file = path.join(profile, "DevToolsActivePort");
     if (fs.existsSync(file)) {
       port = fs.readFileSync(file, "utf8").split("\n")[0];
@@ -58,7 +66,10 @@ try {
     }
     await pause(200);
   }
-  if (!port) throw Error("Chrome did not start");
+  if (!port)
+    throw Error(
+      `Chrome did not start (${chromePath}, exit=${chrome.exitCode}, signal=${chrome.signalCode})\n${chromeStderr.trim()}`,
+    );
   const pages = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
   socket = new WebSocket(
     pages.find((p) => p.type === "page").webSocketDebuggerUrl,

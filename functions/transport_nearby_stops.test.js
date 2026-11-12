@@ -76,3 +76,36 @@ test("same-name 500m endpoints prefer walking, but distant names and prohibited 
   assert.notEqual(searchJourneys(prepareNetwork([data(rows,[],[rule])]),q("a","b")).walkingOnly,true);
   assert.equal(searchJourneys(prepareNetwork([data(rows,[],[rule])]),q("b","a")).walkingOnly,true);
 });
+
+test("explicit endpoint walks connect different names in the declared direction and include spot access time", () => {
+  const rows = [stop("start", -10000,"出発"), stop("a",0,"鉄道駅"), stop("b",30,"駅前バス停"),stop("end",10000,"終点")];
+  const rule = {id:"walk",sourceType:"manual",fromStopId:"a",toStopId:"b",transferType:2,minTransferSeconds:300};
+  const net = prepareNetwork([data(rows, [trip("in", "start", "a", 28800,29400), trip("out", "b", "end",30000,30600)], [rule])]);
+  const before = searchJourneys(net, {...q("a","end"),from:[{stopId:"a",walkingMinutes:2}]}).journeys[0];
+  assert.equal(before.walkingMinutesBefore,7);
+  assert.equal(before.departureFromSpotSeconds,30000-420);
+  assert.equal(before.accessBefore.fromStopId,"a");
+  assert.equal(before.accessBefore.toStopId,"b");
+  const after = searchJourneys(net,{...q("start","b"),to:[{stopId:"b",walkingMinutes:2}]}).journeys[0];
+  assert.equal(after.walkingMinutesAfter,7);
+  assert.equal(after.arrivalSeconds,29400+420);
+  assert.equal(searchJourneys(net,q("a","b")).walkingOnly,true);
+  assert.notEqual(searchJourneys(net,q("b","a")).walkingOnly,true);
+  assert.equal(searchJourneys(net,q("start","b")).journeys[0].legs.length,1);
+  assert.equal(searchJourneys(net,q("start","a")).journeys[0].accessAfter,undefined);
+  for (const extra of [{transferType:3}, {minTransferSeconds:null}, {fromTripId:"in"}, {toRouteId:"r"}, {isActive:false}, {sourceType:"sample"}]) {
+    const restricted = prepareNetwork([data(rows,[trip("in","start","a",28800,29400)],[{...rule,...extra}])]);
+    assert.equal(searchJourneys(restricted,q("start","b")).journeys.length,0);
+    assert.notEqual(searchJourneys(restricted,q("a","b")).walkingOnly,true);
+  }
+});
+
+test("explicit endpoint walking links do not create transitive access", () => {
+  const rows = [stop("a",0,"A"),stop("b",20,"B"),stop("c",40,"C"),stop("end",10000,"終点")];
+  const transfers = [["a","b"],["b","c"]].map(([fromStopId,toStopId]) =>
+    ({id:`${fromStopId}-${toStopId}`,sourceType:"manual",fromStopId,toStopId,transferType:2,minTransferSeconds:300}));
+  const net = prepareNetwork([data(rows,[trip("t","c","end",32000,33000)],transfers)]);
+  assert.equal(searchJourneys(net,q("a","end")).journeys.length,0);
+  assert.equal(searchJourneys(net,q("b","end")).journeys.length,1);
+  assert.notEqual(searchJourneys(net,q("a","c")).walkingOnly,true);
+});

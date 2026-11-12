@@ -84,8 +84,10 @@ class ConditionsForm extends HookConsumerWidget {
                         <DeparturePlace>[])
                     .map((p) => p.name))
               ActionChip(
-                label: Text(name),
-                onPressed: () => emit(latest.value.copyWith(origin: name)),
+                label: Text(isDepartureSelectable(name) ? name : '$name（未対応）'),
+                onPressed: isDepartureSelectable(name)
+                    ? () => emit(latest.value.copyWith(origin: name))
+                    : null,
               ),
           ],
         ),

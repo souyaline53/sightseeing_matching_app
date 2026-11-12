@@ -1,3 +1,4 @@
+import 'spot_visit_info.dart';
 import 'admin_transport_fields.dart';
 import 'experience.dart';
 
@@ -97,6 +98,7 @@ class CatalogRecord {
   final Map<String, dynamic> data;
   CatalogRecord(this.id, this.kind, Map<String, dynamic> data)
     : data = Map.unmodifiable(data);
+  SpotVisitInfo get visitInfo => SpotVisitInfo.fromMap(data);
   String get title =>
       kind == CatalogKind.departure ? id : data['title'] as String;
   int get order => data['order'] as int? ?? 1000;

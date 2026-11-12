@@ -76,8 +76,7 @@ class SearchConditions {
     return null;
   }
 
-  // Search execution never requires a travel date. Legacy date fields remain
-  // readable for existing presets and the unchanged preset editor.
+  // Additional numeric limits shared by search and filter editing.
   String? validateFilters() {
     if (origin.trim().isEmpty) return '出発地を選択してください。';
     if (maxMinutes < 30 || maxMinutes > 300) return '移動時間を30〜300分で指定してください。';

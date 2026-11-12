@@ -1,7 +1,6 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../service/curiosity_questions.dart';
 import '../../model/experience.dart';
 import '../../state/discovery_state.dart';
 import '../../state/experience_photos.dart';
@@ -15,6 +14,38 @@ class ExperienceDeck extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
     final trip = ref.watch(tripProvider);
+    if (discovery.aiLoading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('あなたに合う体験を探しています…\nもう少しで完了します…'),
+          ],
+        ),
+      );
+    }
+    if (discovery.aiError != null || discovery.deck.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(discovery.aiError ?? '条件に合う推薦結果がありませんでした。'),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => ref
+                    .read(discoveryProvider.notifier)
+                    .showExplore(retry: true),
+                child: const Text('再試行'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final photos = ref.watch(experiencePhotosProvider);
     return photos.when(
       loading: () => const Center(
@@ -76,7 +107,6 @@ class _SwipeExperienceCards extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
     final trip = ref.watch(tripProvider);
-    final hints = CuriosityQuestions.hints(discovery.interests);
     final dismissalVersion = useState(0);
     Widget card(int index) {
       final e = discovery.deck[index];
@@ -87,8 +117,7 @@ class _SwipeExperienceCards extends HookConsumerWidget {
             ? PhotoPlaceholder(e)
             : RawImage(image: image.image, fit: BoxFit.cover),
         number: '${index + 1} / ${discovery.deck.length}',
-        detour: !hints.closeGenres.contains(e.category) && index % 3 == 2,
-        closeToMood: hints.closeGenres.contains(e.category),
+        reason: discovery.recommendationReasons[e.id] ?? '',
         saved: trip.contains(e),
         onSave: () => ref.read(tripProvider.notifier).toggle(e),
         onSkip: () => ref.read(discoveryProvider.notifier).advance(),
@@ -97,8 +126,7 @@ class _SwipeExperienceCards extends HookConsumerWidget {
 
     final index = discovery.index;
     void dismiss(DismissDirection direction) {
-      if (direction == DismissDirection.up ||
-          direction == DismissDirection.startToEnd) {
+      if (direction == DismissDirection.up) {
         ref.read(tripProvider.notifier).save(discovery.deck[index]);
       }
       dismissalVersion.value++;
@@ -146,14 +174,14 @@ class _ExperienceCard extends HookConsumerWidget {
   final Experience experience;
   final Widget photo;
   final String number;
-  final bool detour, closeToMood, saved;
+  final bool saved;
+  final String reason;
   final VoidCallback onSave, onSkip;
   const _ExperienceCard({
     required this.experience,
     required this.photo,
     required this.number,
-    required this.detour,
-    required this.closeToMood,
+    required this.reason,
     required this.saved,
     required this.onSave,
     required this.onSkip,
@@ -186,11 +214,7 @@ class _ExperienceCard extends HookConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      detour
-                          ? '寄り道の発見'
-                          : closeToMood
-                          ? 'いまの気分に近い体験'
-                          : '興味がつながる体験',
+                      'あなたへのおすすめ',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -200,12 +224,14 @@ class _ExperienceCard extends HookConsumerWidget {
                   Text(number, style: const TextStyle(color: Colors.white)),
                 ],
               ),
-              if (detour)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
+              if (reason.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'こんな世界も、ちょっと覗いてみませんか？',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    reason,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
             ],
@@ -220,7 +246,7 @@ class _ExperienceCard extends HookConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '⌖ ${experience.area}  ·  ${experience.name}  ·  #${experience.category}',
+                '⌖ ${experience.area} ·  #${experience.category}',
                 style: const TextStyle(color: Colors.white),
               ),
               const SizedBox(height: 10),
@@ -235,7 +261,7 @@ class _ExperienceCard extends HookConsumerWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                experience.description,
+                experience.name,
                 style: const TextStyle(color: Colors.white, height: 1.6),
               ),
               SizedBox(height: 20),
@@ -263,7 +289,7 @@ class _ExperienceCard extends HookConsumerWidget {
               ),
               const Center(
                 child: Text(
-                  '← 次の体験  /  ↑・右スワイプで保存',
+                  '←・→ 次の体験  /  ↑ 保存',
                   style: TextStyle(color: Colors.white70, fontSize: 10),
                 ),
               ),

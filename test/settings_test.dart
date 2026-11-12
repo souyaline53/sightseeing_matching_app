@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/service/ai_matching_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
@@ -180,6 +181,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           catalogProvider.overrideWith((ref) => Stream.value(testCatalog)),
+          aiMatchingServiceProvider.overrideWithValue(
+            fixtureAiMatchingService(),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -191,7 +195,7 @@ void main() {
       controller.selectMood(0);
       controller.answer(0);
       controller.answer(1);
-      controller.showExplore();
+      await controller.showExplore();
       controller.back();
       controller.back();
       expect(container.read(discoveryProvider).question, 2);
@@ -200,7 +204,7 @@ void main() {
       controller.answer(1);
       expect(container.read(discoveryProvider).answers, [1]);
       controller.answer(0);
-      controller.showExplore();
+      await controller.showExplore();
       controller.goTo(9);
       controller.advance();
       expect(container.read(discoveryProvider).index, 0);
@@ -229,7 +233,10 @@ void main() {
       trip.setDate(DateTime(2027, 1, 3));
       expect(container.read(tripProvider).travelDate, DateTime(2027, 1, 3));
       trip.applySearchFilters(const SearchConditions());
-      expect(container.read(tripProvider).travelDate, isNull);
+      expect(
+        container.read(tripProvider).travelDate,
+        const SearchConditions().resolveDate(),
+      );
       trip.save(experiences.first);
       expect(container.read(tripProvider).saved.length, 1);
     },

@@ -66,7 +66,7 @@ class ExperienceDetail extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 24),
                       const Text(
-                        'もう一歩、奥へ。',
+                        'こんな一面も！',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,

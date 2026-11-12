@@ -51,7 +51,7 @@ class _SelectionCard extends HookConsumerWidget {
   final String? description;
   final IconData icon;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _SelectionCard({
     super.key,
     required this.label,
@@ -63,16 +63,24 @@ class _SelectionCard extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
+    final enabled = onTap != null;
+    final highlighted = enabled && selected;
+    final disabledColor = colors.onSurface.withValues(alpha: 0.38);
     return Semantics(
       button: true,
-      selected: selected,
+      enabled: enabled,
+      selected: highlighted,
       child: Material(
-        color: selected ? colors.primaryContainer : colors.surface,
+        color: !enabled
+            ? colors.surfaceContainerHighest
+            : highlighted
+            ? colors.primaryContainer
+            : colors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(
-            color: selected ? colors.primary : colors.outlineVariant,
-            width: selected ? 2 : 1,
+            color: highlighted ? colors.primary : colors.outlineVariant,
+            width: highlighted ? 2 : 1,
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -84,18 +92,29 @@ class _SelectionCard extends HookConsumerWidget {
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(icon, color: colors.primary, size: 30),
+                      Icon(
+                        icon,
+                        color: enabled ? colors.primary : disabledColor,
+                        size: 30,
+                      ),
                       const SizedBox(height: 10),
                       Text(
                         label,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: enabled ? null : disabledColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   )
                 : Row(
                     children: [
-                      Icon(icon, color: colors.primary, size: 34),
+                      Icon(
+                        icon,
+                        color: enabled ? colors.primary : disabledColor,
+                        size: 34,
+                      ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
@@ -140,7 +159,8 @@ class DepartureStepPage extends HookConsumerWidget {
     final places = departures.value ?? <DeparturePlace>[];
     final origins = places.map((p) => p.name).toList();
     void select(String name, {bool confirm = false}) {
-      if (ref.read(discoveryProvider).step != 1 ||
+      if (!isDepartureSelectable(name) ||
+          ref.read(discoveryProvider).step != 1 ||
           ref.read(conditionsStepProvider) != 0) {
         return;
       }
@@ -178,14 +198,16 @@ class DepartureStepPage extends HookConsumerWidget {
                   width: (constraints.maxWidth - 12) / 2,
                   child: _SelectionCard(
                     key: ValueKey('origin-chip-$name'),
-                    label: name,
+                    label: isDepartureSelectable(name) ? name : '$name（未対応）',
                     icon: name == '新千歳空港'
                         ? Icons.flight_takeoff
                         : Icons.train_outlined,
                     selected:
                         selections.contains(SearchSelection.origin) &&
                         draft.origin == name,
-                    onTap: () => select(name, confirm: true),
+                    onTap: isDepartureSelectable(name)
+                        ? () => select(name, confirm: true)
+                        : null,
                   ),
                 ),
             ],
@@ -284,7 +306,7 @@ class TripLengthStepPage extends HookConsumerWidget {
     final selections = ref.watch(searchSelectionProvider);
     return _StepLayout(
       title: 'どのくらい旅する？',
-      subtitle: '旅行期間をタップして、同行者の選択へ。',
+      subtitle: '旅行期間をタップして、出発日の選択へ。',
       children: [
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
@@ -327,6 +349,42 @@ class TripLengthStepPage extends HookConsumerWidget {
                 ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class DepartureDateStepPage extends HookConsumerWidget {
+  const DepartureDateStepPage({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(searchDraftProvider);
+    final today = DateUtils.dateOnly(DateTime.now());
+    return _StepLayout(
+      title: 'いつ出発する？',
+      subtitle: '出発日をタップすると次へ進みます。',
+      children: [
+        CalendarDatePicker(
+          initialDate: draft.resolveDate().isBefore(today)
+              ? today
+              : draft.resolveDate(),
+          firstDate: today,
+          lastDate: DateTime(today.year + 5, 12, 31),
+          onDateChanged: (date) {
+            if (ref.read(conditionsStepProvider) != 3) return;
+            ref
+                .read(searchDraftProvider.notifier)
+                .replace(
+                  ref
+                      .read(searchDraftProvider)
+                      .copyWith(dateChoice: DateChoice.fixed, fixedDate: date),
+                );
+            ref
+                .read(searchSelectionProvider.notifier)
+                .choose(SearchSelection.date);
+            ref.read(conditionsStepProvider.notifier).nextFrom(3);
+          },
         ),
       ],
     );

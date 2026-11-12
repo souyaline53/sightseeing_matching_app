@@ -46,3 +46,6 @@ final departurePlacesProvider = StreamProvider<List<DeparturePlace>>((
 
 DeparturePlace? departureNamed(String name, Iterable<DeparturePlace> places) =>
     places.where((place) => place.id == name || place.name == name).firstOrNull;
+
+// 旭川駅は現在、出発地として未対応。
+bool isDepartureSelectable(String name) => name != '旭川駅';

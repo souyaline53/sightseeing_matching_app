@@ -49,3 +49,36 @@ exports.geocodeAddress = onCall(
   { region: 'asia-northeast1', maxInstances: 2 },
   require('./geocode').geocodeAddress,
 );
+
+
+const { getMatchingSpots } = require("./ai_matching");
+
+exports.getMatchingSpots = onCall(
+  {
+    region: "asia-northeast1",
+    maxInstances: 2,
+    timeoutSeconds: 30,
+  },
+  (request) => getMatchingSpots(request, getFirestore()),
+);
+
+
+const { defineSecret } = require("firebase-functions/params");
+const { getAiRecommendations } = require("./ai_matching");
+
+const difyApiKey = defineSecret("DIFY_API_KEY");
+
+exports.getAiRecommendations = onCall(
+  {
+    region: "asia-northeast1",
+    maxInstances: 2,
+    timeoutSeconds: 90,
+    secrets: [difyApiKey],
+    enforceAppCheck: process.env.AI_ENFORCE_APP_CHECK === "true",
+  },
+  (request) => getAiRecommendations(
+    request,
+    getFirestore(),
+    difyApiKey.value()
+  ),
+);

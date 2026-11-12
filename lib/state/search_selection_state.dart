@@ -1,7 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 /// Tracks explicit choices separately from the stored filter defaults.
-enum SearchSelection { origin, transport, length, company, walking }
+enum SearchSelection { origin, transport, length, company, walking, date }
 
 final searchSelectionProvider =
     NotifierProvider<SearchSelectionNotifier, Set<SearchSelection>>(

@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/service/ai_matching_service.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/service/address_geocoder.dart';
@@ -58,11 +59,15 @@ Future<ProviderContainer> boot(
   AddressGeocoder? geocoder,
   List<DeparturePlace>? departures,
   Future<Map<String, ImageInfo?>> Function()? photos,
+  AiMatchingService? aiService,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final container = ProviderContainer(
     overrides: [
+      aiMatchingServiceProvider.overrideWithValue(
+        aiService ?? fixtureAiMatchingService(),
+      ),
       departurePlacesProvider.overrideWith(
         (ref) => Stream.value(departures ?? departurePlaces),
       ),
@@ -136,6 +141,16 @@ Future<void> answerQuestions(
   await tester.pumpAndSettle();
 }
 
+Future<void> chooseDepartureDate(WidgetTester tester) async {
+  await tester.tap(
+    find.descendant(
+      of: find.byType(CalendarDatePicker),
+      matching: find.text('${DateTime.now().day}'),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<void> enterDetails(
   WidgetTester tester, {
   String origin = '小樽駅',
@@ -149,6 +164,7 @@ Future<void> enterDetails(
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(ValueKey('length-$length')));
   await tester.pumpAndSettle();
+  await chooseDepartureDate(tester);
   await tester.tap(find.byKey(ValueKey('company-$company')));
   await tester.pumpAndSettle();
 }
@@ -187,17 +203,20 @@ void main() {
       expect(last.conditions.transport, TravelMode.car);
       expect(last.conditions.length, TripLength.overnight);
       expect(last.searchedAt.isUtc, isTrue);
-      expect(container.read(tripProvider).travelDate, isNull);
+      expect(
+        container.read(tripProvider).travelDate,
+        DateUtils.dateOnly(DateTime.now()),
+      );
       final initial = container.read(discoveryProvider).deck;
       await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved, isEmpty);
-      await tester.drag(find.byType(Dismissible).last, const Offset(350, 0));
+      await tester.drag(find.byType(Dismissible).first, const Offset(0, -600));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved.single.id, initial[1].id);
       await tester.longPress(find.text(initial[2].title));
       await tester.pumpAndSettle();
-      expect(find.text('もう一歩、奥へ。'), findsOneWidget);
+      expect(find.text('こんな一面も！'), findsOneWidget);
       await reveal(tester, find.text('この体験を保存'));
       await tester.tap(find.text('この体験を保存'));
       await tester.pumpAndSettle();
@@ -205,7 +224,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, '旅を組み立てる'));
       await tester.pumpAndSettle();
-      expect(find.text('旅行日を選ぶ（未定）'), findsOneWidget);
+      final date = DateUtils.dateOnly(DateTime.now());
+      expect(
+        find.textContaining('${date.year}/${date.month}/${date.day}（'),
+        findsOneWidget,
+      );
+      expect(find.byType(CalendarDatePicker), findsNothing);
       final before = container.read(tripProvider).stops.first.id;
       await tester.tap(
         find
@@ -219,7 +243,7 @@ void main() {
       await tester.tap(find.text('次へ'));
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).stops.first.id, isNot(before));
-      expect(find.textContaining('時刻表は参考情報です'), findsOneWidget);
+      expect(find.textContaining('時刻表は参考情報です'), findsNothing);
       await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
       await tester.pumpAndSettle();
       expect(find.text('マイプラン'), findsOneWidget);
@@ -357,18 +381,22 @@ void main() {
         '函館駅',
       );
       expect(find.byType(CalendarDatePicker), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('origin-chip-旭川駅')));
+      await tester.tap(find.byKey(const ValueKey('origin-chip-札幌駅')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('travel-transit')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('length-day')));
       await tester.pumpAndSettle();
+      await chooseDepartureDate(tester);
       await tester.tap(find.byKey(const ValueKey('company-solo')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('この条件で探す'));
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).step, 3);
-      expect(container.read(tripProvider).travelDate, isNull);
+      expect(
+        container.read(tripProvider).travelDate,
+        DateUtils.dateOnly(DateTime.now()),
+      );
       container.read(discoveryProvider.notifier).reset();
       await tester.pumpAndSettle();
       await tester.tap(find.text('新しい旅を探す'));
@@ -398,40 +426,47 @@ void main() {
     }
     expect(tester.takeException(), isNull);
   });
-  testWidgets(
-    'photos are prepared once and unchanged horizontal swipes save or skip',
-    (tester) async {
-      final ready = Completer<Map<String, ImageInfo?>>();
-      var loads = 0;
-      final container = await boot(
-        tester,
-        photos: () {
-          loads++;
-          return ready.future;
-        },
-      );
-      final flow = container.read(discoveryProvider.notifier);
-      flow.startQuestions();
-      flow.selectMood(0);
-      flow.answer(0);
-      flow.answer(0);
-      flow.showExplore();
-      await tester.pump();
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      ready.complete({});
+  testWidgets('photos are prepared once; only upward swipes save', (
+    tester,
+  ) async {
+    final ready = Completer<Map<String, ImageInfo?>>();
+    var loads = 0;
+    final container = await boot(
+      tester,
+      photos: () {
+        loads++;
+        return ready.future;
+      },
+    );
+    final flow = container.read(discoveryProvider.notifier);
+    flow.startQuestions();
+    flow.selectMood(0);
+    flow.answer(0);
+    flow.answer(0);
+    flow.showExplore();
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    ready.complete({});
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 10; i++) {
+      await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
       await tester.pumpAndSettle();
-      for (var i = 0; i < 10; i++) {
-        await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
-        await tester.pumpAndSettle();
-      }
-      expect(container.read(discoveryProvider).index, 0);
-      await tester.drag(find.byType(Dismissible).last, const Offset(350, 0));
-      await tester.pumpAndSettle();
-      expect(container.read(tripProvider).saved.length, 1);
-      expect(loads, 1);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    }
+    expect(container.read(discoveryProvider).index, 0);
+    await tester.drag(find.byType(Dismissible).last, const Offset(350, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(tripProvider).saved, isEmpty);
+    final experience = container
+        .read(discoveryProvider)
+        .deck[container.read(discoveryProvider).index];
+    await tester.drag(find.byType(Dismissible).first, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(container.read(tripProvider).saved.map((e) => e.id), [
+      experience.id,
+    ]);
+    expect(loads, 1);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('load and save failures keep profile data and editable input', (
     tester,
   ) async {

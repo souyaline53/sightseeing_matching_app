@@ -1,6 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-/// Presentation state only; all four pages edit the same searchDraftProvider.
+/// Presentation state only; all five pages edit the same searchDraftProvider.
 final conditionsStepProvider = NotifierProvider<ConditionsStepNotifier, int>(
   ConditionsStepNotifier.new,
 );
@@ -10,7 +10,7 @@ class ConditionsStepNotifier extends Notifier<int> {
   int build() => 0;
   void reset() => state = 0;
   void nextFrom(int expected) {
-    if (state == expected && state < 3) state++;
+    if (state == expected && state < 4) state++;
   }
 
   void back() {

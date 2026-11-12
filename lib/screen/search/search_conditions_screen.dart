@@ -84,7 +84,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'STEP ${step + 1}/4',
+                        'STEP ${step + 1}/5',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
@@ -92,7 +92,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: (step + 1) / 4,
+                        value: (step + 1) / 5,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
@@ -109,6 +109,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                   DepartureStepPage(),
                   TransportStepPage(),
                   TripLengthStepPage(),
+                  DepartureDateStepPage(),
                   CompanionStepPage(),
                 ],
               ),
@@ -125,11 +126,15 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       child: FilledButton(
                         onPressed: () {
                           if (ref.read(conditionsStepProvider) != 0) return;
-                          if (departureNamed(
+                          if (!isDepartureSelectable(
                                 ref.read(searchDraftProvider).origin,
-                                ref.read(departurePlacesProvider).value ?? [],
-                              ) ==
-                              null) {
+                              ) ||
+                              departureNamed(
+                                    ref.read(searchDraftProvider).origin,
+                                    ref.read(departurePlacesProvider).value ??
+                                        [],
+                                  ) ==
+                                  null) {
                             showMessage(pageContext, '出発地を選択してください。');
                             return;
                           }
@@ -152,7 +157,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       '旅行期間をタップして、次へ進みます。',
                       style: TextStyle(fontSize: 12),
                     ),
-                  if (step == 3) ...[
+                  if (step == 4) ...[
                     if (!companyChosen)
                       const Padding(
                         padding: EdgeInsets.only(bottom: 8),

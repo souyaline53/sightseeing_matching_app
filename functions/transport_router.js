@@ -50,7 +50,7 @@ function prepareNetwork(parts) {
     if (!children.has(s.parentStationId)) children.set(s.parentStationId, []);
     children.get(s.parentStationId).push(s.id);
   }
-  const rules = new Map(), incoming = new Map(), contextual = new Set(), nearby = new Map();
+  const rules = new Map(), incoming = new Map(), outgoing = new Map(), contextual = new Set(), nearby = new Map();
   // Intra-feed pairs are built on import; cross-feed/manual pairs only on cache rebuild.
   sameNameConnections.push(...buildSameNameConnections([...stops.values()], (a, b) => source.get(a.id) !== source.get(b.id)));
   for (const [a, b, distance, seconds] of sameNameConnections) {
@@ -71,11 +71,13 @@ function prepareNetwork(parts) {
       rules.get(k).push(rule);
       if (!incoming.has(b)) incoming.set(b, new Set());
       incoming.get(b).add(a);
+      if (!outgoing.has(a)) outgoing.set(a, new Set());
+      outgoing.get(a).add(b);
       if (rule.fromRouteId || rule.fromTripId || rule.toRouteId || rule.toTripId) contextual.add(a);
     }
   }
   const boardingSources = new Map([...stops.keys()].map((id) => [id, [id, ...[...(incoming.get(id) || [])].filter((from) => from !== id)]]));
-  return { stops, routes, services, trips, rules, incoming, contextual, nearby, boardingSources };
+  return { stops, routes, services, trips, rules, incoming, outgoing, contextual, nearby, boardingSources };
 }
 function connection(net, label, target, next, buffer) {
   if (!label.trip) return label.stopId === target ? { requiredSeconds: 0, source: "access" } : null;
@@ -110,14 +112,24 @@ function expandAccessStops(net, accessStops, before) {
   for (const access of accessStops) {
     if (!net.stops.has(access.stopId)) continue;
     add({ ...access, walkingSeconds: (access.walkingMinutes ?? 0) * 60 });
-    for (const [peer, edge] of net.nearby.get(access.stopId) || []) {
+    // Explicit walking links also connect differently named stops (e.g. a
+    // railway station and its station-front bus stop). Keep direction and use
+    // only one hop; a vehicle-specific transfer is not an endpoint walk.
+    const peers = new Set([
+      ...(net.nearby.get(access.stopId)?.keys() || []),
+      ...((before ? net.outgoing : net.incoming).get(access.stopId) || []),
+    ]);
+    for (const peer of peers) {
+      if (peer === access.stopId) continue;
+      const edge = net.nearby.get(access.stopId)?.get(peer);
       const from = before ? access.stopId : peer, to = before ? peer : access.stopId;
       // A generic manual/GTFS prohibition also prevents automatic endpoint expansion.
       const rules = (net.rules.get(`${from}\n${to}`) || []).filter((r) => !r.fromTripId && !r.toTripId && !r.fromRouteId && !r.toRouteId);
       if (rules.some((r) => [3, 4, 5].includes(r.transferType))) continue;
-      const confirmed = rules.length && rules.every((r) => Number.isInteger(r.minTransferSeconds));
+      const confirmed = rules.length && rules.every((r) => Number.isInteger(r.minTransferSeconds) && r.minTransferSeconds >= 0);
+      if (!confirmed && !edge) continue;
       const seconds = confirmed ? Math.max(...rules.map((r) => r.minTransferSeconds)) : edge.requiredSeconds;
-      const accessConnection = { fromStopId: from, toStopId: to, distanceMeters: edge.distanceMeters,
+      const accessConnection = { fromStopId: from, toStopId: to, ...(edge ? { distanceMeters: edge.distanceMeters } : {}),
         requiredSeconds: seconds, source: confirmed ? "confirmed" : edge.source, estimated: !confirmed, ruleIds: confirmed ? rules.map((r) => r.id) : [] };
       add({ ...access, stopId: peer, registeredStopId: access.stopId, accessConnection,
         walkingSeconds: (access.walkingMinutes ?? 0) * 60 + seconds,
@@ -145,13 +157,8 @@ function tripInstances(net, q) {
   return instances;
 }
 function sharesWalkingStop(net, q) {
-  for (const from of q.from) for (const to of q.to) {
-    if (from.stopId === to.stopId) return true;
-    if (!net.nearby.get(from.stopId)?.has(to.stopId)) continue;
-    const rules = (net.rules.get(`${from.stopId}\n${to.stopId}`) || []).filter((r) => !r.fromTripId && !r.toTripId && !r.fromRouteId && !r.toRouteId);
-    if (!rules.some((r) => [3, 4, 5].includes(r.transferType))) return true;
-  }
-  return false;
+  const accessible = expandAccessStops(net, q.from, true);
+  return q.to.some((to) => accessible.has(to.stopId));
 }
 function searchJourneys(net, input) {
   const result = searchJourneyOptions(net, input);
@@ -180,6 +187,8 @@ function searchJourneyOptions(net, input) {
     if (!labels.has(key) || label.time < labels.get(key).time) labels.set(key, label);
   }
   for (const origin of expandAccessStops(net, q.from, true).values()) add(previous, { stopId: origin.stopId, time: q.departureSeconds + origin.walkingSeconds, origin });
+  // Keep earlier rounds so waiting can dominate an unnecessary excursion.
+  const earlierRounds = [];
   const results = [];
   let bestArrival = Infinity, scannedStopTimes = 0;
   const bucketArrivals = new Map();
@@ -209,6 +218,17 @@ function searchJourneyOptions(net, input) {
           if (q.timetable && boards.has(bucket)) continue;
           const edge = connection(net, label, stopId, instance, q.minimumTransferSeconds);
           if (!edge || label.time + edge.requiredSeconds > departure + offset) continue;
+          const dominated = earlierRounds.some((labels) =>
+            net.boardingSources.get(stopId).some((source) =>
+              [...(labels.get(source)?.values() || [])].some((earlier) => {
+                if (q.timetable) {
+                  const earlierBucket = earlier.trip ? earlier.bucket : Math.floor((departure + offset) / 3600);
+                  if ((earlier.trip && earlierBucket !== bucket) || (!earlier.trip && departure + offset >= q.departureSeconds + DAY)) return false;
+                }
+                const waitingEdge = connection(net, earlier, stopId, instance, q.minimumTransferSeconds);
+                return waitingEdge && earlier.time + waitingEdge.requiredSeconds <= departure + offset;
+              })));
+          if (dominated) continue;
           const candidate = { label, connection: edge, time, bucket };
           if (q.timetable) boards.set(bucket, candidate);
           else if (!best || label.time + edge.requiredSeconds < best.label.time + best.connection.requiredSeconds) best = candidate;
@@ -237,6 +257,7 @@ function searchJourneyOptions(net, input) {
       bestArrival = best.arrival;
       results.push(serialize(net, q, best, round));
     }
+    earlierRounds.push(previous);
     previous = current;
   }
   if (q.timetable) results.push(...[...bucketArrivals.values()].map((x) => x.journey));

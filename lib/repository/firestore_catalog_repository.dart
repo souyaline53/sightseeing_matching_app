@@ -1,3 +1,4 @@
+import '../model/spot_visit_info.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/catalog_record.dart';
 import '../model/travel_catalog.dart';
@@ -89,6 +90,9 @@ class FirestoreCatalogRepository implements CatalogRepository {
   }) async {
     final error = validateCatalogRecord(kind, id, data);
     if (error != null) throw StateError(error);
+    if (kind == CatalogKind.sightseeing) {
+      SpotVisitInfo.fromMap(data).validate();
+    }
     final cloud = await services();
     cloud.requireAdmin();
     final doc = cloud.firestore.collection(kind.collection).doc(id);
@@ -98,9 +102,13 @@ class FirestoreCatalogRepository implements CatalogRepository {
         throw StateError('同じIDが存在します。別のIDを指定してください。');
       }
       if (!creating && !current.exists) throw StateError('このデータは既に削除されています。');
+      final payload = mergeCatalogMaps(current.data() ?? {}, data);
+      if (kind == CatalogKind.sightseeing) {
+        final visit = SpotVisitInfo.fromMap(payload)..validate();
+        payload.addAll(visit.toMap());
+      }
       transaction.set(doc, {
-        ...?current.data(),
-        ...data,
+        ...payload,
         'createdAt':
             current.data()?['createdAt'] ?? FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),

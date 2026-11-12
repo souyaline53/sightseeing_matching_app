@@ -5,7 +5,8 @@ import 'conditions_step_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../service/curiosity_questions.dart';
 import '../model/experience.dart';
-import '../service/recommendation_service.dart';
+import '../service/ai_matching_service.dart';
+import 'trip_state.dart';
 
 // step: home=0, conditions=1, questions=2, explore=3.
 class DiscoveryState {
@@ -25,12 +26,18 @@ class DiscoveryState {
         interests.reasonId,
       ).options.indexWhere((q) => q.id == interests.questId),
   ];
+  final bool aiLoading;
+  final String? aiError;
+  final Map<String, String> recommendationReasons;
   final List<Experience> deck;
   DiscoveryState({
     this.step = 0,
     this.question = 0,
     this.index = 0,
     this.interests = const InterestAnswers(),
+    this.aiLoading = false,
+    this.aiError,
+    this.recommendationReasons = const {},
     List<Experience> deck = const [],
   }) : deck = List.unmodifiable(deck);
   DiscoveryState copyWith({
@@ -39,12 +46,18 @@ class DiscoveryState {
     int? index,
     InterestAnswers? interests,
     List<Experience>? deck,
+    bool? aiLoading,
+    String? aiError,
+    Map<String, String>? recommendationReasons,
   }) => DiscoveryState(
     step: step ?? this.step,
     question: question ?? this.question,
     index: index ?? this.index,
     interests: interests ?? this.interests,
     deck: deck ?? this.deck,
+    aiLoading: aiLoading ?? this.aiLoading,
+    aiError: aiError,
+    recommendationReasons: recommendationReasons ?? this.recommendationReasons,
   );
 }
 
@@ -53,12 +66,19 @@ final discoveryProvider = NotifierProvider<DiscoveryNotifier, DiscoveryState>(
 );
 
 class DiscoveryNotifier extends Notifier<DiscoveryState> {
+  int _requestVersion = 0;
+  Map<String, dynamic>? _lastContext;
   @override
   DiscoveryState build() => DiscoveryState();
-  void reset() => state = state.copyWith(step: 0);
+  void reset() {
+    _requestVersion++;
+    state = state.copyWith(step: 0, aiLoading: false);
+  }
+
   // Existing preset entry point now starts with the three questions too.
   void startConditions() => beginSearch();
   void beginSearch() {
+    _requestVersion++;
     ref.read(searchDraftProvider.notifier).prepareSearch();
     ref.read(conditionsStepProvider.notifier).reset();
     state = DiscoveryState(step: 2);
@@ -72,6 +92,7 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
 
   void startQuestions() => state = state.copyWith(step: 2, question: 0);
   void back() {
+    _requestVersion++;
     if (state.step == 3) {
       state = state.copyWith(step: 1);
     } else if (state.step == 1 && ref.read(conditionsStepProvider) > 0) {
@@ -133,13 +154,57 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
     if (option != null) answerId(option.id);
   }
 
-  void showExplore() => state = state.copyWith(
-    step: 3,
-    index: 0,
-    deck: RecommendationService(
-      catalog: ref.read(catalogProvider).requireValue.experiences,
-    ).recommendFor(state.interests, filters: ref.read(searchDraftProvider)),
-  );
+  Future<void> showExplore({
+    List<String>? savedSpotIds,
+    bool retry = false,
+    Map<String, dynamic>? travelContext,
+  }) async {
+    final version = ++_requestVersion;
+    final input = aiQuestionInput(state.interests);
+    final context = retry && _lastContext != null
+        ? _lastContext!
+        : travelContext ??
+              aiTravelContext(
+                ref.read(searchDraftProvider),
+                savedSpotIds ?? ref.read(tripProvider).saved.map((e) => e.id),
+              );
+    _lastContext = context;
+    state = state.copyWith(
+      step: 3,
+      index: 0,
+      deck: [],
+      aiLoading: true,
+      recommendationReasons: {},
+    );
+    try {
+      final results = await ref
+          .read(aiMatchingServiceProvider)
+          .getRecommendations(
+            interests: input['interests']!,
+            mood: input['mood']!,
+            travelContext: context,
+          );
+      final catalog = await ref.read(catalogProvider.future);
+      if (!ref.mounted || version != _requestVersion) return;
+      final byId = {for (final e in catalog.experiences) e.id: e};
+      final deck = [
+        for (final result in results)
+          if (byId.containsKey(result.spotId)) byId[result.spotId]!,
+      ];
+      if (results.isNotEmpty && deck.isEmpty) {
+        throw StateError('推薦先のデータがありません。');
+      }
+      state = state.copyWith(
+        deck: deck,
+        aiLoading: false,
+        recommendationReasons: {for (final r in results) r.spotId: r.reason},
+      );
+    } catch (error) {
+      if (!ref.mounted || version != _requestVersion) return;
+      state = state.copyWith(aiLoading: false, aiError: aiMatchingError(error));
+    }
+  }
+
   void goTo(int index) {
     if (index >= 0 && index < state.deck.length) {
       state = state.copyWith(index: index);

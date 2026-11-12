@@ -257,8 +257,13 @@ class ProfileSettingScreen extends HookConsumerWidget {
                                       <DeparturePlace>[])
                                   .map((p) => p.name))
                             ActionChip(
-                              label: Text(name),
-                              onPressed: busy.value
+                              label: Text(
+                                isDepartureSelectable(name)
+                                    ? name
+                                    : '$name（未対応）',
+                              ),
+                              onPressed:
+                                  busy.value || !isDepartureSelectable(name)
                                   ? null
                                   : () => origin.text = name,
                             ),

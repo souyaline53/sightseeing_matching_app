@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/service/ai_matching_service.dart';
 import 'dart:convert';
 import 'package:sightseeing_matching_app/repository/cloud_image_repository.dart';
 import 'package:sightseeing_matching_app/service/post_media_picker.dart';
@@ -287,3 +288,12 @@ class MemoryCloudImages implements CloudImageRepository {
     files.remove(path);
   }
 }
+
+AiMatchingService fixtureAiMatchingService() => AiMatchingService(
+  invoke: (_) async => {
+    'recommendations': [
+      for (final e in testCatalog.experiences.take(10))
+        {'spot_id': e.id, 'reason': '検証用の推薦理由'},
+    ],
+  },
+);

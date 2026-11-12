@@ -1,3 +1,4 @@
+import '../search/search_filter_sheet.dart';
 import '../home/home_screen.dart';
 import '../../state/app_tab.dart';
 import 'curiosity_question_flow.dart';
@@ -42,15 +43,22 @@ class RecommendationHome extends HookConsumerWidget {
             : const Icon(Icons.explore_outlined),
         title: const Text('TABISAKI'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                step == 2 ? '${question + 1} / 3' : '体験を発見',
-                style: const TextStyle(fontSize: 12),
+          if (step == 3)
+            TextButton.icon(
+              onPressed: () => showSearchFilterSheet(context),
+              icon: const Icon(Icons.tune, size: 18),
+              label: const Text('条件を変更'),
+            ),
+          if (step == 2)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Text(
+                  step == 2 ? '${question + 1} / 3' : '体験を発見',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: AnimatedSwitcher(

@@ -487,22 +487,11 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                       ),
                                       label: Text(
                                         trip.travelDate == null
-                                            ? '旅行日を選ぶ（未定）'
+                                            ? '出発日未設定'
                                             : '${trip.travelDate!.year}/${trip.travelDate!.month}/${trip.travelDate!.day}（${['月', '火', '水', '木', '金', '土', '日'][trip.travelDate!.weekday - 1]}） · ${trip.conditions.length.label}',
                                         style: const TextStyle(fontSize: 14),
                                       ),
-                                      onPressed: () async {
-                                        final date = await showDatePicker(
-                                          context: context,
-                                          initialDate:
-                                              trip.travelDate ?? DateTime.now(),
-                                          firstDate: DateTime(2020),
-                                          lastDate: DateTime(2100),
-                                        );
-                                        if (date != null) {
-                                          controller.setDate(date);
-                                        }
-                                      },
+                                      onPressed: null,
                                     ),
                                   ),
                                 ),

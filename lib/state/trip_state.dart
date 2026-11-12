@@ -45,7 +45,20 @@ class TripNotifier extends Notifier<TripState> {
 
   void applySearchFilters(SearchConditions filters) {
     // Keep the current saved plan intact until the new search saves a card.
-    state = TripState(conditions: filters);
+    state = TripState(conditions: filters, travelDate: filters.resolveDate());
+  }
+
+  void updateSearchFilters(SearchConditions filters) {
+    final next = state.copyWith(
+      conditions: filters,
+      travelDate: filters.resolveDate(),
+      transportSelections: const [],
+    );
+    if (state.saved.isEmpty && state.stops.isEmpty) {
+      state = next;
+    } else {
+      _commit(next);
+    }
   }
 
   void save(Experience e) {

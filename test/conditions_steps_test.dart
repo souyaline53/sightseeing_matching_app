@@ -10,9 +10,9 @@ import 'package:sightseeing_matching_app/state/conditions_step_state.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/settings_state.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
-import 'package:sightseeing_matching_app/service/recommendation_service.dart';
 import 'test_support.dart';
-import 'widget_test.dart' show boot, reveal, answerQuestions, enterDetails;
+import 'widget_test.dart'
+    show boot, reveal, answerQuestions, enterDetails, chooseDepartureDate;
 
 void main() {
   initializeCatalogTests();
@@ -33,6 +33,17 @@ void main() {
       final controller = tester
           .widget<FlutterMap>(find.byType(FlutterMap))
           .mapController!;
+      controller.move(
+        departureNamed('旭川駅', departurePlaces)!.point,
+        controller.camera.zoom,
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<IconButton>(find.byKey(const ValueKey('map-pin-旭川駅')))
+            .onPressed,
+        isNull,
+      );
       final oldZoom = controller.camera.zoom;
       await tester.tap(find.byTooltip('地図を拡大'));
       await tester.pumpAndSettle();
@@ -113,7 +124,11 @@ void main() {
     expect(rects[1].left, greaterThan(rects[0].right));
     expect(find.byType(TextField), findsNothing);
     expect(find.byType(FlutterMap), findsNothing);
-    for (final name in names) {
+    await tester.tap(find.byKey(const ValueKey('origin-chip-旭川駅')));
+    await tester.pumpAndSettle();
+    expect(container.read(conditionsStepProvider), 0);
+    expect(container.read(searchDraftProvider).origin, isNot('旭川駅'));
+    for (final name in names.where((name) => name != '旭川駅')) {
       await tester.tap(find.byKey(ValueKey('origin-chip-$name')));
       await tester.pumpAndSettle();
       expect(container.read(searchDraftProvider).origin, name);
@@ -155,7 +170,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('travel-either')));
       await tester.pumpAndSettle();
-      expect(find.text('STEP 3/4'), findsOneWidget);
+      expect(find.text('STEP 3/5'), findsOneWidget);
       expect(find.text('詳細設定をスキップ'), findsNothing);
       final periods = ['halfDay', 'day', 'overnight', 'longer'];
       final rects = [
@@ -168,6 +183,9 @@ void main() {
         await tester.tap(find.byKey(ValueKey('length-$period')));
         await tester.pumpAndSettle();
         expect(container.read(conditionsStepProvider), 3);
+        expect(find.byType(CalendarDatePicker), findsOneWidget);
+        await chooseDepartureDate(tester);
+        expect(container.read(conditionsStepProvider), 4);
         expect(find.text('誰と旅する？'), findsOneWidget);
         expect(
           tester
@@ -178,6 +196,8 @@ void main() {
           isNull,
         );
         if (period != periods.last) {
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
           await tester.tap(find.byType(BackButton));
           await tester.pumpAndSettle();
         }
@@ -218,14 +238,14 @@ void main() {
       expect(settings.lastSearch!.conditions.toJson(), filters.toJson());
       expect(settings.lastSearch!.searchedAt.isUtc, isTrue);
       expect(settings.lastSearch!.searchedAt.isBefore(before), isFalse);
-      expect(container.read(tripProvider).travelDate, isNull);
+      expect(
+        container.read(tripProvider).travelDate,
+        DateUtils.dateOnly(DateTime.now()),
+      );
       expect(container.read(discoveryProvider).step, 3);
-      final expected = RecommendationService(
-        catalog: experiences,
-      ).recommend('食', [0, 0], filters: filters);
       expect(
         container.read(discoveryProvider).deck.map((e) => e.id),
-        expected.map((e) => e.id),
+        experiences.take(10).map((e) => e.id),
       );
       expect(settings.profile.budget, 10000);
       expect(tester.takeException(), isNull);
@@ -294,20 +314,21 @@ void main() {
             findsOneWidget,
           );
         }
-        await tester.tap(find.byKey(const ValueKey('origin-chip-旭川駅')));
+        await tester.tap(find.byKey(const ValueKey('origin-chip-札幌駅')));
         await tester.pumpAndSettle();
         await reveal(tester, find.byKey(const ValueKey('travel-either')));
         await tester.tap(find.byKey(const ValueKey('travel-either')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('length-day')));
         await tester.pumpAndSettle();
+        await chooseDepartureDate(tester);
         await tester.tap(find.byKey(const ValueKey('company-solo')));
         await tester.pumpAndSettle();
         expect(find.text('この条件で探す').hitTestable(), findsOneWidget);
         expect(find.text('条件を保存して検索').hitTestable(), findsOneWidget);
         expect(find.text('詳細設定をスキップ'), findsNothing);
         expect(find.byType(CalendarDatePicker), findsNothing);
-        expect(container.read(conditionsStepProvider), 3);
+        expect(container.read(conditionsStepProvider), 4);
         expect(tester.takeException(), isNull);
       },
       variant: TargetPlatformVariant({TargetPlatform.android}),

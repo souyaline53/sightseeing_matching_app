@@ -64,6 +64,13 @@ void main() {
       expect(container.read(searchDraftProvider).budget, 23000);
       await tester.tap(find.text('日帰り'));
       await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(CalendarDatePicker),
+          matching: find.text('${DateTime.now().day}'),
+        ),
+      );
+      await tester.pumpAndSettle();
       expect(selectedCards(tester, CompanionStepPage), isEmpty);
       await reveal(tester, find.byKey(const ValueKey('company-family')));
       await tester.tap(find.byKey(const ValueKey('company-family')));
@@ -88,6 +95,9 @@ void main() {
             .selected,
         isTrue,
       );
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.byType(CalendarDatePicker), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(selectedCards(tester, TripLengthStepPage).length, 1);

@@ -113,11 +113,33 @@ service cloud.firestore {
       return request.resource.data.updatedAt == request.time && request.resource.data.createdAt is timestamp
         && (creating ? request.resource.data.createdAt == request.time : request.resource.data.createdAt == resource.data.createdAt);
     }
+    // New metadata remains optional for legacy documents. Admin authorization is unchanged.
+    function visitInfo(d) {
+      let seasonal = d.get('seasonalAvailability', {'status': 'unknown', 'periods': []});
+      let fee = d.get('admissionFee', {'status': 'unknown', 'adultYen': null, 'childYen': null, 'note': ''});
+      return d.get('openingHoursStatus', 'unknown') in ['unknown', 'scheduled', 'always_open']
+        && (d.get('openingHours', null) == null || d.openingHours is map)
+        && (d.get('openingHoursStatus', 'unknown') != 'scheduled' || d.get('openingHours', null) is map)
+        && d.get('specialHours', []) is list
+        && seasonal is map && seasonal.get('status', 'unknown') in ['unknown', 'year_round', 'seasonal']
+        && seasonal.get('periods', []) is list
+        && d.get('recommendedSeasons', []) is list
+        && d.get('recommendedSeasons', []).hasOnly(['spring', 'summer', 'autumn', 'winter'])
+        && d.get('environmentType', 'unknown') in ['unknown', 'indoor', 'outdoor', 'mixed']
+        && fee is map && fee.get('status', 'unknown') in ['unknown', 'free', 'paid', 'variable']
+        && (fee.get('adultYen', null) == null || (fee.adultYen is int && fee.adultYen >= 0))
+        && (fee.get('childYen', null) == null || (fee.childYen is int && fee.childYen >= 0))
+        && fee.get('note', '') is string
+        && (d.get('reservationRequired', null) == null || d.reservationRequired is bool)
+        && d.get('experienceTags', []) is list
+        && d.get('officialUrl', '') is string
+        && (d.get('officialUrl', '') == '' || d.officialUrl.matches('https://[^/\\s]+.*'));
+    }
     function spot(id, creating) {
       let d = request.resource.data;
       return id.matches('[A-Za-z0-9][A-Za-z0-9_ -]{0,79}')
         && d.keys().hasAll(['title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','createdAt','updatedAt'])
-        && d.keys().hasOnly(['address','latitude','longitude','name','title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt'])
+        && d.keys().hasOnly(['address','latitude','longitude','name','title','area','category','description','story','surprise','minutes','accessMinutes','order','photo','photoPath','additionalPhotos','additionalPhotoPaths','accessStops','accessNotes','createdAt','updatedAt','openingHoursStatus','openingHours','specialHours','seasonalAvailability','recommendedSeasons','environmentType','admissionFee','reservationRequired','experienceTags','officialUrl'])
         && d.address is string && d.address.size() <= 500
         && d.latitude is number && d.latitude >= -90 && d.latitude <= 90
         && d.longitude is number && d.longitude >= -180 && d.longitude <= 180
@@ -131,6 +153,7 @@ service cloud.firestore {
         && d.additionalPhotos.size() == d.additionalPhotoPaths.size() && d.additionalPhotos.size() <= 5
         && (d.photo != '' || d.additionalPhotos.size() == 0)
         && extraPhoto(d,id,0) && extraPhoto(d,id,1) && extraPhoto(d,id,2) && extraPhoto(d,id,3) && extraPhoto(d,id,4)
+        && visitInfo(d)
         && catalogTimes(creating);
     }
     match /sightseeing_spot/{id} {

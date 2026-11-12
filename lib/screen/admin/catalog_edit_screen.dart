@@ -1,3 +1,5 @@
+import '../../model/spot_visit_info.dart';
+import 'spot_visit_info_form.dart';
 import 'dart:async';
 import '../../service/address_geocoder.dart';
 import 'package:flutter/services.dart';
@@ -41,6 +43,9 @@ class CatalogEditScreen extends HookConsumerWidget {
       },
       [controllers],
     );
+    final visitDraft = useMemoized(() => SpotVisitDraft(record?.data ?? {}), [
+      record,
+    ]);
     final photos = useState<List<CatalogPhotoDraft>>([
       for (final photo in record?.photos ?? <CloudCatalogPhoto>[])
         CatalogPhotoDraft(url: photo.url, path: photo.path),
@@ -163,6 +168,14 @@ class CatalogEditScreen extends HookConsumerWidget {
         values['accessStops'] = accessData['accessStops'];
         if (kind == CatalogKind.sightseeing) {
           values['accessNotes'] = accessNotes.text;
+          try {
+            final visit = SpotVisitInfo.fromMap(visitDraft.snapshot())
+              ..validate();
+            values.addAll(visit.toMap());
+          } on FormatException catch (e) {
+            error.value = e.message;
+            return;
+          }
         }
         error.value = validateCatalogRecord(kind, id.text.trim(), values);
         if (error.value != null) return;
@@ -335,6 +348,11 @@ class CatalogEditScreen extends HookConsumerWidget {
                         decoration: const InputDecoration(
                           labelText: 'アクセスの根拠・入口などの補足',
                         ),
+                      ),
+                    if (kind == CatalogKind.sightseeing)
+                      SpotVisitInfoForm(
+                        draft: visitDraft,
+                        enabled: !busy.value,
                       ),
                     if (kind == CatalogKind.sightseeing) ...[
                       const SizedBox(height: 24),

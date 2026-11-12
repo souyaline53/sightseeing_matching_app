@@ -158,3 +158,59 @@ test("paid express metadata reaches journeys while slower ordinary alternatives 
     assert.equal(searchJourneys(network(trips, stops, [{...rule, ...extra}]), query()).journeys.length, 0);
   }
 });
+
+test("waiting at Shin-Yubari dominates an excursion via Minami-Shimizusawa", () => {
+  const stops = [stop("sapporo"), stop("shin"), stop("south"), stop("restaurant")];
+  const trips = [
+    trip("train", "sapporo", "shin", 28800, 30000),
+    trip("outbound", "shin", "south", 30300, 30900),
+    trip("return", "south", "shin", 31200, 31800),
+    trip("restaurantBus", "shin", "restaurant", 32100, 32700),
+  ];
+  for (const timetable of [false, true]) {
+    const found = searchJourneys(network(trips, stops), {...query("sapporo", "restaurant"), timetable});
+    assert.deepEqual(found.journeys.map(j => j.legs.map(l => l.tripId)), [["train", "restaurantBus"]]);
+  }
+  // An incoming-trip restriction can make the excursion necessary; do not
+  // assume that an earlier arrival can always board the same onward vehicle.
+  const rules = [edge("shin", "shin", 180, {fromTripId:"train", toTripId:"restaurantBus", transferType:3})];
+  for (const timetable of [false, true]) {
+    const found = searchJourneys(network(trips, stops, rules), {...query("sapporo", "restaurant"), timetable});
+    assert.deepEqual(found.journeys.map(j => j.legs.map(l => l.tripId)), [["train", "outbound", "return", "restaurantBus"]]);
+  }
+});
+
+test("timetable does not invent an earlier departure option by leaving and returning to the origin", () => {
+  const trips = [
+    trip("outbound", "shin", "south", 28800, 29400),
+    trip("return", "south", "shin", 29700, 30300),
+    trip("onward", "shin", "restaurant", 32400, 33000),
+  ];
+  const found = searchJourneys(network(trips, [stop("shin"), stop("south"), stop("restaurant")]),
+    {...query("shin", "restaurant"), timetable:true});
+  assert.deepEqual(found.journeys.map(j => j.legs.map(l => l.tripId)), [["onward"]]);
+});
+
+test("Nov 13 Kurishita Shokudo uses the registered walk from JR Shin-Yubari to its differently named bus stop", () => {
+  const stops = [stop("sapporo", "札幌"), stop("chitose", "千歳"), stop("rail", "新夕張"),
+    stop("bus", "新夕張駅前"), stop("south", "南清水沢４丁目")];
+  const trips = [
+    trip("sapporo-chitose", "sapporo", "chitose", 8*3600+8*60, 9*3600),
+    trip("chitose-shin", "chitose", "rail", 11*3600+35*60, 14*3600+48*60),
+    trip("outbound", "bus", "south", 15*3600, 15*3600+20*60),
+    trip("return", "south", "bus", 15*3600+30*60, 15*3600+50*60),
+  ];
+  const rules = [edge("rail", "bus", 300, {sourceType:"manual", verificationStatus:"unverified"})];
+  const net = network(trips, stops, rules, [{...service, validFrom:"2026-11-13", validTo:"2026-11-13"}]);
+  for (const timetable of [false, true]) {
+    const q = {...query("sapporo", "bus"), date:"2026-11-13", timetable,
+      to:[{stopId:"bus", walkingMinutes:5}]};
+    const found = searchJourneys(net, q).journeys;
+    assert.equal(found.length, 1);
+    assert.deepEqual(found[0].legs.map(l => l.tripId), ["sapporo-chitose", "chitose-shin"]);
+    assert.equal(found[0].arrivalSeconds, 14*3600+58*60);
+    assert.equal(found[0].walkingMinutesAfter, 10);
+    assert.deepEqual(found[0].accessAfter, {fromStopId:"rail", toStopId:"bus", requiredSeconds:300,
+      source:"confirmed", estimated:false, ruleIds:["rail-bus"]});
+  }
+});

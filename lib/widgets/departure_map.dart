@@ -80,13 +80,19 @@ class DepartureMap extends HookConsumerWidget {
                         height: 48,
                         child: IconButton(
                           key: ValueKey('map-pin-${p.id}'),
-                          tooltip: '${p.name}を地図で選択',
-                          onPressed: () => onSelect(p),
+                          tooltip: isDepartureSelectable(p.name)
+                              ? '${p.name}を地図で選択'
+                              : '${p.name}（未対応）',
+                          onPressed: isDepartureSelectable(p.name)
+                              ? () => onSelect(p)
+                              : null,
                           icon: Icon(
                             p.bus
                                 ? Icons.directions_bus_filled
                                 : Icons.location_on,
-                            color: highlightSelected && p.name == selected
+                            color: !isDepartureSelectable(p.name)
+                                ? Colors.grey
+                                : highlightSelected && p.name == selected
                                 ? const Color(0xff145c49)
                                 : Colors.blueGrey,
                             size: highlightSelected && p.name == selected

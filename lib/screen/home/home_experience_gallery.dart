@@ -36,7 +36,7 @@ class HomeExperienceGallery extends HookConsumerWidget {
             itemBuilder: (context, index) {
               final experience = experiences[index];
               return SizedBox(
-                width: photoHeight * .68,
+                width: photoHeight * .8,
                 child: Semantics(
                   button: true,
                   label: '${experience.area}、${experience.title}。詳細を開く',
@@ -66,7 +66,7 @@ class HomeExperienceGallery extends HookConsumerWidget {
                             right: 8,
                             bottom: 10,
                             child: Text(
-                              experience.area,
+                              experience.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(

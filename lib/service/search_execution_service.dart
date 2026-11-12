@@ -24,14 +24,17 @@ class SearchExecutionService {
         throw StateError('旅行期間と同行者を選択してください。');
       }
       final filters = ref.read(searchDraftProvider);
-      final error = filters.validateFilters();
+      final error = filters.validate() ?? filters.validateFilters();
       if (error != null) throw StateError(error);
       await ref
           .read(settingsProvider.notifier)
           .saveSearch(filters, presetName: presetName);
       ref.read(searchDraftProvider.notifier).replace(filters);
+      final savedIds = ref.read(tripProvider).saved.map((e) => e.id).toList();
       ref.read(tripProvider.notifier).applySearchFilters(filters);
-      ref.read(discoveryProvider.notifier).showExplore();
+      await ref
+          .read(discoveryProvider.notifier)
+          .showExplore(savedSpotIds: savedIds);
     } finally {
       _running = false;
     }

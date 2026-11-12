@@ -1,3 +1,4 @@
+import '../../model/spot_visit_info.dart';
 import '../../data/departure_places.dart';
 import '../../repository/transport_repository.dart';
 import 'dart:typed_data';
@@ -72,6 +73,7 @@ class CatalogAdminService {
       _refresh(kind);
       return [];
     }
+    SpotVisitInfo.fromMap(values).validate();
     if (photos.length > (kind == CatalogKind.sightseeing ? 6 : 1)) {
       throw StateError('写真の枚数を確認してください。');
     }

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../data/catalog_data.dart';
-import '../../service/curiosity_questions.dart';
-import '../../service/mock_access_ranking.dart';
-import '../../service/recommendation_service.dart';
+import '../../service/ai_matching_service.dart';
 import '../../state/discovery_state.dart';
 import '../../state/trip_state.dart';
 import '../recommendation/experience_deck.dart';
@@ -23,22 +20,12 @@ class AddExperienceButton extends HookConsumerWidget {
       try {
         if (tripId != null) ref.read(tripProvider.notifier).openPlan(tripId!);
         final trip = ref.read(tripProvider);
+        final travelDate = trip.travelDate;
         final interests = ref.read(discoveryProvider).interests;
-        final experiences = ref.read(catalogProvider).requireValue.experiences;
-        final ranking = MockAccessRanking();
-        final deck = CuriosityQuestions.valid(interests)
-            ? RecommendationService(
-                catalog: experiences,
-              ).recommendFor(interests, filters: trip.conditions)
-            : ([...experiences]..sort(
-                (a, b) => ranking
-                    .score(a, trip.conditions)
-                    .compareTo(ranking.score(b, trip.conditions)),
-              ));
         final initial = DiscoveryState(
           step: 3,
           interests: interests,
-          deck: deck,
+          aiLoading: true,
         );
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
@@ -50,7 +37,17 @@ class AddExperienceButton extends HookConsumerWidget {
                   () => _AdditionalDiscovery(initial),
                 ),
               ],
-              child: const _AdditionalExperiences(),
+              child: _AdditionalExperiences(
+                travelContext: {
+                  ...aiTravelContext(
+                    trip.conditions,
+                    trip.saved.map((e) => e.id),
+                  ),
+                  if (travelDate != null)
+                    'visitDate':
+                        '${travelDate.year.toString().padLeft(4, "0")}-${travelDate.month.toString().padLeft(2, "0")}-${travelDate.day.toString().padLeft(2, "0")}',
+                },
+              ),
             ),
           ),
         );
@@ -85,9 +82,21 @@ class _AdditionalDiscovery extends DiscoveryNotifier {
 }
 
 class _AdditionalExperiences extends HookConsumerWidget {
-  const _AdditionalExperiences();
+  final Map<String, dynamic> travelContext;
+  const _AdditionalExperiences({required this.travelContext});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    useEffect(() {
+      var active = true;
+      Future.microtask(() {
+        if (active && context.mounted) {
+          ref
+              .read(discoveryProvider.notifier)
+              .showExplore(travelContext: travelContext);
+        }
+      });
+      return () => active = false;
+    }, const []);
     final count = ref.watch(tripProvider.select((trip) => trip.stops.length));
     return Scaffold(
       appBar: AppBar(title: const Text('体験を追加する')),

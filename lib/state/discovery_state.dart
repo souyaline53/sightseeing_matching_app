@@ -206,12 +206,16 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
   }
 
   void goTo(int index) {
-    if (index >= 0 && index < state.deck.length) {
+    if (index >= 0 && index <= state.deck.length) {
       state = state.copyWith(index: index);
     }
   }
 
+  void previous() {
+    if (state.index > 0) goTo(state.index - 1);
+  }
+
   void advance() {
-    if (state.deck.isNotEmpty) goTo((state.index + 1) % state.deck.length);
+    if (state.index < state.deck.length) goTo(state.index + 1);
   }
 }

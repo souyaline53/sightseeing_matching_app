@@ -224,25 +224,30 @@ class LastSearch {
 }
 
 class SavedSettings {
+  final bool experienceTipsSeen;
   final UserProfile profile;
   final List<SearchPreset> presets;
   final LastSearch? lastSearch;
   SavedSettings({
+    this.experienceTipsSeen = false,
     this.profile = const UserProfile(),
     List<SearchPreset> presets = const [],
     this.lastSearch,
   }) : presets = List.unmodifiable(presets);
   SavedSettings copyWith({
+    bool? experienceTipsSeen,
     UserProfile? profile,
     List<SearchPreset>? presets,
     LastSearch? lastSearch,
   }) => SavedSettings(
+    experienceTipsSeen: experienceTipsSeen ?? this.experienceTipsSeen,
     profile: profile ?? this.profile,
     presets: presets ?? this.presets,
     lastSearch: lastSearch ?? this.lastSearch,
   );
   Map<String, dynamic> toJson() => {
     'version': 1,
+    'experienceTipsSeen': experienceTipsSeen,
     'profile': profile.toJson(),
     'presets': presets.map((e) => e.toJson()).toList(),
     'lastSearch': lastSearch?.toJson(),
@@ -252,6 +257,7 @@ class SavedSettings {
       throw const FormatException('Unsupported settings version');
     }
     return SavedSettings(
+      experienceTipsSeen: json['experienceTipsSeen'] == true,
       profile: UserProfile.fromJson(json['profile'] as Map<String, dynamic>),
       presets: (json['presets'] as List)
           .map((e) => SearchPreset.fromJson(e as Map<String, dynamic>))

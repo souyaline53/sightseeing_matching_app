@@ -3,6 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../service/ai_matching_service.dart';
 import '../../state/discovery_state.dart';
+import '../../state/additional_discovery_cache.dart';
 import '../../state/trip_state.dart';
 import '../recommendation/experience_deck.dart';
 
@@ -21,22 +22,16 @@ class AddExperienceButton extends HookConsumerWidget {
         if (tripId != null) ref.read(tripProvider.notifier).openPlan(tripId!);
         final trip = ref.read(tripProvider);
         final travelDate = trip.travelDate;
-        final interests = ref.read(discoveryProvider).interests;
-        final initial = DiscoveryState(
-          step: 3,
-          interests: interests,
-          aiLoading: true,
-        );
+        final session = ref
+            .read(additionalDiscoveryCacheProvider)
+            .session(
+              trip.id,
+              ProviderScope.containerOf(context, listen: false),
+            );
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => ProviderScope(
-              // Browsing here keeps the original search flow and answers intact.
-              // Trip state and decoded photos remain shared with the parent scope.
-              overrides: [
-                discoveryProvider.overrideWith(
-                  () => _AdditionalDiscovery(initial),
-                ),
-              ],
+            builder: (_) => UncontrolledProviderScope(
+              container: session,
               child: _AdditionalExperiences(
                 travelContext: {
                   ...aiTravelContext(
@@ -74,13 +69,6 @@ class AddExperienceButton extends HookConsumerWidget {
   }
 }
 
-class _AdditionalDiscovery extends DiscoveryNotifier {
-  final DiscoveryState initial;
-  _AdditionalDiscovery(this.initial);
-  @override
-  DiscoveryState build() => initial;
-}
-
 class _AdditionalExperiences extends HookConsumerWidget {
   final Map<String, dynamic> travelContext;
   const _AdditionalExperiences({required this.travelContext});
@@ -90,9 +78,8 @@ class _AdditionalExperiences extends HookConsumerWidget {
       var active = true;
       Future.microtask(() {
         if (active && context.mounted) {
-          ref
-              .read(discoveryProvider.notifier)
-              .showExplore(travelContext: travelContext);
+          (ref.read(discoveryProvider.notifier) as AdditionalDiscovery)
+              .ensureLoaded(travelContext);
         }
       });
       return () => active = false;

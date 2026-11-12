@@ -28,6 +28,9 @@ class SettingsNotifier extends AsyncNotifier<SavedSettings> {
     return operation;
   }
 
+  Future<void> markExperienceTipsSeen() =>
+      _update((data) => data.copyWith(experienceTipsSeen: true));
+
   Future<void> saveProfile(UserProfile profile) =>
       _update((data) => data.copyWith(profile: profile));
   Future<void> saveLast(SearchConditions conditions) => saveSearch(conditions);

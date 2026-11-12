@@ -10,6 +10,7 @@ import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'test_support.dart';
+import 'package:sightseeing_matching_app/service/ai_matching_service.dart';
 import 'widget_test.dart' show boot, reveal;
 
 Future<void> showCoal(WidgetTester tester) async {
@@ -42,7 +43,22 @@ void main() {
         await LocalTripsRepository(
           storage: storage,
         ).save(TripLibrary(plans: [other, trip], activeId: trip.id));
-        final container = await boot(tester, tripStorage: storage);
+        var aiCalls = 0;
+        final container = await boot(
+          tester,
+          tripStorage: storage,
+          aiService: AiMatchingService(
+            invoke: (_) async {
+              aiCalls++;
+              return {
+                'recommendations': [
+                  for (final e in testCatalog.experiences.take(10))
+                    {'spot_id': e.id, 'reason': '推薦理由'},
+                ],
+              };
+            },
+          ),
+        );
         final originalSearch = container.read(discoveryProvider);
         if (fromBooklet) {
           await reveal(tester, find.text('旅のしおりを開く'));
@@ -65,7 +81,7 @@ void main() {
           await tester.tap(find.byTooltip('体験を保存').hitTestable());
         } else {
           await tester.drag(
-            find.byType(Dismissible).first,
+            find.byKey(const ValueKey('experience-pages')),
             const Offset(0, -500),
           );
         }
@@ -82,9 +98,24 @@ void main() {
           library.plans.firstWhere((p) => p.id == other.id).toJson(),
           other.toJson(),
         );
+        final browsingScope = ProviderScope.containerOf(
+          tester.element(find.byType(ExperienceDeck)),
+        );
+        final browsingIndex = browsingScope.read(discoveryProvider).index;
         await tester.tap(find.text('旅程に戻る（2件）'));
         await tester.pumpAndSettle();
         expect(find.byType(ItineraryEditor), findsOneWidget);
+        await reveal(tester, button);
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        final reopenedScope = ProviderScope.containerOf(
+          tester.element(find.byType(ExperienceDeck)),
+        );
+        expect(reopenedScope, same(browsingScope));
+        expect(reopenedScope.read(discoveryProvider).index, browsingIndex);
+        expect(aiCalls, 1);
+        await tester.tap(find.text('旅程に戻る（2件）'));
+        await tester.pumpAndSettle();
         await container.read(tripLibraryProvider.notifier).retrySave();
         expect(
           (await LocalTripsRepository(

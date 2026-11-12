@@ -82,3 +82,11 @@ exports.getAiRecommendations = onCall(
     difyApiKey.value()
   ),
 );
+
+// Independent preparation endpoint; never calls the matching workflow or Dify.
+exports.prepareTransportOptimization = onCall(
+  { region: 'asia-northeast1', maxInstances: 2, concurrency: 1,
+    timeoutSeconds: 60, memory: '1GiB' },
+  (request) => require('./transport_optimizer_api').prepareTransportOptimization(
+    request, getFirestore(), getStorage().bucket()),
+);

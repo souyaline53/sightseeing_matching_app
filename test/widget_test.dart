@@ -63,6 +63,14 @@ Future<ProviderContainer> boot(
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  // General flow tests use a returning visitor; first-visit tips have their own test.
+  final settingsStorage = storage ?? MemorySettingsStorage();
+  if (!settingsStorage.failRead && !settingsStorage.failWrite) {
+    final repository = LocalSettingsRepository(storage: settingsStorage);
+    await repository.save(
+      (await repository.load()).copyWith(experienceTipsSeen: true),
+    );
+  }
   final container = ProviderContainer(
     overrides: [
       aiMatchingServiceProvider.overrideWithValue(
@@ -100,7 +108,7 @@ Future<ProviderContainer> boot(
         LocalTripsRepository(storage: tripStorage ?? MemorySettingsStorage()),
       ),
       settingsRepositoryProvider.overrideWithValue(
-        LocalSettingsRepository(storage: storage ?? MemorySettingsStorage()),
+        LocalSettingsRepository(storage: settingsStorage),
       ),
       experiencePhotosProvider.overrideWith(
         (ref) => photos?.call() ?? Future.value({}),
@@ -208,10 +216,16 @@ void main() {
         DateUtils.dateOnly(DateTime.now()),
       );
       final initial = container.read(discoveryProvider).deck;
-      await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
+      await tester.drag(
+        find.byKey(const ValueKey('experience-pages')),
+        const Offset(-350, 0),
+      );
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved, isEmpty);
-      await tester.drag(find.byType(Dismissible).first, const Offset(0, -600));
+      await tester.drag(
+        find.byKey(const ValueKey('experience-pages')),
+        const Offset(0, -600),
+      );
       await tester.pumpAndSettle();
       expect(container.read(tripProvider).saved.single.id, initial[1].id);
       await tester.longPress(find.text(initial[2].title));
@@ -448,18 +462,26 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     ready.complete({});
     await tester.pumpAndSettle();
-    for (var i = 0; i < 10; i++) {
-      await tester.drag(find.byType(Dismissible).last, const Offset(-350, 0));
-      await tester.pumpAndSettle();
-    }
-    expect(container.read(discoveryProvider).index, 0);
-    await tester.drag(find.byType(Dismissible).last, const Offset(350, 0));
+    await tester.drag(
+      find.byKey(const ValueKey('experience-pages')),
+      const Offset(-350, 0),
+    );
     await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 1);
+    await tester.drag(
+      find.byKey(const ValueKey('experience-pages')),
+      const Offset(350, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(container.read(discoveryProvider).index, 0);
     expect(container.read(tripProvider).saved, isEmpty);
     final experience = container
         .read(discoveryProvider)
         .deck[container.read(discoveryProvider).index];
-    await tester.drag(find.byType(Dismissible).first, const Offset(0, -600));
+    await tester.drag(
+      find.byKey(const ValueKey('experience-pages')),
+      const Offset(0, -600),
+    );
     await tester.pumpAndSettle();
     expect(container.read(tripProvider).saved.map((e) => e.id), [
       experience.id,

@@ -34,6 +34,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
   int segment = 0;
   bool collapsed = false;
   double minimumSheet = .22;
+  double middleSheet = .6;
   double sheetViewportHeight = 1;
   double headerDragDistance = 0;
   final sheet = DraggableScrollableController();
@@ -87,13 +88,19 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
 
   void _endHeaderDrag(double velocity) {
     if (!sheet.isAttached) return;
+    final stops = [minimumSheet, middleSheet, 1.0];
     final double target;
     if (velocity.abs() >= 350) {
-      target = velocity < 0 ? 1 : minimumSheet;
-    } else if (headerDragDistance.abs() >= 12) {
-      target = headerDragDistance < 0 ? 1 : minimumSheet;
+      target = velocity < 0
+          ? stops.firstWhere((size) => size > sheet.size + .02, orElse: () => 1)
+          : stops.lastWhere(
+              (size) => size < sheet.size - .02,
+              orElse: () => minimumSheet,
+            );
     } else {
-      target = sheet.size >= (minimumSheet + 1) / 2 ? 1 : minimumSheet;
+      target = stops.reduce(
+        (a, b) => (a - sheet.size).abs() <= (b - sheet.size).abs() ? a : b,
+      );
     }
     _sheetTo(target);
     headerDragDistance = 0;
@@ -399,7 +406,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                   tooltip: '旅程の操作',
                   onSelected: (value) {
                     if (value == 'title') _rename();
-                    if (value == 'map') _sheetTo(.22);
+                    if (value == 'map') _sheetTo(minimumSheet);
                   },
                   itemBuilder: (_) => const [
                     PopupMenuItem(value: 'title', child: Text('タイトルを変更')),
@@ -543,128 +550,6 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                     ),
                                   ),
                                 ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: color.primary.withValues(
-                                      alpha: .045,
-                                    ),
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(20),
-                                    ),
-                                  ),
-                                  margin: const EdgeInsets.fromLTRB(
-                                    12,
-                                    3,
-                                    12,
-                                    0,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          10,
-                                          0,
-                                          4,
-                                          0,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            /*Icon(
-                              Icons.swap_horiz,
-                              color: color.primary,
-                              size: 18,
-                            ),*/
-                                            const SizedBox(width: 5),
-                                            const Expanded(
-                                              child: Text(
-                                                '',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                            AddExperienceButton(
-                                              tripId: trip.id,
-                                              compact: true,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        height: compact ? 142 : 170,
-                                        child: ReorderableListView.builder(
-                                          scrollDirection: Axis.horizontal,
-                                          padding: const EdgeInsets.only(
-                                            left: 5,
-                                          ),
-                                          header: SizedBox(
-                                            width: 105,
-                                            child: ItineraryEndpointCard(
-                                              key: const ValueKey(
-                                                'itinerary-departure',
-                                              ),
-                                              departure: true,
-                                              label: trip.origin,
-                                              selected: originSelected,
-                                              onTap: () {
-                                                setState(() => segment = -1);
-                                                _sheetTo(1);
-                                              },
-                                            ),
-                                          ),
-                                          footer: SizedBox(
-                                            width: 85,
-                                            child: ItineraryEndpointCard(
-                                              key: const ValueKey(
-                                                'itinerary-home',
-                                              ),
-                                              departure: false,
-                                              label: trip.origin,
-                                            ),
-                                          ),
-                                          itemCount: stops.length,
-                                          buildDefaultDragHandles: false,
-                                          onReorder: _reorder,
-                                          itemBuilder: (context, i) => SizedBox(
-                                            key: ValueKey(stops[i].id),
-                                            width: (bounds.maxWidth * .355)
-                                                .clamp(124, 168),
-                                            child: ItinerarySpotCard(
-                                              spot: stops[i],
-                                              index: i,
-                                              stayMinutes:
-                                                  trip.stayMinutes[stops[i]
-                                                      .id] ??
-                                                  stops[i].minutes,
-                                              selected:
-                                                  !originSelected &&
-                                                  (returnSelected
-                                                      ? i == stops.length - 1
-                                                      : i == index),
-                                              first: i == 0,
-                                              last: i == stops.length - 1,
-                                              compact: compact,
-                                              onSelect: () => setState(
-                                                () => segment =
-                                                    i == stops.length - 1
-                                                    ? -2
-                                                    : i,
-                                              ),
-                                              onStay: () => _stay(stops[i]),
-                                              onPrevious: () =>
-                                                  _reorder(i, i - 1),
-                                              onNext: () => _reorder(i, i + 2),
-                                              onRemove: () => controller
-                                                  .removeStop(stops[i]),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 15),
                               ],
                             ),
                           ),
@@ -673,22 +558,213 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                           child: LayoutBuilder(
                             builder: (context, mapBounds) {
                               sheetViewportHeight = mapBounds.maxHeight;
+                              final cardsHeight = ((compact ? 142 : 170) + 66.0)
+                                  .clamp(0.0, mapBounds.maxHeight * .55);
+                              final mapHeight =
+                                  mapBounds.maxHeight - cardsHeight;
+                              middleSheet = mapHeight / mapBounds.maxHeight;
                               minimumSheet = (76 / mapBounds.maxHeight).clamp(
-                                .22,
-                                .65,
+                                .1,
+                                middleSheet * .8,
                               );
                               return Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  AnimatedBuilder(
-                                    animation: sheet,
-                                    builder: (context, _) => ItineraryMap(
-                                      key: const ValueKey('itinerary-map'),
-                                      origin: trip.origin,
-                                      bottomInset:
-                                          (sheet.isAttached ? sheet.size : 1) *
-                                          mapBounds.maxHeight,
-                                    ),
+                                  Column(
+                                    children: [
+                                      SizedBox(
+                                        height: cardsHeight,
+                                        child: SingleChildScrollView(
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: color.primary
+                                                      .withValues(alpha: .045),
+                                                  borderRadius:
+                                                      const BorderRadius.vertical(
+                                                        top: Radius.circular(
+                                                          20,
+                                                        ),
+                                                      ),
+                                                ),
+                                                margin:
+                                                    const EdgeInsets.fromLTRB(
+                                                      12,
+                                                      3,
+                                                      12,
+                                                      0,
+                                                    ),
+                                                child: Column(
+                                                  children: [
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.fromLTRB(
+                                                            10,
+                                                            0,
+                                                            4,
+                                                            0,
+                                                          ),
+                                                      child: Row(
+                                                        children: [
+                                                          /*Icon(
+                              Icons.swap_horiz,
+                              color: color.primary,
+                              size: 18,
+                            ),*/
+                                                          const SizedBox(
+                                                            width: 5,
+                                                          ),
+                                                          const Expanded(
+                                                            child: Text(
+                                                              '',
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          AddExperienceButton(
+                                                            tripId: trip.id,
+                                                            compact: true,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      height: compact
+                                                          ? 142
+                                                          : 170,
+                                                      child: ReorderableListView.builder(
+                                                        scrollDirection:
+                                                            Axis.horizontal,
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              left: 5,
+                                                            ),
+                                                        header: SizedBox(
+                                                          width: 105,
+                                                          child: ItineraryEndpointCard(
+                                                            key: const ValueKey(
+                                                              'itinerary-departure',
+                                                            ),
+                                                            departure: true,
+                                                            label: trip.origin,
+                                                            selected:
+                                                                originSelected,
+                                                            onTap: () {
+                                                              setState(
+                                                                () => segment =
+                                                                    -1,
+                                                              );
+                                                              _sheetTo(1);
+                                                            },
+                                                          ),
+                                                        ),
+                                                        footer: SizedBox(
+                                                          width: 85,
+                                                          child: ItineraryEndpointCard(
+                                                            key: const ValueKey(
+                                                              'itinerary-home',
+                                                            ),
+                                                            departure: false,
+                                                            label: trip.origin,
+                                                          ),
+                                                        ),
+                                                        itemCount: stops.length,
+                                                        buildDefaultDragHandles:
+                                                            false,
+                                                        onReorder: _reorder,
+                                                        itemBuilder: (context, i) => SizedBox(
+                                                          key: ValueKey(
+                                                            stops[i].id,
+                                                          ),
+                                                          width:
+                                                              (bounds.maxWidth *
+                                                                      .355)
+                                                                  .clamp(
+                                                                    124,
+                                                                    168,
+                                                                  ),
+                                                          child: ItinerarySpotCard(
+                                                            spot: stops[i],
+                                                            index: i,
+                                                            stayMinutes:
+                                                                trip.stayMinutes[stops[i]
+                                                                    .id] ??
+                                                                stops[i]
+                                                                    .minutes,
+                                                            selected:
+                                                                !originSelected &&
+                                                                (returnSelected
+                                                                    ? i ==
+                                                                          stops.length -
+                                                                              1
+                                                                    : i ==
+                                                                          index),
+                                                            first: i == 0,
+                                                            last:
+                                                                i ==
+                                                                stops.length -
+                                                                    1,
+                                                            compact: compact,
+                                                            onSelect: () => setState(
+                                                              () => segment =
+                                                                  i ==
+                                                                      stops.length -
+                                                                          1
+                                                                  ? -2
+                                                                  : i,
+                                                            ),
+                                                            onStay: () =>
+                                                                _stay(stops[i]),
+                                                            onPrevious: () =>
+                                                                _reorder(
+                                                                  i,
+                                                                  i - 1,
+                                                                ),
+                                                            onNext: () =>
+                                                                _reorder(
+                                                                  i,
+                                                                  i + 2,
+                                                                ),
+                                                            onRemove: () =>
+                                                                controller
+                                                                    .removeStop(
+                                                                      stops[i],
+                                                                    ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 15),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: AnimatedBuilder(
+                                          animation: sheet,
+                                          builder: (context, _) => ItineraryMap(
+                                            key: const ValueKey(
+                                              'itinerary-map',
+                                            ),
+                                            origin: trip.origin,
+                                            bottomInset:
+                                                ((sheet.isAttached
+                                                            ? sheet.size
+                                                            : middleSheet) *
+                                                        mapBounds.maxHeight)
+                                                    .clamp(0.0, mapHeight),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   NotificationListener<
                                     DraggableScrollableNotification
@@ -706,11 +782,11 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                         'itinerary-transport-sheet',
                                       ),
                                       controller: sheet,
-                                      initialChildSize: 1,
+                                      initialChildSize: middleSheet,
                                       minChildSize: minimumSheet,
                                       maxChildSize: 1,
                                       snap: true,
-                                      snapSizes: [minimumSheet, 1],
+                                      snapSizes: [minimumSheet, middleSheet, 1],
                                       snapAnimationDuration: const Duration(
                                         milliseconds: 250,
                                       ),
@@ -798,7 +874,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                                         from!.id,
                                                         to!.id,
                                                       ),
-                                            onMap: () => _sheetTo(.22),
+                                            onMap: () => _sheetTo(minimumSheet),
                                             onExpand: () => _sheetTo(1),
                                           ),
                                     ),

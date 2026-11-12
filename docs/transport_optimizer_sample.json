@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "workflow": "TABISAKI_Transport_Optimizer",
+  "date": "2026-01-02",
+  "timezone": "Asia/Tokyo",
+  "timeUnit": "seconds_since_trip_date_midnight",
+  "departureSeconds": 0,
+  "deadlineSeconds": 7200,
+  "modes": [
+    "rail",
+    "bus",
+    "walk"
+  ],
+  "preference": "travel_time",
+  "minimumTransferSeconds": 180,
+  "policy": {
+    "evaluateAllVisitPermutations": true,
+    "allowEstimatedWalking": false,
+    "unknownOpeningRequiresReview": true,
+    "sameStopTransferBufferSeconds": 180,
+    "transferSpecificity": [
+      "both_trips",
+      "trip_and_opposite_route",
+      "one_trip",
+      "both_routes",
+      "one_route",
+      "stops"
+    ],
+    "prohibitedTransferTypes": [
+      3,
+      4,
+      5
+    ],
+    "continueOnSameInstanceWithoutTransfer": true
+  },
+  "places": [
+    {
+      "id": "origin",
+      "name": "origin",
+      "role": "origin",
+      "accessStops": [
+        {
+          "stopId": "sample~MDE",
+          "seconds": 300,
+          "source": "registered",
+          "usableForRouting": true,
+          "estimated": false
+        }
+      ]
+    },
+    {
+      "id": "visit",
+      "name": "visit",
+      "role": "visit",
+      "accessStops": [
+        {
+          "stopId": "sample~MDI",
+          "seconds": 300,
+          "source": "registered",
+          "usableForRouting": true,
+          "estimated": false
+        }
+      ],
+      "staySeconds": 600,
+      "opening": {
+        "status": "unknown",
+        "windows": []
+      }
+    },
+    {
+      "id": "destination",
+      "name": "destination",
+      "role": "destination",
+      "accessStops": [
+        {
+          "stopId": "sample~MDM",
+          "seconds": 300,
+          "source": "registered",
+          "usableForRouting": true,
+          "estimated": false
+        }
+      ]
+    }
+  ],
+  "stops": [
+    {
+      "id": "sample~MDE",
+      "name": "同名",
+      "latitude": 43,
+      "longitude": 141
+    },
+    {
+      "id": "sample~MDI",
+      "name": "途中",
+      "latitude": 43,
+      "longitude": 141
+    },
+    {
+      "id": "sample~MDM",
+      "name": "同名",
+      "latitude": 43,
+      "longitude": 141
+    }
+  ],
+  "routes": [
+    {
+      "id": "sample~MDE",
+      "name": "路線",
+      "routeType": 3,
+      "agencyId": "sample~MDAx"
+    }
+  ],
+  "agencies": [
+    {
+      "id": "sample~MDAx",
+      "name": "夕鉄バス",
+      "timezone": "Asia/Tokyo"
+    }
+  ],
+  "instances": [
+    {
+      "id": "sample~MDAwMQ@2026-01-01",
+      "tripId": "sample~MDAwMQ",
+      "routeId": "sample~MDE",
+      "serviceDate": "2026-01-01",
+      "feedId": "sample",
+      "versionId": "fixture-v1",
+      "verificationStatus": "unverified"
+    }
+  ],
+  "segments": [
+    {
+      "instanceId": "sample~MDAwMQ@2026-01-01",
+      "fromStopId": "sample~MDE",
+      "toStopId": "sample~MDI",
+      "fromSequence": 0,
+      "toSequence": 1,
+      "departureSeconds": 631,
+      "arrivalSeconds": 1200,
+      "pickup": true,
+      "dropoff": true
+    },
+    {
+      "instanceId": "sample~MDAwMQ@2026-01-01",
+      "fromStopId": "sample~MDI",
+      "toStopId": "sample~MDM",
+      "fromSequence": 1,
+      "toSequence": 2,
+      "departureSeconds": 1260,
+      "arrivalSeconds": 3600,
+      "pickup": true,
+      "dropoff": true
+    }
+  ],
+  "transfers": [],
+  "versions": {},
+  "warnings": []
+}

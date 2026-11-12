@@ -7,17 +7,22 @@ import '../../state/discovery_state.dart';
 import '../../state/settings_state.dart';
 import '../../state/trip_state.dart';
 
-Future<void> showSearchFilterSheet(BuildContext context) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => const _SearchFilterSheet(),
-    );
+Future<void> showSearchFilterSheet(BuildContext context) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => UncontrolledProviderScope(
+      container: container,
+      child: const _SearchFilterSheet(),
+    ),
+  );
+}
 
 class _SearchFilterSheet extends HookConsumerWidget {
   const _SearchFilterSheet();

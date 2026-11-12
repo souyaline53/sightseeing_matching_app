@@ -5,15 +5,17 @@ import '../../model/experience.dart';
 import '../../state/discovery_state.dart';
 import '../../state/experience_photos.dart';
 import '../../state/trip_state.dart';
+import '../../state/settings_state.dart';
 import '../../widgets/travel_photo.dart';
 import 'experience_detail.dart';
+import '../search/search_filter_sheet.dart';
+import 'swipe_tips_animation.dart';
 
 class ExperienceDeck extends HookConsumerWidget {
   const ExperienceDeck({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
-    final trip = ref.watch(tripProvider);
     if (discovery.aiLoading) {
       return const Center(
         child: Column(
@@ -65,37 +67,46 @@ class ExperienceDeck extends HookConsumerWidget {
         ),
       ),
       data: (images) {
-        if (discovery.index >= discovery.deck.length) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.auto_awesome, size: 48),
-                  const SizedBox(height: 20),
-                  const Text('気になる旅は、見つかりましたか？', textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${trip.saved.length}件の体験を保存しました。\n「旅を組み立てる」から、自分だけの一日へ。',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: () =>
-                        ref.read(discoveryProvider.notifier).reset(),
-                    child: const Text('ホームへ戻る'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
         return _SwipeExperienceCards(
           key: ValueKey(discovery.deck.map((e) => e.id).join(',')),
           images: images,
         );
       },
+    );
+  }
+}
+
+class _DeckCompletion extends HookConsumerWidget {
+  const _DeckCompletion();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trip = ref.watch(tripProvider);
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_awesome, size: 48),
+            const SizedBox(height: 20),
+            const Text('すべての観光地を見終わりました', textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            Text(
+              '${trip.saved.length}件の体験を保存しました。\n「旅を組み立てる」から、自分だけの一日へ。',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () => ref.read(discoveryProvider.notifier).goTo(0),
+              child: const Text('最初のカードに戻る'),
+            ),
+            FilledButton(
+              onPressed: () => showSearchFilterSheet(context),
+              child: const Text('条件を変更して再検索'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -107,7 +118,39 @@ class _SwipeExperienceCards extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
     final trip = ref.watch(tripProvider);
-    final dismissalVersion = useState(0);
+    final settings = ref.watch(settingsProvider);
+    final tipsRequested = useRef(false);
+    final pages = usePageController(initialPage: discovery.index);
+    useEffect(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted &&
+            pages.hasClients &&
+            pages.page!.round() != discovery.index) {
+          pages.jumpToPage(discovery.index);
+        }
+      });
+      return null;
+    }, [discovery.index]);
+    void next(int index) {
+      pages.animateToPage(
+        index + 1,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
+    useEffect(() {
+      if (settings.hasValue &&
+          !settings.requireValue.experienceTipsSeen &&
+          !tipsRequested.value) {
+        tipsRequested.value = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) _showExperienceTips(context, ref);
+        });
+      }
+      return null;
+    }, [settings.hasValue]);
+
     Widget card(int index) {
       final e = discovery.deck[index];
       final image = images[e.id];
@@ -120,52 +163,68 @@ class _SwipeExperienceCards extends HookConsumerWidget {
         reason: discovery.recommendationReasons[e.id] ?? '',
         saved: trip.contains(e),
         onSave: () => ref.read(tripProvider.notifier).toggle(e),
-        onSkip: () => ref.read(discoveryProvider.notifier).advance(),
+        onSkip: () => next(index),
       );
     }
 
-    final index = discovery.index;
-    void dismiss(DismissDirection direction) {
-      if (direction == DismissDirection.up) {
-        ref.read(tripProvider.notifier).save(discovery.deck[index]);
-      }
-      dismissalVersion.value++;
-      ref.read(discoveryProvider.notifier).advance();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (discovery.deck.length > 1)
-              ExcludeSemantics(
-                child: IgnorePointer(
-                  child: card((index + 1) % discovery.deck.length),
-                ),
-              ),
-            Dismissible(
-              key: ValueKey(
-                'save-up-$index-${dismissalVersion.value}-${trip.saved.length}',
-              ),
+    return PageView.builder(
+      key: const ValueKey('experience-pages'),
+      controller: pages,
+      itemCount: discovery.deck.length + 1,
+      onPageChanged: (index) =>
+          ref.read(discoveryProvider.notifier).goTo(index),
+      itemBuilder: (context, index) {
+        if (index == discovery.deck.length) return const _DeckCompletion();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Dismissible(
+              key: ValueKey('experience-page-$index'),
               direction: DismissDirection.up,
-              resizeDuration: null,
-              onDismissed: dismiss,
-              child: Dismissible(
-                key: ValueKey(
-                  'experience-$index-${dismissalVersion.value}-${trip.saved.length}',
+              background: ColoredBox(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.favorite_border,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '保存する',
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                direction: DismissDirection.horizontal,
-                resizeDuration: null,
-                onDismissed: dismiss,
-                child: card(index),
               ),
+              resizeDuration: null,
+              confirmDismiss: (_) async {
+                ref.read(tripProvider.notifier).save(discovery.deck[index]);
+                pages.jumpToPage(index + 1);
+                // Keep the page available when swiping back to this saved card.
+                return false;
+              },
+              child: card(index),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -222,6 +281,11 @@ class _ExperienceCard extends HookConsumerWidget {
                     ),
                   ),
                   Text(number, style: const TextStyle(color: Colors.white)),
+                  IconButton(
+                    tooltip: 'スワイプのヒント',
+                    onPressed: () => _showExperienceTips(context, ref),
+                    icon: const Icon(Icons.help_outline, color: Colors.white),
+                  ),
                 ],
               ),
               if (reason.isNotEmpty)
@@ -276,7 +340,7 @@ class _ExperienceCard extends HookConsumerWidget {
                   TextButton(
                     onPressed: () => showExperience(context, experience),
                     child: const Text(
-                      '長押し・タップで詳しく',
+                      '詳しく見る',
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -287,16 +351,51 @@ class _ExperienceCard extends HookConsumerWidget {
                   ),
                 ],
               ),
-              const Center(
-                child: Text(
-                  '←・→ 次の体験  /  ↑ 保存',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
-                ),
-              ),
             ],
           ),
         ),
       ],
     ),
   );
+}
+
+Future<void> _showExperienceTips(BuildContext context, WidgetRef ref) async {
+  final settings = ref.read(settingsProvider.notifier);
+  await showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('観光地カードの楽しみ方'),
+      content: const SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwipeTipsAnimation(),
+            SizedBox(height: 16),
+            Text('← 左にスワイプ：次の観光地へ'),
+            SizedBox(height: 12),
+            Text('→ 右にスワイプ：前の観光地へ'),
+            SizedBox(height: 12),
+            Text('↑ 上にスワイプ：保存して次へ'),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('はじめる'),
+        ),
+      ],
+    ),
+  );
+  try {
+    await settings.markExperienceTipsSeen();
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('確認状態を保存できませんでした。')));
+    }
+  }
 }

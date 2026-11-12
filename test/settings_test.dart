@@ -207,7 +207,9 @@ void main() {
       await controller.showExplore();
       controller.goTo(9);
       controller.advance();
-      expect(container.read(discoveryProvider).index, 0);
+      expect(container.read(discoveryProvider).index, 10);
+      controller.previous();
+      expect(container.read(discoveryProvider).index, 9);
     },
   );
   test(

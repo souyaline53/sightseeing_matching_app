@@ -171,6 +171,44 @@ void main() {
         );
         expect(find.text('札幌駅'), findsWidgets);
         if (outcome == 'registered') {
+          final sheetFinder = find.byKey(
+            const ValueKey('itinerary-transport-sheet'),
+          );
+          final sheet = tester.widget<DraggableScrollableSheet>(sheetFinder);
+          final header = find.byKey(const ValueKey('transport-sheet-header'));
+          final departureTime = find.byKey(
+            const ValueKey('itinerary-departure-time'),
+          );
+          expect(sheet.snapSizes, hasLength(3));
+          expect(
+            tester.getTopLeft(header).dy,
+            closeTo(tester.getBottomLeft(departureTime).dy, 1),
+          );
+          for (final size in sheet.snapSizes!) {
+            sheet.controller!.jumpTo(size);
+            await tester.pumpAndSettle();
+            expect(tester.takeException(), isNull);
+            expect(sheet.controller!.size, closeTo(size, .001));
+            if (size == sheet.snapSizes![1]) {
+              expect(
+                tester.getTopLeft(header).dy,
+                closeTo(
+                  tester
+                      .getTopLeft(find.byKey(const ValueKey('itinerary-map')))
+                      .dy,
+                  1,
+                ),
+              );
+              // A short, slow drag must settle at the middle stop.
+              await tester.timedDrag(
+                header,
+                const Offset(0, -5),
+                const Duration(seconds: 1),
+              );
+              await tester.pumpAndSettle();
+              expect(sheet.controller!.size, closeTo(size, .001));
+            }
+          }
           final choose = find.byKey(const ValueKey('choose-t-1-2'));
           await tester.scrollUntilVisible(
             choose,

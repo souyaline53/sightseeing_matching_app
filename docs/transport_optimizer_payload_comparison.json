@@ -1,0 +1,418 @@
+[
+  {
+    "case": "sapporo_meroad_sapporo",
+    "source": "registered_sample_with_case_constraints",
+    "before": {
+      "characters": 293549,
+      "utf16Units": 293549,
+      "bytes": 295001,
+      "instances": 103,
+      "stops": 141,
+      "segments": 920,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 176265,
+      "utf16Units": 176265,
+      "bytes": 177717,
+      "instances": 78,
+      "stops": 141,
+      "segments": 505,
+      "transfers": 2
+    },
+    "byteReductionPercent": 39.75715336558181,
+    "localRouterEqual": true,
+    "localResultCount": 1,
+    "localResults": {
+      "journeys": [
+        {
+          "time": 51000,
+          "visits": [
+            {
+              "id": "melon",
+              "arrival": 43140,
+              "start": 43140,
+              "departure": 46740
+            }
+          ],
+          "legs": [
+            {
+              "trip": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+              "from": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "to": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "departure": 38700,
+              "arrival": 42840
+            },
+            {
+              "trip": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+              "from": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "to": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "departure": 47220,
+              "arrival": 51000
+            }
+          ],
+          "transfers": 0,
+          "walkingSeconds": 600,
+          "requiresReview": true
+        }
+      ],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 2.61,
+    "difySendMs": null
+  },
+  {
+    "case": "meroad_then_coal",
+    "source": "registered_sample_with_case_constraints",
+    "before": {
+      "characters": 460989,
+      "utf16Units": 460989,
+      "bytes": 462533,
+      "instances": 192,
+      "stops": 99,
+      "segments": 1463,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 350585,
+      "utf16Units": 350585,
+      "bytes": 352129,
+      "instances": 170,
+      "stops": 99,
+      "segments": 1071,
+      "transfers": 2
+    },
+    "byteReductionPercent": 23.8694320189046,
+    "localRouterEqual": true,
+    "localResultCount": 1,
+    "localResults": {
+      "journeys": [
+        {
+          "time": 60000,
+          "visits": [
+            {
+              "id": "melon",
+              "arrival": 36420,
+              "start": 36420,
+              "departure": 40020
+            },
+            {
+              "id": "coal",
+              "arrival": 44700,
+              "start": 44700,
+              "departure": 50100
+            }
+          ],
+          "legs": [
+            {
+              "trip": "jr_hokkaido~SlJfRjlFMzQ0MzhEQjc3M0Q@2026-11-01",
+              "from": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "to": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "departure": 31920,
+              "arrival": 36120
+            },
+            {
+              "trip": "yutetsu_bus~VDAxODEwMDAwNDc@2026-11-01",
+              "from": "yutetsu_bus~UzAxODEwMDAxNzcwMDEwMA",
+              "to": "yutetsu_bus~UzAxODEwMDAyMDIwMDEwMA",
+              "departure": 41280,
+              "arrival": 44100
+            },
+            {
+              "trip": "yutetsu_bus~VDAxODEwMDAwMzk@2026-11-01",
+              "from": "yutetsu_bus~UzAxODEwMDAyMDIwMDEwMA",
+              "to": "yutetsu_bus~UzAxODEwMDAxNzcwMDEwMA",
+              "departure": 52500,
+              "arrival": 55320
+            },
+            {
+              "trip": "jr_hokkaido~SlJfMzdEQzhBN0NDMjdBOTg@2026-11-01",
+              "from": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "to": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "departure": 56160,
+              "arrival": 60000
+            }
+          ],
+          "transfers": 1,
+          "walkingSeconds": 1680,
+          "requiresReview": true
+        }
+      ],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 2.49,
+    "difySendMs": null
+  },
+  {
+    "case": "coal_then_meroad",
+    "source": "registered_sample_with_case_constraints",
+    "before": {
+      "characters": 460989,
+      "utf16Units": 460989,
+      "bytes": 462533,
+      "instances": 192,
+      "stops": 99,
+      "segments": 1463,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 350585,
+      "utf16Units": 350585,
+      "bytes": 352129,
+      "instances": 170,
+      "stops": 99,
+      "segments": 1071,
+      "transfers": 2
+    },
+    "byteReductionPercent": 23.8694320189046,
+    "localRouterEqual": true,
+    "localResultCount": 0,
+    "localResults": {
+      "journeys": [],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 2.74,
+    "difySendMs": null
+  },
+  {
+    "case": "rail_bus_transfer",
+    "source": "registered_sample_with_case_constraints",
+    "before": {
+      "characters": 460989,
+      "utf16Units": 460989,
+      "bytes": 462533,
+      "instances": 192,
+      "stops": 99,
+      "segments": 1463,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 350585,
+      "utf16Units": 350585,
+      "bytes": 352129,
+      "instances": 170,
+      "stops": 99,
+      "segments": 1071,
+      "transfers": 2
+    },
+    "byteReductionPercent": 23.8694320189046,
+    "localRouterEqual": true,
+    "localResultCount": 1,
+    "localResults": {
+      "journeys": [
+        {
+          "time": 60000,
+          "visits": [
+            {
+              "id": "melon",
+              "arrival": 36420,
+              "start": 36420,
+              "departure": 40020
+            },
+            {
+              "id": "coal",
+              "arrival": 44700,
+              "start": 44700,
+              "departure": 50100
+            }
+          ],
+          "legs": [
+            {
+              "trip": "jr_hokkaido~SlJfRjlFMzQ0MzhEQjc3M0Q@2026-11-01",
+              "from": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "to": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "departure": 31920,
+              "arrival": 36120
+            },
+            {
+              "trip": "yutetsu_bus~VDAxODEwMDAwNDc@2026-11-01",
+              "from": "yutetsu_bus~UzAxODEwMDAxNzcwMDEwMA",
+              "to": "yutetsu_bus~UzAxODEwMDAyMDIwMDEwMA",
+              "departure": 41280,
+              "arrival": 44100
+            },
+            {
+              "trip": "yutetsu_bus~VDAxODEwMDAwMzk@2026-11-01",
+              "from": "yutetsu_bus~UzAxODEwMDAyMDIwMDEwMA",
+              "to": "yutetsu_bus~UzAxODEwMDAxNzcwMDEwMA",
+              "departure": 52500,
+              "arrival": 55320
+            },
+            {
+              "trip": "jr_hokkaido~SlJfMzdEQzhBN0NDMjdBOTg@2026-11-01",
+              "from": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "to": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "departure": 56160,
+              "arrival": 60000
+            }
+          ],
+          "transfers": 1,
+          "walkingSeconds": 1680,
+          "requiresReview": true
+        }
+      ],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 2.22,
+    "difySendMs": null
+  },
+  {
+    "case": "overnight",
+    "source": "synthetic_shift_of_registered_sample",
+    "before": {
+      "characters": 293550,
+      "utf16Units": 293550,
+      "bytes": 295002,
+      "instances": 103,
+      "stops": 141,
+      "segments": 920,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 176266,
+      "utf16Units": 176266,
+      "bytes": 177718,
+      "instances": 78,
+      "stops": 141,
+      "segments": 505,
+      "transfers": 2
+    },
+    "byteReductionPercent": 39.757018596484095,
+    "localRouterEqual": true,
+    "localResultCount": 1,
+    "localResults": {
+      "journeys": [
+        {
+          "time": 87000,
+          "visits": [
+            {
+              "id": "melon",
+              "arrival": 79140,
+              "start": 79140,
+              "departure": 82740
+            }
+          ],
+          "legs": [
+            {
+              "trip": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+              "from": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "to": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "departure": 74700,
+              "arrival": 78840
+            },
+            {
+              "trip": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+              "from": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "to": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "departure": 83220,
+              "arrival": 87000
+            }
+          ],
+          "transfers": 0,
+          "walkingSeconds": 600,
+          "requiresReview": true
+        }
+      ],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 1.47,
+    "difySendMs": null
+  },
+  {
+    "case": "closed_hours",
+    "source": "registered_sample_with_case_constraints",
+    "before": {
+      "characters": 460981,
+      "utf16Units": 460981,
+      "bytes": 462525,
+      "instances": 192,
+      "stops": 99,
+      "segments": 1463,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 350577,
+      "utf16Units": 350577,
+      "bytes": 352121,
+      "instances": 170,
+      "stops": 99,
+      "segments": 1071,
+      "transfers": 2
+    },
+    "byteReductionPercent": 23.86984487325009,
+    "localRouterEqual": true,
+    "localResultCount": 0,
+    "localResults": {
+      "journeys": [],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 2.08,
+    "difySendMs": null
+  },
+  {
+    "case": "no_services",
+    "source": "registered_sample_with_case_constraints",
+    "before": {
+      "characters": 18779,
+      "utf16Units": 18779,
+      "bytes": 20231,
+      "instances": 0,
+      "stops": 141,
+      "segments": 0,
+      "transfers": 2
+    },
+    "after": {
+      "characters": 18779,
+      "utf16Units": 18779,
+      "bytes": 20231,
+      "instances": 0,
+      "stops": 141,
+      "segments": 0,
+      "transfers": 2
+    },
+    "byteReductionPercent": 0,
+    "localRouterEqual": true,
+    "localResultCount": 0,
+    "localResults": {
+      "journeys": [],
+      "warnings": [
+        "出発時刻は前の場所での滞在を終え、徒歩移動を開始できる時刻として指定してください。",
+        "同名で500m以内の停留所を共通の候補に含めます。別乗り場への自動接続は直線距離による徒歩推定で、道路経路は未確認です。",
+        "徒歩時間が未登録の経路は時刻表の参考候補です。到達できることは未確認です。"
+      ]
+    },
+    "difyResultsEqual": null,
+    "optimizationMs": 0.09,
+    "difySendMs": null
+  }
+]

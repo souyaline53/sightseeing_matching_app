@@ -1,3 +1,4 @@
+import '../service/transport/ai_trip_repository.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../model/trip_plan.dart';
 import '../repository/trips_repository.dart';
@@ -79,6 +80,10 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
     if (original == null) return;
     // JSON round-trip also copies nested lists and experience records.
     final data = original.toJson();
+    data['ai'] = {
+      ...original.ai,
+      'lineage': original.ai['lineage'] ?? original.id,
+    };
     data['id'] = TripState().id;
     data['title'] = '${original.displayTitle}（コピー）';
     data['updatedAt'] = DateTime.now().toUtc().toIso8601String();
@@ -92,7 +97,7 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
 
   void _persist(TripLibrary next) {
     _writes = _writes
-        .then((_) => ref.read(tripsRepositoryProvider).save(next))
+        .then((_) => _save(next))
         .then(
           (_) {
             if (ref.mounted) {
@@ -105,6 +110,14 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
             }
           },
         );
+  }
+
+  Future<void> _save(TripLibrary next) async {
+    await ref.read(tripsRepositoryProvider).save(next);
+    final active = next.activeTrip;
+    if (active != null && active.ai['rootId'] != null) {
+      await ref.read(aiTripRepositoryProvider).save(active);
+    }
   }
 
   Future<void> retrySave() {

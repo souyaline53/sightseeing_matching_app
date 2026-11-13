@@ -174,6 +174,11 @@ void main() {
       expect(find.byKey(const ValueKey('search-transfers')), findsNothing);
       expect(find.textContaining('徒歩時間が未登録'), findsNothing);
       expect(find.textContaining('乗場ID'), findsNothing);
+      await tester.drag(
+        find.byKey(const ValueKey('transport-sheet-header')),
+        const Offset(0, -500),
+      );
+      await tester.pumpAndSettle();
       final choose = find.byKey(const ValueKey('choose-to-b-1-2'));
       await tester.ensureVisible(choose);
       await tester.tap(choose);

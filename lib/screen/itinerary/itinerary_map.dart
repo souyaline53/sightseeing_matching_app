@@ -13,8 +13,14 @@ import '../../data/catalog_data.dart';
 
 class ItineraryMap extends ConsumerStatefulWidget {
   final String origin;
+  final String? destination;
   final double bottomInset;
-  const ItineraryMap({super.key, required this.origin, this.bottomInset = 0});
+  const ItineraryMap({
+    super.key,
+    required this.origin,
+    this.destination,
+    this.bottomInset = 0,
+  });
   @override
   ConsumerState<ItineraryMap> createState() => _MapState();
 }
@@ -84,7 +90,16 @@ class _MapState extends ConsumerState<ItineraryMap> {
       widget.origin,
       ref.watch(departurePlacesProvider).value ?? [],
     );
-    final visits = itineraryMapVisits(widget.origin, departure, stops);
+    final visits = itineraryMapVisits(
+      widget.origin,
+      departure,
+      stops,
+      destination: widget.destination,
+      arrival: departureNamed(
+        widget.destination ?? widget.origin,
+        ref.watch(departurePlacesProvider).value ?? [],
+      ),
+    );
     final groups = groupMapVisits(visits);
     final points = groups.map((g) => g.first.point!).toList();
     final legs = itineraryMapLegs(visits);

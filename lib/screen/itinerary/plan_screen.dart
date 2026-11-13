@@ -1,3 +1,5 @@
+import '../../model/ai_trip_segment.dart';
+import 'ai_transport_card.dart';
 import '../../state/itinerary_navigation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -99,14 +101,38 @@ class PlanScreen extends HookConsumerWidget {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
 
-    final points = [originPoint, ...stops, originPoint];
+    final arrivalName = livePlan?.arrivalPlace ?? origin;
+    final arrivalPlace = departureNamed(
+      arrivalName,
+      ref.watch(departurePlacesProvider).value ?? const <DeparturePlace>[],
+    );
+    final arrivalPoint = arrivalName == origin
+        ? originPoint
+        : Experience(
+            livePlan?.destinationEndpointId ??
+                TripState.departureEndpointId(arrivalName),
+            arrivalName,
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            0,
+            latitude: arrivalPlace?.point.latitude,
+            longitude: arrivalPlace?.point.longitude,
+            accessStops: arrivalPlace?.accessStops ?? [],
+          );
+    final points = [originPoint, ...stops, arrivalPoint];
     final segments = [
       for (var i = 0; i < points.length - 1; i++)
         if (stops.isNotEmpty)
           _PlanSegment.resolve(ref, livePlan, points[i], points[i + 1]),
     ];
     final missing = publicTransport
-        ? segments.where((s) => !s.walking && s.selection == null).length
+        ? segments
+              .where((s) => !s.walking && s.selection == null && s.ai == null)
+              .length
         : 0;
     final returning = segments.isEmpty ? null : segments.last.arrival;
     return Scaffold(
@@ -222,7 +248,10 @@ class PlanScreen extends HookConsumerWidget {
                           _ChooseTransport(
                             onTap: () {
                               final index = segments.indexWhere(
-                                (s) => !s.walking && s.selection == null,
+                                (s) =>
+                                    !s.walking &&
+                                    s.selection == null &&
+                                    s.ai == null,
                               );
                               editPlan(
                                 transportSegment: index == 0
@@ -338,7 +367,7 @@ class PlanScreen extends HookConsumerWidget {
                   label: '帰着',
                   last: true,
                   child: _EndpointCard(
-                    name: origin,
+                    name: arrivalName,
                     publicTransport: publicTransport,
                     subtitle: returning == null
                         ? '到着時刻未定'
@@ -368,7 +397,14 @@ class _PlanSegment {
   final Experience from, to;
   final bool walking;
   final TransportSelection? selection;
-  const _PlanSegment(this.from, this.to, this.walking, this.selection);
+  final AiTripSegment? ai;
+  const _PlanSegment(
+    this.from,
+    this.to,
+    this.walking,
+    this.selection, [
+    this.ai,
+  ]);
   factory _PlanSegment.resolve(
     WidgetRef ref,
     TripState? trip,
@@ -381,23 +417,31 @@ class _PlanSegment {
     final cached = provider != null && ref.exists(provider)
         ? ref.watch(provider).value
         : null;
+    final ai = trip == null ? null : activeAiTripSegment(trip, from.id, to.id);
     return _PlanSegment(
       from,
       to,
-      sharesAccessStop(from.accessStops, to.accessStops) ||
-          cached?.walkingOnly == true,
+      ai != null
+          ? ai.walkingOnly
+          : sharesAccessStop(from.accessStops, to.accessStops) ||
+                cached?.walkingOnly == true,
       trip?.transportSelections
           .where((s) => s.from == from.id && s.to == to.id)
           .firstOrNull,
+      ai,
     );
   }
   Map? get journey => selection?.data['journey'] as Map?;
-  int? get departure => walking
+  int? get departure => ai?.departureSeconds != null
+      ? ai!.departureSeconds! ~/ 60
+      : walking
       ? null
       : journey?['departureFromSpotSeconds'] is int
       ? (journey!['departureFromSpotSeconds'] as int) ~/ 60
       : selection?.data['departureMinutes'] as int?;
-  int? get arrival => walking
+  int? get arrival => ai?.arrivalSeconds != null
+      ? ai!.arrivalSeconds! ~/ 60
+      : walking
       ? null
       : journey?['arrivalSeconds'] is int
       ? (journey!['arrivalSeconds'] as int) ~/ 60
@@ -420,7 +464,9 @@ class _SegmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = segment;
-    final missing = publicTransport && !s.walking && s.selection == null;
+    if (s.ai != null) return AiTransportCard(segment: s.ai!);
+    final missing =
+        publicTransport && !s.walking && s.selection == null && s.ai == null;
     final duration = s.arrival != null && s.departure != null
         ? s.arrival! - s.departure!
         : null;

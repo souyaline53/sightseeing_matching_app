@@ -1,0 +1,27 @@
+{
+  "mode": "before",
+  "measurements": [
+    {
+      "label": "cold",
+      "firestoreQueries": 9,
+      "firestoreDocumentGets": 1,
+      "firestoreReturnedDocuments": 9,
+      "firestoreEmptyQueries": 6,
+      "elapsedMs": 9810,
+      "stops": 4230,
+      "trips": 9105
+    },
+    {
+      "label": "warm",
+      "firestoreQueries": 1,
+      "firestoreDocumentGets": 1,
+      "firestoreReturnedDocuments": 4,
+      "firestoreEmptyQueries": 0,
+      "elapsedMs": 251,
+      "stops": 4230,
+      "trips": 9105
+    }
+  ],
+  "difySendMs": null,
+  "note": "Live SDK calls, not Cloud Billing totals; empty queries, retries and index-entry billing must be distinguished."
+}

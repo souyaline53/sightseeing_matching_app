@@ -147,8 +147,13 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        await tester.drag(
+          find.byKey(const ValueKey('transport-sheet-header')),
+          const Offset(0, -500),
+        );
+        await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('walking-only')), findsOneWidget);
-        expect(find.text('徒歩のみ'), findsOneWidget);
+        expect(find.textContaining('この区間は徒歩のみ'), findsOneWidget);
         expect(find.textContaining('この便で行く'), findsNothing);
         expect(find.textContaining('候補がありません'), findsNothing);
         expect(find.textContaining('保存した便は'), findsNothing);

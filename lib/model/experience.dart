@@ -15,6 +15,7 @@ class Experience {
   final int order;
   final List<AccessStop> accessStops;
   final String accessNotes;
+  final Map<String, dynamic> visitInfo;
   const Experience(
     this.id,
     this.title,
@@ -25,6 +26,7 @@ class Experience {
     this.surprise,
     this.photo,
     this.minutes, {
+    this.visitInfo = const {},
     this.name = '',
     this.address = '',
     this.latitude,
@@ -37,7 +39,8 @@ class Experience {
     this.accessStops = const [],
     this.accessNotes = '',
   });
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson({bool includeVisitInfo = false}) => {
+    if (includeVisitInfo && visitInfo.isNotEmpty) 'visitInfo': visitInfo,
     'id': id,
     'title': title,
     'name': name,
@@ -69,6 +72,17 @@ class Experience {
     json['surprise'] as String,
     json['photo'] as String,
     json['minutes'] as int,
+    visitInfo: json['visitInfo'] is Map
+        ? Map<String, dynamic>.from(json['visitInfo'] as Map)
+        : {
+            for (final key in [
+              'openingHoursStatus',
+              'openingHours',
+              'specialHours',
+              'seasonalAvailability',
+            ])
+              if (json.containsKey(key)) key: json[key],
+          },
     name: json['name'] as String? ?? '',
     address: json['address'] as String? ?? '',
     latitude: (json['latitude'] as num?)?.toDouble(),

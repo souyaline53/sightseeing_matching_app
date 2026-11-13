@@ -1,10 +1,51 @@
+import 'dart:convert';
 import 'transport.dart';
 import 'dart:math';
 import 'experience.dart';
 import 'search_settings.dart';
 
 class TripState {
+  final Map<String, dynamic> ai;
+  String get aiStatus => ai['status'] as String? ?? 'unused';
+  bool get aiQuotaBlocked =>
+      ai['blockedUntil'] is int &&
+      (ai['blockedUntil'] as int) > DateTime.now().millisecondsSinceEpoch;
+  bool get aiLocked =>
+      ['processing', 'uncertain', 'completed'].contains(aiStatus);
+  String get aiBasis => jsonEncode({
+    'stops': stops.map((e) => e.id).toList(),
+    'date': travelDate?.toIso8601String(),
+    'departure': departureMinutes,
+    'origin': origin,
+    'destination': arrivalPlace,
+    'length': conditions.length.name,
+    'mode': conditions.transport.name,
+    'stay': {for (final e in stops) e.id: stayMinutes[e.id] ?? e.minutes},
+    'config': ai['config'],
+  });
+  bool get aiProposalValid {
+    if (ai['basis'] == aiBasis) return true;
+    // Preserve proposals saved by the earlier round-trip-only model.
+    try {
+      final old = jsonDecode(ai['basis'] as String) as Map;
+      final current = jsonDecode(aiBasis) as Map;
+      if (!old.containsKey('destination') &&
+          !old.containsKey('length') &&
+          arrivalPlace == origin &&
+          (conditions.length == TripLength.day ||
+              conditions.length == TripLength.halfDay)) {
+        current.remove('destination');
+        current.remove('length');
+        return jsonEncode(old) == jsonEncode(current);
+      }
+    } catch (_) {}
+    return false;
+  }
+
   final String id, title;
+  final String? destination;
+  String get arrivalPlace => destination ?? origin;
+  String get destinationEndpointId => departureEndpointId(arrivalPlace);
   final DateTime updatedAt;
   final List<Experience> saved, stops;
   final SearchConditions conditions;
@@ -13,6 +54,8 @@ class TripState {
   final List<TransportSelection> transportSelections;
   final Map<String, int> stayMinutes;
   TripState({
+    this.ai = const {},
+    this.destination,
     String? id,
     this.title = '',
     DateTime? updatedAt,
@@ -43,6 +86,8 @@ class TripState {
   bool get publicTransport => conditions.transport != TravelMode.car;
   bool contains(Experience e) => saved.any((x) => x.id == e.id);
   TripState copyWith({
+    Map<String, dynamic>? ai,
+    String? destination,
     String? title,
     List<Experience>? saved,
     List<Experience>? stops,
@@ -53,6 +98,8 @@ class TripState {
     List<TransportSelection>? transportSelections,
     Map<String, int>? stayMinutes,
   }) => TripState(
+    ai: ai ?? this.ai,
+    destination: destination ?? this.destination,
     id: id,
     transportSelections: (transportSelections ?? this.transportSelections)
         .where((s) {
@@ -64,7 +111,13 @@ class TripState {
           }
           if (next.isNotEmpty &&
               s.from == next.last.id &&
-              s.to == departureEndpointId(conditions?.origin ?? origin)) {
+              s.to ==
+                  departureEndpointId(
+                    destination ??
+                        this.destination ??
+                        conditions?.origin ??
+                        origin,
+                  )) {
             return true;
           }
           return List.generate(
@@ -96,11 +149,13 @@ class TripState {
     travelDate: clearDate ? null : travelDate ?? this.travelDate,
   );
   Map<String, dynamic> toJson() => {
+    'ai': ai,
+    'destination': destination,
     'id': id,
     'title': title,
     'updatedAt': updatedAt.toIso8601String(),
-    'saved': saved.map((e) => e.toJson()).toList(),
-    'stops': stops.map((e) => e.toJson()).toList(),
+    'saved': saved.map((e) => e.toJson(includeVisitInfo: true)).toList(),
+    'stops': stops.map((e) => e.toJson(includeVisitInfo: true)).toList(),
     'conditions': conditions.toJson(),
     'travelDate': travelDate?.toIso8601String(),
     'departureMinutes': departureMinutes,
@@ -108,6 +163,8 @@ class TripState {
     'stayMinutes': stayMinutes,
   };
   factory TripState.fromJson(Map<String, dynamic> json) => TripState(
+    ai: Map<String, dynamic>.from(json['ai'] as Map? ?? {}),
+    destination: json['destination'] as String?,
     id: json['id'] as String,
     transportSelections: (json['transportSelections'] as List? ?? [])
         .map((s) => TransportSelection(Map<String, dynamic>.from(s as Map)))

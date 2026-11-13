@@ -9,7 +9,7 @@ class PreparationError extends Error {
 const fail = (message) => { throw new PreparationError('invalid-argument', message); };
 function validateInput(q) {
   if (!q || !validDate(q.date) || !Number.isInteger(q.departureSeconds) || q.departureSeconds < 0 || q.departureSeconds >= DAY ||
-    !Number.isInteger(q.deadlineSeconds) || q.deadlineSeconds <= q.departureSeconds || q.deadlineSeconds > q.departureSeconds + 2 * DAY) fail('旅行日・出発時刻・到着期限（出発から48時間以内）が不正です');
+    !Number.isInteger(q.deadlineSeconds) || q.deadlineSeconds <= q.departureSeconds || q.deadlineSeconds > 3 * DAY) fail('旅行日・出発時刻・到着期限（旅行日から3日間以内）が不正です');
   if (!Array.isArray(q.visits) || q.visits.length < 1 || q.visits.length > 3) fail('観光地は1〜3件です');
   const ids = new Set();
   for (const place of [q.origin, ...q.visits, q.destination]) {
@@ -63,23 +63,11 @@ function buildPayload(network, input, { maxBytes = 500000, versions = {} } = {})
         stopIds.add(a[0]); stopIds.add(b[0]);
       }
       if (edges.length) { instances.push({ id, tripId: t.id, routeId: t.routeId, serviceDate, feedId: t.feedId ?? null, versionId: t.versionId ?? null, verificationStatus: t.verificationStatus ?? 'unverified' }); segments.push(...edges);
-        if (segments.length > 100000) throw new PreparationError('resource-exhausted', '区間数が抽出上限を超えています。時間帯の縮小が必要です');
+        if (segments.length > 100000) { const error = new PreparationError('resource-exhausted', '対象の交通区間が多すぎます。出発から帰着までの時間を短くしてください。'); error.details = { reason: 'transport-segment-limit', difyRequestStarted: false, limit: 100000 }; throw error; }
         routeIds.add(t.routeId); }
     }
   }
-  const places = [q.origin, ...q.visits, q.destination].map((p, i) => {
-    const access = p.accessStops.map((a) => {
-      const stop = network.stops.get(a.stopId);
-      if (!stop) throw new PreparationError('failed-precondition', `徒歩接続先が存在しません: ${a.stopId}`);
-      stopIds.add(a.stopId);
-      const distance = distanceMeters(p, stop);
-      const confirmed = a.verificationStatus === 'verified' && a.sourceType !== 'sample' && a.walkingMinutes != null;
-      return { stopId: a.stopId, seconds: a.walkingMinutes != null ? a.walkingMinutes * 60 : distance == null ? null : Math.ceil(distance / 60) * 60,
-        source: a.walkingMinutes != null ? 'registered' : distance == null ? 'unknown' : 'straight_line_estimate', usableForRouting: q.modes.includes('walk') && confirmed, estimated: !confirmed };
-    });
-    return { ...pick(p, ['id', 'name', 'latitude', 'longitude']), role: i === 0 ? 'origin' : i === placesLength(q) - 1 ? 'destination' : 'visit', accessStops: access,
-      ...(i > 0 && i <= q.visits.length ? { staySeconds: p.staySeconds, opening: { status: p.opening.status, windows: p.opening.windows } } : {}) };
-  });
+  const places = normalizePlaces(network, q, stopIds);
   // Preserve contextual prohibitions and parent-station expansion from the existing reader.
   const transfers = [];
   for (const [pair, rules] of network.rules) {
@@ -98,5 +86,21 @@ function buildPayload(network, input, { maxBytes = 500000, versions = {} } = {})
   if (bytes > maxBytes) throw new PreparationError('resource-exhausted', `交通JSONは${bytes} bytes（上限${maxBytes}）。切捨ては行いません。時間帯縮小または接続を保持する部分グラフ索引が必要です`);
   return { payload, json, bytes };
 }
+function normalizePlaces(network, q, stopIds = new Set()) {
+  return [q.origin, ...q.visits, q.destination].map((p, i) => {
+    const access = p.accessStops.map((a) => {
+      const stop = network.stops.get(a.stopId);
+      if (!stop) throw new PreparationError('failed-precondition', `徒歩接続先が存在しません: ${a.stopId}`);
+      stopIds.add(a.stopId);
+      const distance = distanceMeters(p, stop);
+      const registeredAssumption = a.useRegisteredWalking === true && a.sourceType !== 'sample' && Number.isInteger(a.walkingMinutes);
+      const confirmed = (a.verificationStatus === 'verified' || registeredAssumption) && a.sourceType !== 'sample' && a.walkingMinutes != null;
+      return { stopId: a.stopId, seconds: a.walkingMinutes != null ? a.walkingMinutes * 60 : distance == null ? null : Math.ceil(distance / 60) * 60,
+        source: a.walkingMinutes != null ? 'registered' : distance == null ? 'unknown' : 'straight_line_estimate', usableForRouting: q.modes.includes('walk') && confirmed, estimated: !confirmed, ...(registeredAssumption && a.verificationStatus !== 'verified' ? { verificationStatus: a.verificationStatus ?? 'unverified', requiresReview: true } : {}) };
+    });
+    return { ...pick(p, ['id', 'name', 'latitude', 'longitude']), role: i === 0 ? 'origin' : i === placesLength(q) - 1 ? 'destination' : 'visit', accessStops: access,
+      ...(i > 0 && i <= q.visits.length ? { staySeconds: p.staySeconds, opening: { status: p.opening.status, windows: p.opening.windows, ...(p.opening.assumedOpen === true ? { assumedOpen: true } : {}) } } : {}) };
+  });
+}
 function placesLength(q) { return q.visits.length + 2; }
-module.exports = { validateInput, buildPayload, PreparationError };
+module.exports = { validateInput, buildPayload, normalizePlaces, PreparationError };

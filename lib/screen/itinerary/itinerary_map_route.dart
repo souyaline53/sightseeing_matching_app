@@ -22,8 +22,10 @@ class MapVisit {
 List<MapVisit> itineraryMapVisits(
   String origin,
   DeparturePlace? departure,
-  List<Experience> stops,
-) => [
+  List<Experience> stops, {
+  String? destination,
+  DeparturePlace? arrival,
+}) => [
   MapVisit(
     null,
     '出発：$origin',
@@ -40,9 +42,11 @@ List<MapVisit> itineraryMapVisits(
     ),
   MapVisit(
     null,
-    '到着：$origin',
-    departure?.address ?? '',
-    departure?.point,
+    '到着：${destination ?? origin}',
+    (destination == null || destination == origin ? departure : arrival)
+            ?.address ??
+        '',
+    (destination == null || destination == origin ? departure : arrival)?.point,
     endpoint: '到着',
   ),
 ];

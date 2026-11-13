@@ -22,6 +22,7 @@ class ItineraryTransportSheet extends StatefulWidget {
   final bool walkingOnly;
   final int index, segmentCount;
   final bool collapsed;
+  final Widget? aiProposal;
   final VoidCallback? onPrevious, onNext, onClear;
   final VoidCallback onRefresh, onMap, onExpand;
   final ValueChanged<TransportCandidate> onSelect;
@@ -52,6 +53,7 @@ class ItineraryTransportSheet extends StatefulWidget {
     required this.onHeaderDragEnd,
     required this.onHeaderDragCancel,
     this.collapsed = false,
+    this.aiProposal,
   });
   @override
   State<ItineraryTransportSheet> createState() =>
@@ -246,6 +248,7 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      if (widget.aiProposal != null) widget.aiProposal!,
                       _results(context),
                     ],
                     const SizedBox(height: 10),

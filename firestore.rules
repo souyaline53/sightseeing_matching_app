@@ -281,6 +281,15 @@ service cloud.firestore {
       allow read: if collection in ['transport_agencies', 'transport_stops', 'transport_routes', 'transport_services', 'transport_trips', 'transport_fares', 'transport_transfers'];
       allow write: if false; // Manual masters and GTFS imports both require authenticated server handlers.
     }
+    match /users/{uid}/ai_trips/{tripId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      // Status, result, lineage and ownership are server-owned and cannot be reset/deleted.
+      allow update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentTrip'])
+        && request.resource.data.currentTrip is string
+        && request.resource.data.currentTrip.size() <= 180000;
+      allow create, delete: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

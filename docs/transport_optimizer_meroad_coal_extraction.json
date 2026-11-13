@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-01",
+  "departure": "08:30",
+  "deadline": "17:00",
+  "bytes": 462533,
+  "stops": 99,
+  "routes": 8,
+  "agencies": 2,
+  "instances": 192,
+  "segments": 1463,
+  "transfers": 2,
+  "versions": {
+    "jr_hokkaido": "7a131426301ee21c23e9114094f94dcdb0875e536ff82ab3cfb40df9b3b9d610",
+    "yutetsu_bus": "34e4d2022d4997759c68413d56e0de1a2c0d907a83d9c0c178a454f687969bf8"
+  },
+  "sources": [
+    "https://www.city.yubari.lg.jp/site/kanko/1197.html",
+    "https://www.coal-yubari.jp/info/",
+    "https://coal-yubari.jp/file/timetable202505n.pdf"
+  ],
+  "inputOnly": true,
+  "openingOverrides": "Official operating dates and hours for 2026-11-01; museum closed from 2026-11-04",
+  "walkingOverrides": "Station endpoints 0; Meroad to JR 5min/bus 3min; museum bus stop to building 10min for official approx.500m; registered museum 1min is not used",
+  "scope": "JR Sapporo–Shin-Yubari corridor (17 named stations), Yutetsu trips touching Shin-Yubari or museum. Filter only original adjacent edges, never bridge excluded stops. All scheduled alternatives in scope and time window retained."
+}

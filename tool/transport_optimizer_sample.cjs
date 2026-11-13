@@ -1,4 +1,4 @@
-// Offline fixture only. node tool/transport_optimizer_sample.cjs > docs/transport_optimizer_sample.json
+// Offline fixture only. node tool/transport_optimizer_sample.cjs > /tmp/transport_optimizer_fixture.json
 const { fixture } = require('../functions/test_support/gtfs_fixture');
 const { parseFiles } = require('../functions/transport_bundle');
 const { routingData } = require('../functions/transport_routing_bundle');

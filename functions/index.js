@@ -90,3 +90,20 @@ exports.prepareTransportOptimization = onCall(
   (request) => require('./transport_optimizer_api').prepareTransportOptimization(
     request, getFirestore(), getStorage().bucket()),
 );
+
+const difyTransportApiKey = defineSecret('DIFY_TRANSPORT_API_KEY');
+exports.optimizeTransportItinerary = onCall(
+  {
+    region: 'asia-northeast1', maxInstances: 2, concurrency: 1,
+    timeoutSeconds: 120, memory: '512MiB',
+    secrets: [difyTransportApiKey],
+    enforceAppCheck: process.env.AI_ENFORCE_APP_CHECK === 'true',
+  },
+  (request) => require('./trip_ai').optimizeTripTransport(
+    request, getFirestore(), getStorage().bucket(), () => difyTransportApiKey.value()),
+);
+
+exports.registerAiTrip = onCall(
+  { region: 'asia-northeast1', maxInstances: 2, enforceAppCheck: process.env.AI_ENFORCE_APP_CHECK === 'true' },
+  (request) => require('./trip_ai').registerAiTrip(request, getFirestore()),
+);

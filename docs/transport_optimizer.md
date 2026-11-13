@@ -27,7 +27,7 @@ Firestore `transport_feeds/{feedId}` に activeVersionId と distribution（mani
 - 入力: `TransportOptimizationInput`、別々のorigin/destination、最大3 visits、旅行日・秒単位の制約・滞在、交通手段、優先条件、最低乗換余裕。
 - 地点接続は既存AccessStopを使う。各visitのopeningは**指定旅行日について解決済み**の `known / closed / unknown` と秒単位windows。曜日・特別営業・休業日の自動解決は今回未実装。旧Experienceには営業時間が保持されないため、unknownが既定値。unknownを営業と断定しない。
 - Callable応答: `{workflow: "TABISAKI_Transport_Optimizer", inputs: {transport_json: "JSON文字列"}, bytes: UTF8バイト数}`。
-- 完全なデコード後サンプル: [transport_optimizer_sample.json](transport_optimizer_sample.json)。オフラインGTFS fixtureから生成し、実便の旅程として利用しない。再生成: `node tool/transport_optimizer_sample.cjs > docs/transport_optimizer_sample.json`。
+- 完全なデコード後サンプル: [transport_optimizer_sample.json](transport_optimizer_sample.json)。公開済みGTFSから生成した札幌駅→道の駅メロード→札幌駅の最適化前ネットワーク。旅行日は2026-11-13。代替便・バス・登録済み乗換2規則を含み、旅程解答は含めない。入力条件・抽出範囲・根拠・再生成方法は[サンプル説明](transport_optimizer_meroad_sample.md)を参照。従来の `tool/transport_optimizer_sample.cjs` は架空fixture用で、この実便サンプルの再生成には使用しない。
 - 出力モデル: `TransportOptimizationResult` は `status: feasible / infeasible / needs_review`, `candidates: [{id, ...}]`, `selectedCandidateId`。feasibleは選択IDの存在、infeasibleは空候補を検証する。candidate内部の訪問時刻・legs・参照便整合性の詳細検証は実Workflow契約確定後に追加する。このモデルだけを根拠に既存TripStateへ適用しない。
 
 JSON中の`instances`は実運行日付き便ID、`segments`は隣接停留所の実乗車区間（秒、順序、乗降可否）、`transfers`は有向・便/路線条件付きルール。route/agency/stopsは必要IDだけ。各地点に徒歩接続と営業時間・滞在時間を格納する。訪問順は固定しない。
@@ -75,3 +75,7 @@ UTF8 JSONは500,000 bytesを暫定上限とし、超過はresource-exhaustedで�
 - Flutter新規2件＋既存交通旅程/時刻表5件、計7件成功。
 - 新規Dartファイル3点のflutter analyze: 指摘なし。
 - 実Firestore・Dify疎通、デプロイ、既存UIへの適用は未実施。
+
+## 軽量化・読取計測の追加
+
+最新版の動作・設定・実測結果は[交通データ最適化報告](transport_optimizer_optimization.md)を参照。公開版/手動路線の重複readを解消し、インスタンス内の共通抽出キャッシュ、文字数/UTF-8検査、集計メトリクスを追加した。接続・時間に基づく区間除去は実Dify Code ②未確認のため既定では無効。50%削減目標は未達である。

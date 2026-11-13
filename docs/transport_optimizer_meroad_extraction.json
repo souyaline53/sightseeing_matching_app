@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-13",
+  "bytes": 295001,
+  "stops": 141,
+  "routes": 8,
+  "agencies": 2,
+  "instances": 103,
+  "segments": 920,
+  "transfers": 2,
+  "scope": "JR trips touching Sapporo/Shin-Sapporo/Minami-Chitose/Oiwake/Shin-Yubari and Yutetsu trips touching Shin-Yubari station bus stop; all intermediate stops retained",
+  "versions": {
+    "jr_hokkaido": "7a131426301ee21c23e9114094f94dcdb0875e536ff82ab3cfb40df9b3b9d610",
+    "yutetsu_bus": "34e4d2022d4997759c68413d56e0de1a2c0d907a83d9c0c178a454f687969bf8"
+  }
+}

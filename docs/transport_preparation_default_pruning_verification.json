@@ -1,0 +1,211 @@
+{
+  "source": "existing_local_routing_snapshot",
+  "snapshotStops": 4230,
+  "snapshotTrips": 9105,
+  "cases": [
+    {
+      "case": "sapporo_meroad_sapporo",
+      "date": "2026-11-13",
+      "departureSeconds": 37800,
+      "deadlineSeconds": 52200,
+      "pruning": true,
+      "before": {
+        "characters": 8894496,
+        "utf16Units": 8894496,
+        "bytes": 8946656,
+        "instances": 1554,
+        "segments": 29387,
+        "stops": 4035,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 35839,
+        "utf16Units": 35839,
+        "bytes": 37347,
+        "instances": 12,
+        "segments": 44,
+        "stops": 159,
+        "transfers": 2
+      },
+      "byteReductionPercent": 99.58255911482458,
+      "localRouterEqual": true,
+      "localResultCount": 1,
+      "difyExecuted": false
+    },
+    {
+      "case": "meroad_then_coal",
+      "date": "2026-11-01",
+      "departureSeconds": 30600,
+      "deadlineSeconds": 61200,
+      "pruning": true,
+      "before": {
+        "characters": 15130126,
+        "utf16Units": 15130126,
+        "bytes": 15183106,
+        "instances": 2537,
+        "segments": 51384,
+        "stops": 4109,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 76316,
+        "utf16Units": 76316,
+        "bytes": 77840,
+        "instances": 20,
+        "segments": 187,
+        "stops": 159,
+        "transfers": 2
+      },
+      "byteReductionPercent": 99.48732492547967,
+      "localRouterEqual": true,
+      "localResultCount": 1,
+      "difyExecuted": false
+    },
+    {
+      "case": "coal_then_meroad",
+      "date": "2026-11-01",
+      "departureSeconds": 30600,
+      "deadlineSeconds": 61200,
+      "pruning": true,
+      "before": {
+        "characters": 15130126,
+        "utf16Units": 15130126,
+        "bytes": 15183106,
+        "instances": 2537,
+        "segments": 51384,
+        "stops": 4109,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 76316,
+        "utf16Units": 76316,
+        "bytes": 77840,
+        "instances": 20,
+        "segments": 187,
+        "stops": 159,
+        "transfers": 2
+      },
+      "byteReductionPercent": 99.48732492547967,
+      "localRouterEqual": true,
+      "localResultCount": 0,
+      "difyExecuted": false
+    },
+    {
+      "case": "rail_bus_transfer",
+      "date": "2026-11-01",
+      "departureSeconds": 30600,
+      "deadlineSeconds": 61200,
+      "pruning": true,
+      "before": {
+        "characters": 15130126,
+        "utf16Units": 15130126,
+        "bytes": 15183106,
+        "instances": 2537,
+        "segments": 51384,
+        "stops": 4109,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 76316,
+        "utf16Units": 76316,
+        "bytes": 77840,
+        "instances": 20,
+        "segments": 187,
+        "stops": 159,
+        "transfers": 2
+      },
+      "byteReductionPercent": 99.48732492547967,
+      "localRouterEqual": true,
+      "localResultCount": 1,
+      "difyExecuted": false
+    },
+    {
+      "case": "overnight_synthetic",
+      "date": "2026-11-01",
+      "departureSeconds": 66600,
+      "deadlineSeconds": 97200,
+      "pruning": true,
+      "before": {
+        "characters": 15130127,
+        "utf16Units": 15130127,
+        "bytes": 15183107,
+        "instances": 2537,
+        "segments": 51384,
+        "stops": 4109,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 76317,
+        "utf16Units": 76317,
+        "bytes": 77841,
+        "instances": 20,
+        "segments": 187,
+        "stops": 159,
+        "transfers": 2
+      },
+      "byteReductionPercent": 99.4873183729786,
+      "localRouterEqual": true,
+      "localResultCount": 1,
+      "difyExecuted": false
+    },
+    {
+      "case": "closed_hours",
+      "date": "2026-11-01",
+      "departureSeconds": 30600,
+      "deadlineSeconds": 61200,
+      "pruning": true,
+      "before": {
+        "characters": 15130114,
+        "utf16Units": 15130114,
+        "bytes": 15183094,
+        "instances": 2537,
+        "segments": 51384,
+        "stops": 4109,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 76304,
+        "utf16Units": 76304,
+        "bytes": 77828,
+        "instances": 20,
+        "segments": 187,
+        "stops": 159,
+        "transfers": 2
+      },
+      "byteReductionPercent": 99.48740355555988,
+      "localRouterEqual": true,
+      "localResultCount": 0,
+      "difyExecuted": false
+    },
+    {
+      "case": "no_services",
+      "date": "2026-11-13",
+      "departureSeconds": 37800,
+      "deadlineSeconds": 52200,
+      "pruning": true,
+      "before": {
+        "characters": 2432,
+        "utf16Units": 2432,
+        "bytes": 2526,
+        "instances": 0,
+        "segments": 0,
+        "stops": 3,
+        "transfers": 2
+      },
+      "after": {
+        "characters": 2432,
+        "utf16Units": 2432,
+        "bytes": 2526,
+        "instances": 0,
+        "segments": 0,
+        "stops": 3,
+        "transfers": 2
+      },
+      "byteReductionPercent": 0,
+      "localRouterEqual": true,
+      "localResultCount": 0,
+      "difyExecuted": false
+    }
+  ],
+  "note": "Offline local-router comparison only; not the actual failing request and not a Dify workflow execution."
+}

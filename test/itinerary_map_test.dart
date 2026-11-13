@@ -93,6 +93,30 @@ void main() {
     expect(find.byTooltip('1. 公園\n北海道夕張市高松7番地'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  test(
+    'distinct arrival uses its own location and never reuses the origin when missing',
+    () {
+      final end = departurePlaces[2];
+      final visits = itineraryMapVisits(
+        '札幌駅',
+        departurePlaces.first,
+        [],
+        destination: end.id,
+        arrival: end,
+      );
+      expect(visits.last.label, '到着：${end.id}');
+      expect(visits.last.point, end.point);
+      expect(
+        itineraryMapVisits(
+          '札幌駅',
+          departurePlaces.first,
+          [],
+          destination: '未登録',
+        ).last.point,
+        isNull,
+      );
+    },
+  );
   test('visits preserve numbering, co-located endpoints and gaps', () {
     final visits = itineraryMapVisits('札幌駅', departurePlaces.first, [
       const Experience(

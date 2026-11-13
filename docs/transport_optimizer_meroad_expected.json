@@ -1,0 +1,202 @@
+{
+  "status": "feasible",
+  "selectedCandidateId": "meroad-roundtrip-direct",
+  "candidates": [
+    {
+      "id": "meroad-roundtrip-direct",
+      "visitOrder": [
+        "melon"
+      ],
+      "departureSeconds": 37800,
+      "arrivalSeconds": 51000,
+      "transferCount": 0,
+      "walkingSeconds": 600,
+      "visits": [
+        {
+          "spotId": "melon",
+          "arrivalSeconds": 43140,
+          "departureSeconds": 46740,
+          "staySeconds": 3600
+        }
+      ],
+      "legs": [
+        {
+          "kind": "wait",
+          "placeId": "札幌駅",
+          "departureSeconds": 37800,
+          "arrivalSeconds": 38700
+        },
+        {
+          "kind": "transit",
+          "instanceId": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+          "tripId": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ",
+          "routeId": "jr_hokkaido~SlJfRVhQX1RPS0FDSEk",
+          "routeName": "とかち",
+          "requiresLimitedExpress": true,
+          "fromStopId": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+          "toStopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+          "departureSeconds": 38700,
+          "arrivalSeconds": 42840,
+          "verificationStatus": "unverified",
+          "segments": [
+            {
+              "instanceId": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "toStopId": "jr_hokkaido~SlJfNUE5Q0Q0QTkyRA",
+              "fromSequence": 1,
+              "toSequence": 2,
+              "departureSeconds": 38700,
+              "arrivalSeconds": 39240,
+              "pickup": true,
+              "dropoff": true
+            },
+            {
+              "instanceId": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfNUE5Q0Q0QTkyRA",
+              "toStopId": "jr_hokkaido~SlJfMDlCRUI1MTMzQw",
+              "fromSequence": 2,
+              "toSequence": 3,
+              "departureSeconds": 39240,
+              "arrivalSeconds": 40620,
+              "pickup": true,
+              "dropoff": true
+            },
+            {
+              "instanceId": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfMDlCRUI1MTMzQw",
+              "toStopId": "jr_hokkaido~SlJfODJCMTlBNkY5Rg",
+              "fromSequence": 3,
+              "toSequence": 4,
+              "departureSeconds": 40620,
+              "arrivalSeconds": 41340,
+              "pickup": true,
+              "dropoff": true
+            },
+            {
+              "instanceId": "jr_hokkaido~SlJfNEQ4RkVGNUY3RUVGODQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfODJCMTlBNkY5Rg",
+              "toStopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "fromSequence": 4,
+              "toSequence": 5,
+              "departureSeconds": 41400,
+              "arrivalSeconds": 42840,
+              "pickup": true,
+              "dropoff": true
+            }
+          ]
+        },
+        {
+          "kind": "walk",
+          "fromStopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+          "toPlaceId": "melon",
+          "departureSeconds": 42840,
+          "arrivalSeconds": 43140,
+          "source": "official_access_with_registered_time_allowance",
+          "sourceUrl": "https://www.city.yubari.lg.jp/site/kanko/1197.html"
+        },
+        {
+          "kind": "visit",
+          "placeId": "melon",
+          "departureSeconds": 43140,
+          "arrivalSeconds": 46740
+        },
+        {
+          "kind": "walk",
+          "fromPlaceId": "melon",
+          "toStopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+          "departureSeconds": 46740,
+          "arrivalSeconds": 47040,
+          "source": "official_access_with_registered_time_allowance",
+          "sourceUrl": "https://www.city.yubari.lg.jp/site/kanko/1197.html"
+        },
+        {
+          "kind": "wait",
+          "stopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+          "departureSeconds": 47040,
+          "arrivalSeconds": 47220
+        },
+        {
+          "kind": "transit",
+          "instanceId": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+          "tripId": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ",
+          "routeId": "jr_hokkaido~SlJfRVhQX1RPS0FDSEk",
+          "routeName": "とかち",
+          "requiresLimitedExpress": true,
+          "fromStopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+          "toStopId": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+          "departureSeconds": 47220,
+          "arrivalSeconds": 51000,
+          "verificationStatus": "unverified",
+          "segments": [
+            {
+              "instanceId": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+              "toStopId": "jr_hokkaido~SlJfODJCMTlBNkY5Rg",
+              "fromSequence": 7,
+              "toSequence": 8,
+              "departureSeconds": 47220,
+              "arrivalSeconds": 48360,
+              "pickup": true,
+              "dropoff": true
+            },
+            {
+              "instanceId": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfODJCMTlBNkY5Rg",
+              "toStopId": "jr_hokkaido~SlJfMDlCRUI1MTMzQw",
+              "fromSequence": 8,
+              "toSequence": 9,
+              "departureSeconds": 48360,
+              "arrivalSeconds": 49080,
+              "pickup": true,
+              "dropoff": true
+            },
+            {
+              "instanceId": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfMDlCRUI1MTMzQw",
+              "toStopId": "jr_hokkaido~SlJfNUE5Q0Q0QTkyRA",
+              "fromSequence": 9,
+              "toSequence": 10,
+              "departureSeconds": 49080,
+              "arrivalSeconds": 50460,
+              "pickup": true,
+              "dropoff": true
+            },
+            {
+              "instanceId": "jr_hokkaido~SlJfMjc2QjQ1NEY3OTk3MjQ@2026-11-13",
+              "fromStopId": "jr_hokkaido~SlJfNUE5Q0Q0QTkyRA",
+              "toStopId": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+              "fromSequence": 10,
+              "toSequence": 11,
+              "departureSeconds": 50460,
+              "arrivalSeconds": 51000,
+              "pickup": true,
+              "dropoff": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sampleEvidence": {
+    "date": "2026-11-13",
+    "extractedOn": "2026-11-12",
+    "basis": "registered_timetable_and_official_access",
+    "generatedByDify": false,
+    "globallyOptimal": false,
+    "payloadBytes": 259579,
+    "sources": [
+      "https://www.city.yubari.lg.jp/site/kanko/1197.html",
+      "https://jrhokkaidonorikae.com/vtime/vtime.php?p=y&s=130",
+      "https://jrhokkaidonorikae.com/vtime/vtime.php?p=y&s=131"
+    ],
+    "assumptions": [
+      "出発・到着は札幌駅のJR乗車・降車地点。駅入口や現在地からの移動時間は含めない。",
+      "メロードの11月営業時間は夕張市公表の10:00〜18:00。11月13日（金）は公表された定休日・特別休業日に該当しない。",
+      "新夕張駅との徒歩接続は夕張市公式の徒歩1分・約100mで確認し、サンプルでは既存登録値の片道5分を計画余裕として採用。",
+      "本番の未確認フラグや営業時間は更新せず、サンプル入力だけに根拠付きの補完を適用。",
+      "往路はとかち3号、復路はとかち6号。別途特急券等が必要。運賃・空席・当日の運休や臨時休業は未確認。",
+      "status=feasibleは時刻表と営業時間による成立例。GTFSのunverifiedをverifiedへ変更していない。",
+      "全便・全訪問順序の最適化結果ではなく、実在便で往復が成立する参照例。"
+    ]
+  }
+}

@@ -182,7 +182,15 @@ void main() {
           expect(sheet.snapSizes, hasLength(3));
           expect(
             tester.getTopLeft(header).dy,
-            closeTo(tester.getBottomLeft(departureTime).dy, 1),
+            closeTo(
+              [
+                tester.getBottomLeft(departureTime).dy,
+                tester
+                    .getBottomLeft(find.byKey(const ValueKey('ai-create-trip')))
+                    .dy,
+              ].reduce((a, b) => a > b ? a : b),
+              1,
+            ),
           );
           for (final size in sheet.snapSizes!) {
             sheet.controller!.jumpTo(size);
@@ -257,7 +265,7 @@ void main() {
           expect(find.byKey(const ValueKey('choose-t-1-2')), findsNothing);
           expect(
             find.textContaining(
-              outcome == 'error' ? '交通情報を取得できませんでした' : '最寄り駅・バス停が未登録です',
+              outcome == 'error' ? '交通情報を取得できませんでした' : 'この区間の交通情報は未登録です。',
             ),
             findsOneWidget,
           );
@@ -417,7 +425,12 @@ void main() {
       expect(find.byKey(const ValueKey('choose-outbound-1-2')), findsNothing);
       if (target == 'no-return') {
         expect(find.byKey(const ValueKey('choose-back-1-2')), findsNothing);
-        expect(find.textContaining('この時刻以降の候補がありません'), findsOneWidget);
+        await tester.drag(
+          find.byKey(const ValueKey('transport-sheet-header')),
+          const Offset(0, -500),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('候補を検索できませんでした。'), findsOneWidget);
       } else {
         final choose = find.byKey(const ValueKey('choose-back-1-2'));
         await tester.scrollUntilVisible(

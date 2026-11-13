@@ -1,3 +1,4 @@
+import '../itinerary/ai_trip_panel.dart';
 import '../search/search_filter_sheet.dart';
 import '../home/home_screen.dart';
 import '../../state/app_tab.dart';
@@ -72,20 +73,62 @@ class RecommendationHome extends HookConsumerWidget {
               top: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                child: SizedBox(
-                  height: 50,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      disabledForegroundColor: Colors.grey.shade600,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 50,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                disabledForegroundColor: Colors.grey.shade600,
+                              ),
+                              onPressed: hasSavedCards
+                                  ? () => ref
+                                        .read(appTabProvider.notifier)
+                                        .select(AppTab.itinerary)
+                                  : null,
+                              child: const FittedBox(child: Text('旅を組み立てる')),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              onPressed:
+                                  hasSavedCards &&
+                                      !ref.watch(tripProvider).aiLocked &&
+                                      !ref.watch(tripProvider).aiQuotaBlocked
+                                  ? () {
+                                      ref
+                                          .read(aiSetupIntentProvider.notifier)
+                                          .open();
+                                      ref
+                                          .read(appTabProvider.notifier)
+                                          .select(AppTab.itinerary);
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.auto_awesome, size: 16),
+                              label: const FittedBox(child: Text('AIで組み立てる')),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    onPressed: hasSavedCards
-                        ? () => ref
-                              .read(appTabProvider.notifier)
-                              .select(AppTab.itinerary)
-                        : null,
-                    child: const Text('旅を組み立てる'),
-                  ),
+                    if (ref.watch(tripProvider).aiStatus == 'completed')
+                      const Text(
+                        'この旅ではAIを使用済みです',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    if (ref.watch(tripProvider).aiStatus == 'processing' ||
+                        ref.watch(tripProvider).aiStatus == 'uncertain')
+                      const Text(
+                        'AIの処理中・結果確認待ちです',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                  ],
                 ),
               ),
             )

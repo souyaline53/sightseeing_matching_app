@@ -1,3 +1,4 @@
+import 'ai_trip_panel.dart';
 import '../../state/itinerary_navigation.dart';
 import '../../widgets/find_experiences_button.dart';
 import '../../state/app_tab.dart';
@@ -10,6 +11,7 @@ import 'itinerary_endpoint_card.dart';
 import 'plan_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../data/catalog_data.dart';
 import '../../model/experience.dart';
@@ -38,8 +40,32 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
   double sheetViewportHeight = 1;
   double headerDragDistance = 0;
   final sheet = DraggableScrollableController();
+  final mapSheetChanges = ValueNotifier<int>(0);
+  bool sheetUpdateQueued = false;
+  @override
+  void initState() {
+    super.initState();
+    sheet.addListener(_queueSheetUpdate);
+  }
+
+  // Sheet constraints can notify during layout. Update the map after that frame.
+  void _queueSheetUpdate() {
+    if (sheetUpdateQueued) return;
+    sheetUpdateQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      sheetUpdateQueued = false;
+      if (!mounted || !sheet.isAttached) return;
+      mapSheetChanges.value++;
+      final next = sheet.size < minimumSheet + .08;
+      if (next != collapsed) setState(() => collapsed = next);
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+
   @override
   void dispose() {
+    sheet.removeListener(_queueSheetUpdate);
+    mapSheetChanges.dispose();
     sheet.dispose();
     super.dispose();
   }
@@ -199,13 +225,13 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
             c.journey!.selection(
               from.id,
               to.id,
-              originName:
-                  from.id == trip.originEndpointId ||
-                      to.id == trip.originEndpointId
+              originName: from.id == trip.originEndpointId
                   ? trip.origin
+                  : to.id == trip.destinationEndpointId
+                  ? trip.arrivalPlace
                   : null,
               fromOrigin: from.id == trip.originEndpointId,
-              toOrigin: to.id == trip.originEndpointId,
+              toOrigin: to.id == trip.destinationEndpointId,
             ),
           );
       return;
@@ -216,10 +242,12 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
           TransportSelection({
             'fromSpotId': from.id,
             'fromKind': from.id == trip.originEndpointId ? 'origin' : 'spot',
-            'toKind': to.id == trip.originEndpointId ? 'origin' : 'spot',
+            'toKind': to.id == trip.destinationEndpointId ? 'origin' : 'spot',
             if (from.id == trip.originEndpointId ||
-                to.id == trip.originEndpointId)
-              'originName': trip.origin,
+                to.id == trip.destinationEndpointId)
+              'originName': from.id == trip.originEndpointId
+                  ? trip.origin
+                  : trip.arrivalPlace,
             'toSpotId': to.id,
             'boardingStopId': c.boarding.stopId,
             'boardingStopName': c.boardingStopName ?? c.before.data['stopName'],
@@ -280,7 +308,14 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
         stops.isNotEmpty && (endpointSelected || ref.exists(originProvider))
         ? ref.watch(originProvider)
         : const AsyncData<List<TransportStop>>([]);
-    // A view-only endpoint; departure and home never enter the sightseeing list.
+    final arrivalProvider = originTransportStopsProvider(trip.arrivalPlace);
+    final arrivalStops = trip.arrivalPlace == trip.origin
+        ? originStops
+        : stops.isNotEmpty && (returnSelected || ref.exists(arrivalProvider))
+        ? ref.watch(arrivalProvider)
+        : const AsyncData<List<TransportStop>>([]);
+    final endpointStops = returnSelected ? arrivalStops : originStops;
+    // View-only endpoints never enter the sightseeing list.
     final origin = Experience(
       trip.originEndpointId,
       trip.origin,
@@ -304,6 +339,22 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
           }),
       ],
     );
+    final destination = Experience(
+      trip.destinationEndpointId,
+      trip.arrivalPlace,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      0,
+      name: trip.arrivalPlace,
+      accessStops: [
+        for (final stop in arrivalStops.value ?? <TransportStop>[])
+          AccessStop({'walkingMinutes': null, ...stop.data, 'stopId': stop.id}),
+      ],
+    );
     final from = returnSelected
         ? stops.lastOrNull
         : originSelected
@@ -312,7 +363,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
         ? null
         : stops[index];
     final to = returnSelected
-        ? (stops.isEmpty ? null : origin)
+        ? (stops.isEmpty ? null : destination)
         : originSelected
         ? stops.firstOrNull
         : stops.length < 2
@@ -330,12 +381,12 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     final AsyncValue<TransportData> data;
     if (walkingOnly) {
       data = AsyncData(TransportData([], [], [], [], []));
-    } else if (endpointSelected && originStops.isLoading) {
+    } else if (endpointSelected && endpointStops.isLoading) {
       data = const AsyncLoading();
-    } else if (endpointSelected && originStops.hasError) {
+    } else if (endpointSelected && endpointStops.hasError) {
       data = AsyncError(
-        originStops.error!,
-        originStops.stackTrace ?? StackTrace.empty,
+        endpointStops.error!,
+        endpointStops.stackTrace ?? StackTrace.empty,
       );
     } else {
       data = ref.watch(transportDataProvider(key));
@@ -407,10 +458,24 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                   onSelected: (value) {
                     if (value == 'title') _rename();
                     if (value == 'map') _sheetTo(minimumSheet);
+                    if (value == 'ai_saved') {
+                      ref.read(aiRestoreIntentProvider.notifier).open();
+                    }
+                    if (value == 'ai_refresh') {
+                      ref.read(aiRefreshIntentProvider.notifier).open();
+                    }
                   },
                   itemBuilder: (_) => const [
                     PopupMenuItem(value: 'title', child: Text('タイトルを変更')),
                     PopupMenuItem(value: 'map', child: Text('地図を広く見る')),
+                    PopupMenuItem(
+                      value: 'ai_saved',
+                      child: Text('保存したAIの旅を開く'),
+                    ),
+                    PopupMenuItem(
+                      value: 'ai_refresh',
+                      child: Text('AIの保存済み結果を確認'),
+                    ),
                   ],
                 ),
               ],
@@ -509,44 +574,58 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                   ),
                                   child: Align(
                                     alignment: Alignment.centerLeft,
-                                    child: OutlinedButton.icon(
-                                      key: const ValueKey(
-                                        'itinerary-departure-time',
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        alignment: Alignment.centerLeft,
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                        ),
-                                        minimumSize: const Size(0, 34),
-                                        foregroundColor: color.onSurfaceVariant,
-                                      ),
-                                      icon: const Icon(
-                                        Icons.schedule,
-                                        size: 18,
-                                      ),
-                                      label: Text(
-                                        '出発時刻 ${transportTime(trip.departureMinutes)}',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      onPressed: () async {
-                                        final time = await showTimePicker(
-                                          initialEntryMode:
-                                              TimePickerEntryMode.input,
-                                          context: context,
-                                          initialTime: TimeOfDay(
-                                            hour: trip.departureMinutes ~/ 60,
-                                            minute: trip.departureMinutes % 60,
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          key: const ValueKey(
+                                            'itinerary-departure-time',
                                           ),
-                                        );
-                                        if (time != null) {
-                                          controller.setDepartureMinutes(
-                                            time.hour * 60 + time.minute,
-                                          );
-                                        }
-                                      },
+                                          style: OutlinedButton.styleFrom(
+                                            alignment: Alignment.centerLeft,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                            ),
+                                            minimumSize: const Size(0, 34),
+                                            foregroundColor:
+                                                color.onSurfaceVariant,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.schedule,
+                                            size: 18,
+                                          ),
+                                          label: Text(
+                                            '出発時刻 ${transportTime(trip.departureMinutes)}',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                          onPressed: () async {
+                                            final time = await showTimePicker(
+                                              initialEntryMode:
+                                                  TimePickerEntryMode.input,
+                                              context: context,
+                                              initialTime: TimeOfDay(
+                                                hour:
+                                                    trip.departureMinutes ~/ 60,
+                                                minute:
+                                                    trip.departureMinutes % 60,
+                                              ),
+                                            );
+                                            if (time != null) {
+                                              controller.setDepartureMinutes(
+                                                time.hour * 60 + time.minute,
+                                              );
+                                            }
+                                          },
+                                        ),
+                                        const AiTripPanel(),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -670,7 +749,8 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                                               'itinerary-home',
                                                             ),
                                                             departure: false,
-                                                            label: trip.origin,
+                                                            label: trip
+                                                                .arrivalPlace,
                                                           ),
                                                         ),
                                                         itemCount: stops.length,
@@ -749,12 +829,13 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                       ),
                                       Expanded(
                                         child: AnimatedBuilder(
-                                          animation: sheet,
+                                          animation: mapSheetChanges,
                                           builder: (context, _) => ItineraryMap(
                                             key: const ValueKey(
                                               'itinerary-map',
                                             ),
                                             origin: trip.origin,
+                                            destination: trip.arrivalPlace,
                                             bottomInset:
                                                 ((sheet.isAttached
                                                             ? sheet.size
@@ -770,11 +851,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                     DraggableScrollableNotification
                                   >(
                                     onNotification: (n) {
-                                      final next =
-                                          n.extent < minimumSheet + .08;
-                                      if (next != collapsed) {
-                                        setState(() => collapsed = next);
-                                      }
+                                      _queueSheetUpdate();
                                       return false;
                                     },
                                     child: DraggableScrollableSheet(
@@ -794,6 +871,11 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                       builder: (context, scroll) =>
                                           ItineraryTransportSheet(
                                             collapsed: collapsed,
+                                            aiProposal:
+                                                AiTransportProposalPanel(
+                                                  fromId: from?.id,
+                                                  toId: to?.id,
+                                                ),
                                             onHeaderDragStart: _startHeaderDrag,
                                             onHeaderDragUpdate:
                                                 _updateHeaderDrag,
@@ -853,9 +935,9 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                               );
                                               if (endpointSelected) {
                                                 ref.invalidate(
-                                                  originTransportStopsProvider(
-                                                    trip.origin,
-                                                  ),
+                                                  returnSelected
+                                                      ? arrivalProvider
+                                                      : originProvider,
                                                 );
                                               }
                                               ref.invalidate(

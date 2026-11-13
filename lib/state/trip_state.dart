@@ -28,6 +28,69 @@ class TripNotifier extends Notifier<TripState> {
     ref.read(tripLibraryProvider.notifier).upsert(next);
   }
 
+  void adoptAi() {
+    if (!state.aiProposalValid) return;
+    _commit(
+      state.copyWith(
+        ai: {...state.ai, 'enabled': true},
+        transportSelections: [],
+      ),
+    );
+  }
+
+  void replaceAi(Map<String, dynamic> ai) => _commit(state.copyWith(ai: ai));
+  void acceptAi(Map<String, dynamic> result, String basisBefore) {
+    final metadata = Map<String, dynamic>.from(result['aiMetadata'] as Map);
+    final order = (metadata['visitOrder'] as List).cast<String>();
+    final byId = {for (final e in state.stops) e.id: e};
+    final canApply =
+        state.aiBasis == basisBefore &&
+        order.length == byId.length &&
+        order.toSet().length == order.length &&
+        order.every(byId.containsKey);
+    var next = state.copyWith(
+      stops: canApply ? order.map((id) => byId[id]!).toList() : null,
+      ai: {
+        ...state.ai,
+        'status': 'completed',
+        'result': result,
+        'enabled': canApply,
+      },
+    );
+    if (canApply && state.ai['config'] is Map) {
+      final config = state.ai['config'] as Map;
+      final date = DateTime.parse(config['date'] as String);
+      next = next.copyWith(
+        travelDate: date,
+        destination: (config['destination'] as Map)['id'] as String,
+        departureMinutes: (config['departureSeconds'] as int) ~/ 60,
+        conditions: state.conditions.copyWith(
+          origin: (config['origin'] as Map)['id'] as String,
+          transport: TravelMode.transit,
+          length: (config['deadlineSeconds'] as int) ~/ 86400 >= 2
+              ? TripLength.longer
+              : (config['deadlineSeconds'] as int) ~/ 86400 == 1
+              ? TripLength.overnight
+              : state.conditions.length == TripLength.halfDay
+              ? TripLength.halfDay
+              : TripLength.day,
+          dateChoice: DateChoice.fixed,
+          fixedDate: date,
+        ),
+        stayMinutes: {
+          ...state.stayMinutes,
+          for (final v in config['visits'] as List)
+            v['id'] as String: (v['staySeconds'] as int) ~/ 60,
+        },
+        transportSelections: [],
+      );
+    }
+    next = next.copyWith(
+      ai: {...next.ai, 'basis': canApply ? next.aiBasis : basisBefore},
+    );
+    _commit(next);
+  }
+
   void applyConditions(SearchConditions conditions) =>
       _commit(state.copyWith(conditions: conditions));
 
@@ -103,6 +166,7 @@ class TripNotifier extends Notifier<TripState> {
 
   void selectTransport(TransportSelection selection) => _commit(
     state.copyWith(
+      ai: {...state.ai, if (state.ai['result'] != null) 'enabled': false},
       transportSelections: [
         ...state.transportSelections.where(
           (s) => s.from != selection.from || s.to != selection.to,

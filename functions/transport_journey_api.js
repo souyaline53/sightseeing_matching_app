@@ -52,7 +52,7 @@ async function loadNetwork(db, bucket) {
     for (const [kind, collection] of Object.entries({ stops: "transport_stops", routes: "transport_routes", services: "transport_services", trips: "transport_trips", transfers: "transport_transfers" }))
       manual[kind] = (await allRows(db, collection)).filter((r) => r.isActive !== false && r.sourceType !== "sample" && r.verificationStatus !== "sample");
     parts.push(routingData(manual, revision.data()?.revision || "initial"));
-    return cached = { key, network: prepareNetwork(parts), warnings, versions, storageBytes, results: new Map() };
+    return cached = { key, network: prepareNetwork(parts), warnings, versions, storageBytes, activeFeeds: active, manualRecords: manual, results: new Map() };
   })();
   pending = { key, promise };
   try { return await promise; } finally { if (pending?.promise === promise) pending = null; }

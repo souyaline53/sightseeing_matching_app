@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-13",
+  "departureSeconds": 37800,
+  "deadlineSeconds": 52200,
+  "origin": {
+    "id": "札幌駅",
+    "name": "札幌駅（JR乗車・降車地点）",
+    "latitude": 43.068612,
+    "longitude": 141.350768,
+    "accessStops": [
+      {
+        "stopId": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+        "walkingMinutes": 0,
+        "sourceType": "manual",
+        "verificationStatus": "verified"
+      }
+    ]
+  },
+  "destination": {
+    "id": "札幌駅",
+    "name": "札幌駅（JR乗車・降車地点）",
+    "latitude": 43.068612,
+    "longitude": 141.350768,
+    "accessStops": [
+      {
+        "stopId": "jr_hokkaido~SlJfQUYwNzEzMjM4Qg",
+        "walkingMinutes": 0,
+        "sourceType": "manual",
+        "verificationStatus": "verified"
+      }
+    ]
+  },
+  "visits": [
+    {
+      "id": "melon",
+      "name": "道の駅メロード",
+      "latitude": 42.93531,
+      "longitude": 142.035492,
+      "staySeconds": 3600,
+      "opening": {
+        "status": "known",
+        "windows": [
+          [
+            36000,
+            64800
+          ]
+        ]
+      },
+      "accessStops": [
+        {
+          "stopId": "jr_hokkaido~SlJfN0Q4QjI2RDEzNA",
+          "walkingMinutes": 5,
+          "sourceType": "manual",
+          "verificationStatus": "verified",
+          "sourceUrl": "https://www.city.yubari.lg.jp/site/kanko/1197.html"
+        },
+        {
+          "stopId": "yutetsu_bus~UzAxODEwMDAxNzcwMDEwMA",
+          "walkingMinutes": 3,
+          "sourceType": "manual",
+          "verificationStatus": "unverified"
+        }
+      ]
+    }
+  ],
+  "modes": [
+    "rail",
+    "bus",
+    "walk"
+  ],
+  "preference": "transfers",
+  "minimumTransferSeconds": 300
+}

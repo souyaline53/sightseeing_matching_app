@@ -358,7 +358,7 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.auto_awesome, size: 15),
-      label: const Text('AIで旅程を組み立てる', style: TextStyle(fontSize: 12)),
+      label: const Text('AIで旅程を組み立てる(ベータ版)', style: TextStyle(fontSize: 12)),
     );
   }
 }

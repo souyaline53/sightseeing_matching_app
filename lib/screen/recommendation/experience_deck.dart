@@ -23,9 +23,17 @@ class ExperienceDeck extends HookConsumerWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('あなたに合う体験を探しています…\nもう少しで完了します…'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.auto_awesome, size: 27, color: Colors.greenAccent),
+                SizedBox(width: 8),
+                Text('AIがあなたに合う体験を探しています…\nもう少しで完了します…'),
+              ],
+            ),
           ],
-        ),
+        )
       );
     }
     if (discovery.aiError != null || discovery.deck.isEmpty) {

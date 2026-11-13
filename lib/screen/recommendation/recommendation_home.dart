@@ -111,7 +111,7 @@ class RecommendationHome extends HookConsumerWidget {
                                     }
                                   : null,
                               icon: const Icon(Icons.auto_awesome, size: 16),
-                              label: const FittedBox(child: Text('AIで組み立てる')),
+                              label: const FittedBox(child: Text('AIで組み立てる(ベータ版)')),
                             ),
                           ),
                         ],

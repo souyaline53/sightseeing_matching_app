@@ -159,7 +159,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
   testWidgets(
-    'duration is four one-tap choices and final save searches with all entered values',
+    'overnight choices are disabled; half-day and day choices advance and save',
     (tester) async {
       final storage = MemorySettingsStorage();
       final container = await boot(tester, storage: storage);
@@ -179,7 +179,27 @@ void main() {
       ];
       expect(rects[0].top, rects[1].top);
       expect(rects[2].top, rects[3].top);
-      for (final period in periods) {
+      for (final period in ['overnight', 'longer']) {
+        final card = find.byKey(ValueKey('length-$period'));
+        expect(
+          tester
+              .widget<InkWell>(
+                find.descendant(of: card, matching: find.byType(InkWell)),
+              )
+              .onTap,
+          isNull,
+        );
+        expect(
+          find.descendant(of: card, matching: find.textContaining('対応予定')),
+          findsOneWidget,
+        );
+        final before = container.read(searchDraftProvider).length;
+        await tester.tap(card);
+        await tester.pumpAndSettle();
+        expect(container.read(conditionsStepProvider), 2);
+        expect(container.read(searchDraftProvider).length, before);
+      }
+      for (final period in ['halfDay', 'day']) {
         await tester.tap(find.byKey(ValueKey('length-$period')));
         await tester.pumpAndSettle();
         expect(container.read(conditionsStepProvider), 3);
@@ -195,7 +215,7 @@ void main() {
               .onPressed,
           isNull,
         );
-        if (period != periods.last) {
+        if (period != 'day') {
           await tester.tap(find.byType(BackButton));
           await tester.pumpAndSettle();
           await tester.tap(find.byType(BackButton));
@@ -218,7 +238,7 @@ void main() {
       await tester.tap(find.text('少なめ'));
       await tester.pumpAndSettle();
       final filters = container.read(searchDraftProvider);
-      expect(filters.length, TripLength.longer);
+      expect(filters.length, TripLength.day);
       expect(filters.company, Company.family);
       expect(filters.walking, Walking.light);
       await tester.tap(find.text('条件を保存して検索'));

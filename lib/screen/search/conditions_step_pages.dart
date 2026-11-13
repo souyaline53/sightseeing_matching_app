@@ -214,7 +214,7 @@ class DepartureStepPage extends HookConsumerWidget {
           ),
         ),
         const SizedBox(height: 20),
-        ExpansionTile(
+        /*ExpansionTile(
           key: const ValueKey('departure-map-dropdown'),
           initiallyExpanded: false,
           tilePadding: EdgeInsets.zero,
@@ -231,7 +231,7 @@ class DepartureStepPage extends HookConsumerWidget {
               ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 10),*/
         Text(
           '${selections.contains(SearchSelection.origin) ? '選択中の出発地' : '出発地の初期値'}：${draft.origin.isEmpty ? '未選択' : draft.origin}',
           key: const ValueKey('selected-origin'),
@@ -304,6 +304,8 @@ class TripLengthStepPage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final draft = ref.watch(searchDraftProvider);
     final selections = ref.watch(searchSelectionProvider);
+    bool available(TripLength length) =>
+        length == TripLength.halfDay || length == TripLength.day;
     return _StepLayout(
       title: 'どのくらい旅する？',
       subtitle: '旅行期間をタップして、出発日の選択へ。',
@@ -318,7 +320,9 @@ class TripLengthStepPage extends HookConsumerWidget {
                   width: (constraints.maxWidth - 12) / 2,
                   child: _SelectionCard(
                     key: ValueKey('length-${length.name}'),
-                    label: length.label,
+                    label: available(length)
+                        ? length.label
+                        : '${length.label}\n対応予定',
                     icon: [
                       Icons.wb_twilight,
                       Icons.wb_sunny_outlined,
@@ -328,23 +332,27 @@ class TripLengthStepPage extends HookConsumerWidget {
                     selected:
                         selections.contains(SearchSelection.length) &&
                         draft.length == length,
-                    onTap: () {
-                      if (ref.read(discoveryProvider).step != 1 ||
-                          ref.read(conditionsStepProvider) != 2) {
-                        return;
-                      }
-                      ref
-                          .read(searchSelectionProvider.notifier)
-                          .choose(SearchSelection.length);
-                      ref
-                          .read(searchDraftProvider.notifier)
-                          .replace(
+                    onTap: !available(length)
+                        ? null
+                        : () {
+                            if (ref.read(discoveryProvider).step != 1 ||
+                                ref.read(conditionsStepProvider) != 2) {
+                              return;
+                            }
                             ref
-                                .read(searchDraftProvider)
-                                .copyWith(length: length),
-                          );
-                      ref.read(conditionsStepProvider.notifier).nextFrom(2);
-                    },
+                                .read(searchSelectionProvider.notifier)
+                                .choose(SearchSelection.length);
+                            ref
+                                .read(searchDraftProvider.notifier)
+                                .replace(
+                                  ref
+                                      .read(searchDraftProvider)
+                                      .copyWith(length: length),
+                                );
+                            ref
+                                .read(conditionsStepProvider.notifier)
+                                .nextFrom(2);
+                          },
                   ),
                 ),
             ],

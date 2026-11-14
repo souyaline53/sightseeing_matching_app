@@ -1,4 +1,4 @@
-enum TravelMode { transit, car, either }
+enum TravelMode { transit, car }
 
 enum TripLength { halfDay, day, overnight, longer }
 
@@ -9,7 +9,7 @@ enum Walking { light, normal, plenty }
 enum Company { solo, friends, couple, family }
 
 extension TravelModeLabel on TravelMode {
-  String get label => ['公共交通', '車', 'どちらでも'][index];
+  String get label => ['公共交通', '車'][index];
 }
 
 extension TripLengthLabel on TripLength {

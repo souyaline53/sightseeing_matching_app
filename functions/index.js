@@ -107,3 +107,10 @@ exports.registerAiTrip = onCall(
   { region: 'asia-northeast1', maxInstances: 2, enforceAppCheck: process.env.AI_ENFORCE_APP_CHECK === 'true' },
   (request) => require('./trip_ai').registerAiTrip(request, getFirestore()),
 );
+
+const googleRoutesApiKey = defineSecret('GOOGLE_ROUTES_API_KEY');
+exports.searchDrivingRoute = onCall(
+  { region: 'asia-northeast1', maxInstances: 2, timeoutSeconds: 25,
+    secrets: [googleRoutesApiKey], enforceAppCheck: process.env.AI_ENFORCE_APP_CHECK === 'true' },
+  (request) => require('./driving_route').searchDrivingRoute(request, () => googleRoutesApiKey.value()),
+);

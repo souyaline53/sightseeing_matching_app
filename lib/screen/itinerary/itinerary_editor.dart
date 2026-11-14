@@ -1,3 +1,7 @@
+import '../../repository/driving_schedule_repository.dart';
+import '../../data/departure_places.dart';
+import '../../repository/driving_route_repository.dart';
+import 'widgets/car_transport_options.dart';
 import '../../state/ai_trip_state.dart';
 import 'widgets/ai_trip_panel.dart';
 import '../../state/itinerary_navigation.dart';
@@ -287,17 +291,25 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     final endpointSelected = originSelected || returnSelected;
     final originProvider = originTransportStopsProvider(trip.origin);
     final originStops =
-        stops.isNotEmpty && (endpointSelected || ref.exists(originProvider))
+        trip.publicTransport &&
+            stops.isNotEmpty &&
+            (endpointSelected || ref.exists(originProvider))
         ? ref.watch(originProvider)
         : const AsyncData<List<TransportStop>>([]);
     final arrivalProvider = originTransportStopsProvider(trip.arrivalPlace);
     final arrivalStops = trip.arrivalPlace == trip.origin
         ? originStops
-        : stops.isNotEmpty && (returnSelected || ref.exists(arrivalProvider))
+        : trip.publicTransport &&
+              stops.isNotEmpty &&
+              (returnSelected || ref.exists(arrivalProvider))
         ? ref.watch(arrivalProvider)
         : const AsyncData<List<TransportStop>>([]);
     final endpointStops = returnSelected ? arrivalStops : originStops;
     // View-only endpoints never enter the sightseeing list.
+    final departurePlaces =
+        ref.watch(departurePlacesProvider).value ?? <DeparturePlace>[];
+    final departurePlace = departureNamed(trip.origin, departurePlaces);
+    final arrivalPlace = departureNamed(trip.arrivalPlace, departurePlaces);
     final origin = Experience(
       trip.originEndpointId,
       trip.origin,
@@ -309,6 +321,9 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
       '',
       0,
       name: trip.origin,
+      address: departurePlace?.address ?? '',
+      latitude: departurePlace?.point.latitude,
+      longitude: departurePlace?.point.longitude,
       accessStops: [
         for (final stop in originStops.value ?? <TransportStop>[])
           AccessStop({
@@ -332,11 +347,17 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
       '',
       0,
       name: trip.arrivalPlace,
+      address: arrivalPlace?.address ?? '',
+      latitude: arrivalPlace?.point.latitude,
+      longitude: arrivalPlace?.point.longitude,
       accessStops: [
         for (final stop in arrivalStops.value ?? <TransportStop>[])
           AccessStop({'walkingMinutes': null, ...stop.data, 'stopId': stop.id}),
       ],
     );
+    if (stops.isNotEmpty) {
+      listenToDrivingSchedule(ref, trip, [origin, ...stops, destination]);
+    }
     final from = returnSelected
         ? stops.lastOrNull
         : originSelected
@@ -361,7 +382,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
       to?.accessStops ?? [],
     );
     final AsyncValue<TransportData> data;
-    if (walkingOnly) {
+    if (!trip.publicTransport || walkingOnly) {
       data = AsyncData(TransportData([], [], [], [], []));
     } else if (endpointSelected && endpointStops.isLoading) {
       data = const AsyncLoading();
@@ -375,7 +396,8 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     }
     final journeyKey = itineraryJourneyKey(trip, from, to);
     final journeys =
-        !walkingOnly &&
+        trip.publicTransport &&
+            !walkingOnly &&
             from != null &&
             to != null &&
             from.accessStops.isNotEmpty &&
@@ -391,7 +413,8 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     final previousPool = itineraryJourneysProvider(
       itineraryJourneyKey(trip, previousPoint, from),
     );
-    final cachedPreviousWalking = ref.exists(previousPool)
+    final cachedPreviousWalking =
+        trip.publicTransport && ref.exists(previousPool)
         ? ref.watch(previousPool).value?.walkingOnly == true
         : false;
     final previousWalkingOnly =
@@ -857,11 +880,27 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                       builder: (context, scroll) =>
                                           ItineraryTransportSheet(
                                             collapsed: collapsed,
-                                            aiProposal:
-                                                AiTransportProposalPanel(
-                                                  fromId: from?.id,
-                                                  toId: to?.id,
-                                                ),
+                                            drivingOptions:
+                                                !trip.publicTransport &&
+                                                    from != null &&
+                                                    to != null
+                                                ? CarTransportOptions(
+                                                    key: ValueKey(
+                                                      '${trip.id}-${from.id}-${to.id}-${trip.date}-${trip.departureMinutes}',
+                                                    ),
+                                                    trip: trip,
+                                                    from: from,
+                                                    to: to,
+                                                    onSave: controller
+                                                        .selectCarTransport,
+                                                  )
+                                                : null,
+                                            aiProposal: trip.publicTransport
+                                                ? AiTransportProposalPanel(
+                                                    fromId: from?.id,
+                                                    toId: to?.id,
+                                                  )
+                                                : null,
                                             onHeaderDragStart: _startHeaderDrag,
                                             onHeaderDragUpdate:
                                                 _updateHeaderDrag,
@@ -914,6 +953,17 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                                   )
                                                 : null,
                                             onRefresh: () {
+                                              if (!trip.publicTransport) {
+                                                if (from != null &&
+                                                    to != null) {
+                                                  ref.invalidate(
+                                                    drivingRouteProvider(
+                                                      drivingRouteKey(from, to),
+                                                    ),
+                                                  );
+                                                }
+                                                return;
+                                              }
                                               ref.invalidate(
                                                 itineraryJourneysProvider(
                                                   journeyKey,

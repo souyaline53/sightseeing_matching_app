@@ -49,6 +49,9 @@ async function optimizeTripTransport(request, db, bucket, getApiKey, options = {
   const ref = doc(db, uid, tripId);
   const initial = await ref.get();
   if (!initial.exists || initial.data().ownerUid !== uid) throw new HttpsError('permission-denied', '旅程を操作できません。');
+  if (JSON.parse(initial.data().currentTrip).conditions?.transport === 1) {
+    throw new HttpsError('failed-precondition', '車での移動はAIルート検索に対応していません。');
+  }
   const generationRef = db.doc(`${ref.path}/generations/${requestId}`);
   const previousGeneration = await generationRef.get();
   if (previousGeneration.data()?.aiResult) return JSON.parse(previousGeneration.data().aiResult);

@@ -182,6 +182,7 @@ List<AiTripSegment> aiTripSegments(TripState trip) {
 }
 
 AiTripSegment? activeAiTripSegment(TripState trip, String from, String to) {
+  if (!trip.publicTransport) return null;
   if (!trip.aiProposalValid ||
       trip.ai['enabled'] == false ||
       trip.transportSelections.any((s) => s.from == from && s.to == to)) {

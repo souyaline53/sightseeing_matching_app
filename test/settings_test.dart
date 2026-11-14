@@ -33,7 +33,7 @@ void main() {
       await controller.saveProfile(
         const UserProfile(
           origin: '小樽駅',
-          transport: TravelMode.either,
+          transport: TravelMode.transit,
           budget: 25000,
           walking: Walking.light,
         ),
@@ -62,7 +62,7 @@ void main() {
       addTearDown(restored.dispose);
       final data = await restored.read(settingsProvider.future);
       expect(data.profile.origin, '小樽駅');
-      expect(data.profile.transport, TravelMode.either);
+      expect(data.profile.transport, TravelMode.transit);
       expect(data.presets.length, 2);
       expect(data.presets.first.conditions.length, TripLength.overnight);
       expect(data.presets.first.conditions.company, Company.family);
@@ -286,7 +286,7 @@ void main() {
       final trip = container.read(tripProvider.notifier);
       const c = SearchConditions(
         origin: '小樽駅',
-        transport: TravelMode.either,
+        transport: TravelMode.transit,
         budget: 15000,
         length: TripLength.longer,
       );
@@ -304,7 +304,7 @@ void main() {
       expect(container.read(tripProvider).conditions.length, TripLength.longer);
       expect(
         container.read(tripProvider).conditions.transport,
-        TravelMode.either,
+        TravelMode.transit,
       );
     },
   );

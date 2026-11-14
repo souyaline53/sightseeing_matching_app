@@ -113,3 +113,14 @@ test('assumed opening and unverified registered walks are preserved as review re
   assert(response.itinerary.reviewReasons.some(r=>r.includes('徒歩接続')));
   assert.deepEqual(JSON.parse((await ref.get()).data().aiResult).itinerary.reviewReasons,response.itinerary.reviewReasons);
 });
+
+test('car itinerary cannot dispatch AI transport optimization', async () => {
+  const {db, tripId, ref} = await setup();
+  const current = JSON.parse((await ref.get()).data().currentTrip);
+  current.conditions = { transport: 1 };
+  await ref.update({ currentTrip: JSON.stringify(current) });
+  await assert.rejects(optimizeTripTransport(request(tripId), db, null,
+    () => assert.fail('car must not read the AI key'),
+    { run: () => assert.fail('car must not call AI') }),
+    e => e.code === 'failed-precondition' && e.message === '車での移動はAIルート検索に対応していません。');
+});

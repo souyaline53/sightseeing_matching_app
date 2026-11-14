@@ -1,3 +1,4 @@
+import '../../../widgets/car_ai_unavailable.dart';
 import '../../../state/ai_trip_state.dart';
 import '../../../theme/app_theme.dart';
 import '../../../service/transport/transport_itinerary_service.dart';
@@ -100,6 +101,10 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
   }
 
   Future<void> generate() async {
+    if (!ref.read(tripProvider).publicTransport) {
+      await showCarAiUnavailable(context);
+      return;
+    }
     if (busy ||
         ref.read(tripProvider).aiLocked ||
         ref.read(tripProvider).aiQuotaBlocked) {
@@ -332,22 +337,31 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
         }
       });
     }
-    return OutlinedButton.icon(
-      key: const ValueKey('ai-create-trip'),
-      onPressed: busy || trip.aiLocked || trip.aiQuotaBlocked ? null : generate,
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 34),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return CarAiUnavailable(
+      unavailable: !trip.publicTransport,
+      child: OutlinedButton.icon(
+        key: const ValueKey('ai-create-trip'),
+        onPressed:
+            !trip.publicTransport ||
+                busy ||
+                trip.aiLocked ||
+                trip.aiQuotaBlocked
+            ? null
+            : generate,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 34),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: busy
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.auto_awesome, size: 15),
+        label: const Text('AIで旅程を組み立てる(ベータ版)', style: TextStyle(fontSize: 12)),
       ),
-      icon: busy
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.auto_awesome, size: 15),
-      label: const Text('AIで旅程を組み立てる(ベータ版)', style: TextStyle(fontSize: 12)),
     );
   }
 }

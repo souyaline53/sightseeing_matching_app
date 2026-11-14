@@ -10,6 +10,7 @@ import '../../state/itinerary_setup_state.dart';
 import '../../state/trip_library_state.dart';
 import '../../state/trip_state.dart';
 import '../../widgets/travel_photo.dart';
+import '../../widgets/car_ai_unavailable.dart';
 import '../../state/ai_trip_state.dart';
 
 class ItinerarySetupScreen extends ConsumerStatefulWidget {
@@ -214,6 +215,10 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
 
   void create({required bool ai}) {
     final setup = ref.read(itinerarySetupProvider);
+    if (ai && setup.conditions.transport == TravelMode.car) {
+      showCarAiUnavailable(context);
+      return;
+    }
     final saved = ref.read(savedExperiencesProvider);
     final current = {
       for (final e in ref.read(catalogProvider).requireValue.experiences)
@@ -496,16 +501,21 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: OutlinedButton(
-                key: const ValueKey('setup-create-ai'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(48, 50),
-                ),
-                onPressed: canCreate ? () => create(ai: true) : null,
-                child: const Text(
-                  'AIで旅を組み立てる\n(beta版)',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12),
+              child: CarAiUnavailable(
+                unavailable: conditions.transport == TravelMode.car,
+                child: OutlinedButton(
+                  key: const ValueKey('setup-create-ai'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(48, 50),
+                  ),
+                  onPressed: canCreate && conditions.transport != TravelMode.car
+                      ? () => create(ai: true)
+                      : null,
+                  child: const Text(
+                    'AIで旅を組み立てる\n(beta版)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ),
             ),

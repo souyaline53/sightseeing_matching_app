@@ -243,7 +243,7 @@ class TransportStepPage extends HookConsumerWidget {
             padding: const EdgeInsets.only(bottom: 16),
             child: _SelectionCard(
               key: ValueKey('travel-${mode.name}'),
-              label: ['公共交通で旅する', '車で旅する', 'どちらでもOK'][mode.index],
+              label: ['公共交通で旅する', '車で旅する'][mode.index],
               description: [
                 '電車やバスを使って、車がなくても旅へ。',
                 '自分のペースで、寄り道も自由に。',

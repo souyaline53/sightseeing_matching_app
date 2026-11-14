@@ -23,6 +23,7 @@ class ItineraryTransportSheet extends StatefulWidget {
   final int index, segmentCount;
   final bool collapsed;
   final Widget? aiProposal;
+  final Widget? drivingOptions;
   final VoidCallback? onPrevious, onNext, onClear;
   final VoidCallback onRefresh, onMap, onExpand;
   final ValueChanged<TransportCandidate> onSelect;
@@ -54,6 +55,7 @@ class ItineraryTransportSheet extends StatefulWidget {
     required this.onHeaderDragCancel,
     this.collapsed = false,
     this.aiProposal,
+    this.drivingOptions,
   });
   @override
   State<ItineraryTransportSheet> createState() =>
@@ -150,7 +152,9 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                       Row(
                         children: [
                           Icon(
-                            Icons.directions_transit_outlined,
+                            widget.drivingOptions != null
+                                ? Icons.directions_car_outlined
+                                : Icons.directions_transit_outlined,
                             color: color.primary,
                             size: 23,
                           ),
@@ -241,7 +245,7 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                       Text(
                         date == null
                             ? '日程未選択：時刻表は参考情報です。'
-                            : '${date!.year}/${date!.month}/${date!.day} の時刻表',
+                            : '${date!.year}/${date!.month}/${date!.day} ${widget.drivingOptions != null ? 'の車ルート' : 'の時刻表'}',
                         style: TextStyle(
                           fontSize: 11,
                           color: color.onSurfaceVariant,
@@ -249,7 +253,10 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                       ),
                       const SizedBox(height: 12),
                       if (widget.aiProposal != null) widget.aiProposal!,
-                      _results(context),
+                      if (widget.drivingOptions != null)
+                        widget.drivingOptions!
+                      else
+                        _results(context),
                     ],
                     const SizedBox(height: 10),
                     Row(
@@ -258,8 +265,10 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                           child: OutlinedButton.icon(
                             onPressed: onExpand,
                             icon: const Icon(Icons.compare_arrows, size: 20),
-                            label: const Text(
-                              '候補を比較',
+                            label: Text(
+                              widget.drivingOptions != null
+                                  ? '車ルートを確認'
+                                  : '候補を比較',
                               style: TextStyle(fontSize: 12),
                             ),
                             style: OutlinedButton.styleFrom(

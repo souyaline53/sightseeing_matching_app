@@ -63,13 +63,13 @@ void main() {
           SearchPreset(
             id: 'web',
             name: 'ブラウザの条件',
-            conditions: SearchConditions(transport: TravelMode.either),
+            conditions: SearchConditions(transport: TravelMode.transit),
           ),
         ],
       ),
     );
     final restored = await LocalSettingsRepository().load();
     expect(restored.profile.origin, 'ブラウザ保存確認');
-    expect(restored.presets.single.conditions.transport, TravelMode.either);
+    expect(restored.presets.single.conditions.transport, TravelMode.transit);
   }, skip: !kIsWeb);
 }

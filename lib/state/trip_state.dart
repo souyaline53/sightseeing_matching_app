@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../model/transport.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../model/experience.dart';
@@ -93,8 +94,16 @@ class TripNotifier extends Notifier<TripState> {
     _commit(next);
   }
 
-  void applyConditions(SearchConditions conditions) =>
-      _commit(state.copyWith(conditions: conditions));
+  void applyConditions(SearchConditions conditions) => _commit(
+    state.copyWith(
+      conditions: conditions,
+      transportSelections:
+          conditions.transport != state.conditions.transport ||
+              conditions.origin != state.origin
+          ? const []
+          : null,
+    ),
+  );
 
   void openPlan(String id) {
     final plan = ref
@@ -201,6 +210,32 @@ class TripNotifier extends Notifier<TripState> {
       ],
     ),
   );
+  void selectCarTransport(TransportSelection selection) {
+    final selections = [
+      ...state.transportSelections.where(
+        (s) => s.from != selection.from || s.to != selection.to,
+      ),
+      selection,
+    ];
+    final departure = selection.data['departureMinutes'] as int;
+    final next = selection.from == state.originEndpointId && departure < 1440
+        ? state.copyWith(
+            departureMinutes: departure,
+            transportSelections: const [],
+          )
+        : state;
+    _commit(next.copyWith(transportSelections: selections));
+  }
+
+  void syncCarTransport(List<TransportSelection> selections) {
+    if (state.publicTransport) return;
+    if (jsonEncode(state.transportSelections.map((s) => s.toJson()).toList()) ==
+        jsonEncode(selections.map((s) => s.toJson()).toList())) {
+      return;
+    }
+    _commit(state.copyWith(transportSelections: selections));
+  }
+
   void clearTransport(String from, String to) => _commit(
     state.copyWith(
       transportSelections: state.transportSelections
@@ -210,8 +245,10 @@ class TripNotifier extends Notifier<TripState> {
   );
   void setStay(String id, int minutes) =>
       _commit(state.copyWith(stayMinutes: {...state.stayMinutes, id: minutes}));
+
   void setDate(DateTime date) => _commit(
     state.copyWith(
+      transportSelections: state.publicTransport ? null : const [],
       travelDate: DateTime(date.year, date.month, date.day),
       conditions: state.conditions.copyWith(
         dateChoice: DateChoice.fixed,
@@ -221,7 +258,12 @@ class TripNotifier extends Notifier<TripState> {
   );
   void setDepartureMinutes(int minutes) {
     if (minutes < 0 || minutes >= 1440) throw ArgumentError.value(minutes);
-    _commit(state.copyWith(departureMinutes: minutes));
+    _commit(
+      state.copyWith(
+        departureMinutes: minutes,
+        transportSelections: state.publicTransport ? null : const [],
+      ),
+    );
   }
 
   void setOrigin(String origin) =>

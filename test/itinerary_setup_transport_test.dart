@@ -92,7 +92,7 @@ void main() {
                     )
                     .onPressed ==
                 null,
-            !selectable,
+            true,
           );
           final closedWarning = find.text('選択した日は定休日です');
           if (day == 16) {

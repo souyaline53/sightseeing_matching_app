@@ -25,7 +25,7 @@ void main() {
         SavedSettings(
           profile: const UserProfile(
             origin: '小樽駅',
-            transport: TravelMode.either,
+            transport: TravelMode.transit,
             walking: Walking.plenty,
             budget: 23000,
           ),
@@ -50,7 +50,7 @@ void main() {
       expect(selectedCards(tester, DepartureStepPage), isEmpty);
       await tester.tap(find.byKey(const ValueKey('origin-chip-札幌駅')));
       await tester.pumpAndSettle();
-      expect(container.read(searchDraftProvider).transport, TravelMode.either);
+      expect(container.read(searchDraftProvider).transport, TravelMode.transit);
       expect(find.byType(TripLengthStepPage), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('travel-car')));
       await tester.pumpAndSettle();

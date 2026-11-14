@@ -1,3 +1,5 @@
+import '../../../repository/driving_schedule_repository.dart';
+import '../../../service/transport/driving_schedule.dart';
 import '../../../theme/app_theme.dart';
 import '../../../model/ai_trip_segment.dart';
 import '../../shared/transport/ai_transport_card.dart';
@@ -60,6 +62,7 @@ class BookmarkTimeline extends HookConsumerWidget {
       '',
       '',
       0,
+      address: departure?.address ?? '',
       latitude: departure?.point.latitude,
       longitude: departure?.point.longitude,
       accessStops: [
@@ -95,11 +98,13 @@ class BookmarkTimeline extends HookConsumerWidget {
             '',
             '',
             0,
+            address: arrivalPlace?.address ?? '',
             latitude: arrivalPlace?.point.latitude,
             longitude: arrivalPlace?.point.longitude,
             accessStops: arrivalPlace?.accessStops ?? [],
           );
     final points = [originPoint, ...stops, arrivalPoint];
+    listenToDrivingSchedule(ref, livePlan, points);
     final segments = [
       for (var i = 0; i < points.length - 1; i++)
         if (stops.isNotEmpty)
@@ -159,7 +164,9 @@ class BookmarkTimeline extends HookConsumerWidget {
           _TimelineRow(
             label: segments[i].arrival == null
                 ? '—'
-                : transportTime(segments[i].arrival),
+                : publicTransport
+                ? transportTime(segments[i].arrival)
+                : drivingTime(segments[i].arrival),
             child: _StopCard(
               key: ValueKey('bookmark-stop-$i'),
               spot: stops[i],
@@ -180,7 +187,9 @@ class BookmarkTimeline extends HookConsumerWidget {
           _TimelineRow(
             label: segments.last.arrival == null
                 ? '—'
-                : transportTime(segments.last.arrival),
+                : publicTransport
+                ? transportTime(segments.last.arrival)
+                : drivingTime(segments.last.arrival),
             last: true,
             child: _Endpoint(
               name: '$arrivalName に到着',
@@ -221,7 +230,7 @@ class _PlanSegment {
     Experience from,
     Experience to,
   ) {
-    final provider = trip == null
+    final provider = trip == null || !trip.publicTransport
         ? null
         : itineraryJourneysProvider(itineraryJourneyKey(trip, from, to));
     final cached = provider != null && ref.exists(provider)
@@ -231,12 +240,21 @@ class _PlanSegment {
     return _PlanSegment(
       from,
       to,
-      ai != null
+      trip?.publicTransport == false
+          ? false
+          : ai != null
           ? ai.walkingOnly
           : sharesAccessStop(from.accessStops, to.accessStops) ||
                 cached?.walkingOnly == true,
       trip?.transportSelections
-          .where((s) => s.from == from.id && s.to == to.id)
+          .where(
+            (s) =>
+                s.from == from.id &&
+                s.to == to.id &&
+                (trip.publicTransport
+                    ? s.data['mode'] != 'car'
+                    : isCurrentDrivingSelection(trip, s)),
+          )
           .firstOrNull,
       ai,
     );
@@ -274,8 +292,7 @@ class _SegmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = segment;
-    final missing =
-        publicTransport && !s.walking && s.selection == null && s.ai == null;
+    final missing = !s.walking && s.selection == null && s.ai == null;
     final duration = s.arrival != null && s.departure != null
         ? s.arrival! - s.departure!
         : null;
@@ -296,7 +313,9 @@ class _SegmentRow extends StatelessWidget {
         ? '公共交通'
         : '車';
     final title = missing
-        ? '交通を選ぶ'
+        ? publicTransport
+              ? '交通を選ぶ'
+              : '車の出発時刻を設定'
         : '$modeで移動${duration != null && duration >= 0 ? ' · 約$duration分' : ''}';
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -329,7 +348,28 @@ class _SegmentRow extends StatelessWidget {
               )
             : null,
         children: [
-          if (s.ai != null)
+          if (!publicTransport && s.selection != null)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${s.from.displayName} ${drivingTime(s.departure)} 出発 → ${s.to.displayName} ${drivingTime(s.arrival)} 到着予定',
+                  ),
+                  if (s.selection!.data['distanceMeters'] is num)
+                    Text(
+                      '車で約$duration分 · ${((s.selection!.data['distanceMeters'] as num) / 1000).toStringAsFixed(1)}km',
+                    ),
+                  const Text(
+                    '所要時間は目安です。渋滞や休憩時間は含みません。',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  const Text('Google Maps', style: TextStyle(fontSize: 11)),
+                ],
+              ),
+            )
+          else if (s.ai != null)
             AiTransportCard(segment: s.ai!)
           else if (s.journey != null)
             TransportJourneyDetails(
@@ -365,13 +405,13 @@ class _SegmentRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 12),
               ),
             ),
-          if (missing)
+          if (missing || !publicTransport)
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: onChoose,
                 icon: const Icon(Icons.tune, size: 18),
-                label: const Text('交通を選択'),
+                label: Text(publicTransport ? '交通を選択' : '車の出発時刻を設定'),
               ),
             ),
           if (directions != null)

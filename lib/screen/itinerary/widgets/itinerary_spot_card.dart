@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../model/experience.dart';
+import '../../../model/spot_visit_info.dart';
 import '../../../widgets/travel_photo.dart';
 
 class ItinerarySpotCard extends StatelessWidget {
   final Experience spot;
+  final DateTime? date;
   final int index, stayMinutes;
   final bool selected, first, last, compact;
   final VoidCallback onSelect, onStay, onPrevious, onNext, onRemove;
   const ItinerarySpotCard({
     super.key,
     required this.spot,
+    this.date,
     required this.index,
     required this.stayMinutes,
     required this.selected,
@@ -25,6 +28,9 @@ class ItinerarySpotCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
+    final hours = date == null
+        ? null
+        : spotOpeningHoursLabel(spot.visitInfo, date!);
     return Padding(
       padding: const EdgeInsets.fromLTRB(3, 4, 13, 6),
       child: Stack(
@@ -53,7 +59,9 @@ class ItinerarySpotCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         SizedBox(
-                          height: compact ? 64 : 88,
+                          height:
+                              (compact ? 64.0 : 88.0) -
+                              (hours == null ? 0 : 14),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Stack(
@@ -178,6 +186,13 @@ class ItinerarySpotCard extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (hours != null)
+                          Text(
+                            hours,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 10),
+                          ),
                         InkWell(
                           onTap: onStay,
                           child: Padding(

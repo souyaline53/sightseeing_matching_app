@@ -101,3 +101,13 @@ int segmentEarliestDeparture(
           (selected.data['walkingMinutesAfter'] as int? ?? 0) * 60;
   return arrival > base ? arrival : base;
 }
+
+/// Arrival at the destination, including the walk after alighting.
+int candidateArrivalSeconds(TransportCandidate candidate) =>
+    candidate.journey?.data['arrivalSeconds'] as int? ??
+    (candidate.alighting.data['arrivalSeconds'] as int? ??
+            candidate.alighting.arrival! * 60) +
+        (candidate.after.walkingMinutes ?? 0) * 60;
+
+bool arrivesWithinServiceDay(TransportCandidate candidate) =>
+    candidateArrivalSeconds(candidate) <= 28 * 60 * 60;

@@ -340,3 +340,39 @@ dynamic _copyValue(dynamic value) {
   if (value is List) return value.map(_copyValue).toList();
   return value;
 }
+
+/// Hours for the selected local calendar date; absent information stays blank.
+String? spotOpeningHoursLabel(Map<String, dynamic> source, DateTime date) {
+  final data = SpotVisitInfo.fromMap(source).data;
+  final seasonal = data['seasonalAvailability'] as Map;
+  if (seasonal['status'] == 'seasonal') {
+    final md = date.month * 100 + date.day;
+    final available = (seasonal['periods'] as List).any((period) {
+      final start = period['startMonth'] * 100 + period['startDay'];
+      final end = period['endMonth'] * 100 + period['endDay'];
+      return start <= end ? md >= start && md <= end : md >= start || md <= end;
+    });
+    if (!available) return '休業日（営業期間外）';
+  }
+  final key =
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  final special = (data['specialHours'] as List)
+      .where((entry) => entry['date'] == key)
+      .firstOrNull;
+  List? hours;
+  if (special != null) {
+    if (special['closed'] == true) return '休業日';
+    hours = special['hours'] as List?;
+  } else if (data['openingHoursStatus'] == 'always_open') {
+    return '営業時間：24時間';
+  } else if (data['openingHoursStatus'] == 'scheduled') {
+    hours =
+        (data['openingHours'] as Map?)?[spotWeekdays.keys.elementAt(
+              date.weekday - 1,
+            )]
+            as List?;
+  }
+  if (hours == null) return null;
+  if (hours.isEmpty) return '休業日';
+  return '営業時間：${hours.map((range) => "${range['open']}〜${range['close']}").join(' / ')}';
+}

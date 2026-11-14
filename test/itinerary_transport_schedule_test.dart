@@ -1,4 +1,5 @@
 import 'departure_fixtures.dart';
+import 'package:sightseeing_matching_app/state/itinerary_navigation.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -159,6 +160,8 @@ void main() {
       );
       addTearDown(container.dispose);
       await container.read(tripLibraryProvider.future);
+      // This test exercises the first inter-spot segment explicitly.
+      container.read(itineraryTransportRequestProvider.notifier).open(0);
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,

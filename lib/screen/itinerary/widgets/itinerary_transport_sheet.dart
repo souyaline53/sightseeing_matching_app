@@ -349,7 +349,9 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
     final availableCandidates =
         merged.values
             .where(
-              (c) => candidateDepartureSeconds(c) >= earliestDepartureSeconds,
+              (c) =>
+                  candidateDepartureSeconds(c) >= earliestDepartureSeconds &&
+                  arrivesWithinServiceDay(c),
             )
             .toList()
           ..sort((a, b) {
@@ -415,6 +417,8 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                   ? 'この区間の交通情報は未登録です。\n申し訳ありませんが、旅のしおりの「マップで経路を見る」から交通手段をご確認ください。'
                   : hasLimitedExpress && !_useLimitedExpress
                   ? '有料特急を使わない候補はありません。スイッチをオンにすると有料特急の候補を確認できます。'
+                  : merged.values.any((c) => !arrivesWithinServiceDay(c))
+                  ? 'この時間以降の便はありません。'
                   : '候補を検索できませんでした。\n詳細は旅のしおりの「マップで経路を見る」から交通手段をご確認ください。',
             ),
           ),

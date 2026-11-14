@@ -3,6 +3,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../data/catalog_data.dart';
 import '../../data/departure_places.dart';
 import '../../model/search_settings.dart';
+import '../../model/experience.dart';
+import '../../model/spot_visit_info.dart';
 import '../../state/itinerary_navigation.dart';
 import '../../state/itinerary_setup_state.dart';
 import '../../state/trip_library_state.dart';
@@ -19,6 +21,13 @@ class ItinerarySetupScreen extends ConsumerStatefulWidget {
 
 class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
   String? error;
+
+  bool hasPublicTransport(Experience spot) => spot.accessStops.any(
+    (stop) =>
+        stop.data['isActive'] != false &&
+        stop.status != 'sample' &&
+        stop.walkingMinutes != null,
+  );
 
   Future<void> choosePlace({required bool origin}) async {
     final setup = ref.read(itinerarySetupProvider);
@@ -177,6 +186,20 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
         .map((e) => current[e.id] ?? e)
         .toList();
     if (stops.isEmpty) return;
+    if (stops.any(
+      (spot) =>
+          spotOpeningHoursLabel(
+            spot.visitInfo,
+            setup.conditions.resolveDate(),
+          )?.startsWith('休業日') ??
+          false,
+    )) {
+      return;
+    }
+    if (setup.conditions.transport == TravelMode.transit &&
+        stops.any((spot) => !hasPublicTransport(spot))) {
+      return;
+    }
     if (setup.conditions.length != TripLength.halfDay &&
         setup.conditions.length != TripLength.day) {
       setState(() => error = '半日または日帰りを選択してください。');
@@ -207,7 +230,33 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
     final selected = saved
         .where((e) => setup.selectedIds.contains(e.id))
         .length;
+    final hasUnavailableSelection =
+        conditions.transport == TravelMode.transit &&
+        saved.where((spot) => setup.selectedIds.contains(spot.id)).any((spot) {
+          final current =
+              catalog?.experiences
+                  .where((candidate) => candidate.id == spot.id)
+                  .firstOrNull ??
+              spot;
+          return !hasPublicTransport(current);
+        });
     final date = conditions.resolveDate();
+    final hasClosedSelection = saved
+        .where((spot) => setup.selectedIds.contains(spot.id))
+        .any((spot) {
+          final current =
+              catalog?.experiences
+                  .where((candidate) => candidate.id == spot.id)
+                  .firstOrNull ??
+              spot;
+          return spotOpeningHoursLabel(
+                current.visitInfo,
+                date,
+              )?.startsWith('休業日') ??
+              false;
+        });
+    final canCreate =
+        selected > 0 && !hasUnavailableSelection && !hasClosedSelection;
     final today = DateUtils.dateOnly(DateTime.now());
     Widget field(
       IconData icon,
@@ -333,6 +382,11 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
                         .where((e) => e.id == savedSpot.id)
                         .firstOrNull ??
                     savedSpot;
+                final openingHours = spotOpeningHoursLabel(
+                  spot.visitInfo,
+                  date,
+                );
+                final isClosed = openingHours?.startsWith('休業日') ?? false;
                 return CheckboxListTile(
                   key: ValueKey('setup-spot-${spot.id}'),
                   contentPadding: const EdgeInsets.symmetric(
@@ -351,6 +405,27 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
                     spot.displayName,
                     style: const TextStyle(fontSize: 14),
                   ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (openingHours != null)
+                        Text(
+                          openingHours,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      if (!hasPublicTransport(spot))
+                        const Text(
+                          '公共交通では行けません',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      if (isClosed)
+                        const Text(
+                          '選択した日は定休日です',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                    ],
+                  ),
                   value: setup.selectedIds.contains(spot.id),
                   onChanged: (_) =>
                       ref.read(itinerarySetupProvider.notifier).toggle(spot.id),
@@ -367,7 +442,7 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
             Expanded(
               child: FilledButton(
                 key: const ValueKey('setup-create-manual'),
-                onPressed: selected == 0 ? null : () => create(ai: false),
+                onPressed: canCreate ? () => create(ai: false) : null,
                 child: const Text('旅程を作成'),
               ),
             ),
@@ -378,7 +453,7 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(48, 50),
                 ),
-                onPressed: selected == 0 ? null : () => create(ai: true),
+                onPressed: canCreate ? () => create(ai: true) : null,
                 child: const Text(
                   'AIで旅を組み立てる\n(beta版)',
                   textAlign: TextAlign.center,

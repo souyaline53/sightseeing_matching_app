@@ -32,7 +32,7 @@ class ItineraryEditor extends ConsumerStatefulWidget {
 }
 
 class _EditorState extends ConsumerState<ItineraryEditor> {
-  int segment = 0;
+  int segment = -1;
   bool collapsed = false;
   double minimumSheet = .22;
   double middleSheet = .6;
@@ -753,6 +753,8 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                                                     168,
                                                                   ),
                                                           child: ItinerarySpotCard(
+                                                            date:
+                                                                trip.travelDate,
                                                             spot: stops[i],
                                                             index: i,
                                                             stayMinutes:

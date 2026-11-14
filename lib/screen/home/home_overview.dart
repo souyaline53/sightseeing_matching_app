@@ -28,7 +28,7 @@ class HomeOverview extends ConsumerWidget {
     final spots = catalog.take(4).toList();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TABISAKI'),
+        title: const Text('MATATABI'),
         actions: [
           IconButton(
             tooltip: '使い方を見る',

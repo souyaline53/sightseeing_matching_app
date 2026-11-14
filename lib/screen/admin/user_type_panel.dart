@@ -51,7 +51,7 @@ class UserTypePanel extends HookConsumerWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              '対象者がTABISAKIに登録したメールアドレスを入力してください。プロフィール登録が完了しているアカウントが対象です。',
+              '対象者がMATATABIに登録したメールアドレスを入力してください。プロフィール登録が完了しているアカウントが対象です。',
               style: TextStyle(fontSize: 13, height: 1.7),
             ),
             const SizedBox(height: 24),

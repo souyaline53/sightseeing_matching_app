@@ -10,7 +10,7 @@ class MyApp extends HookConsumerWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
-    title: 'TABISAKI',
+    title: 'MATATABI',
     locale: const Locale('ja'),
     supportedLocales: const [Locale('ja')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,

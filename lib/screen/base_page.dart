@@ -169,7 +169,7 @@ class _CatalogNotice extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final catalog = ref.watch(catalogProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('TABISAKI')),
+      appBar: AppBar(title: const Text('MATATABI')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

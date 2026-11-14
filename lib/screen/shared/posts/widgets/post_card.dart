@@ -82,14 +82,14 @@ class PostCard extends HookConsumerWidget {
     }
 
     String shareText() =>
-        '${spot?.area ?? ''}｜${spot?.title ?? '旅の発見'}\n★${post.rating.toStringAsFixed(1)}\n${post.caption}\n#TABISAKI';
+        '${spot?.area ?? ''}｜${spot?.title ?? '旅の発見'}\n★${post.rating.toStringAsFixed(1)}\n${post.caption}\n#MATATABI';
     Future<void> share() async {
       final box = context.findRenderObject() as RenderBox?;
       try {
         await SharePlus.instance.share(
           ShareParams(
             text: shareText(),
-            subject: 'TABISAKIの旅の発見',
+            subject: 'MATATABIの旅の発見',
             sharePositionOrigin: box == null
                 ? null
                 : box.localToGlobal(Offset.zero) & box.size,

@@ -36,7 +36,7 @@ class InterestSearchFlow extends HookConsumerWidget {
               )
             : const Icon(Icons.explore_outlined),
         title: Text(
-          step == 3 ? 'あなたにおすすめの観光地' : 'TABISAKI',
+          step == 3 ? 'あなたにおすすめの観光地' : 'MATATABI',
           style: step == 3 ? const TextStyle(fontSize: 20) : null,
         ),
         actions: [

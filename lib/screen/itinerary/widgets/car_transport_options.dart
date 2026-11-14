@@ -23,6 +23,12 @@ class CarTransportOptions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isWalkableDrivingLeg(from, to)) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Text('この区間は徒歩で移動できます', key: ValueKey('car-walking-only')),
+      );
+    }
     final defaultDeparture = drivingEarliestDepartureMinutes(trip, from.id);
     final earliest = from.id == trip.originEndpointId ? 0 : defaultDeparture;
     final saved = trip.transportSelections

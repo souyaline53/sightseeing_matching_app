@@ -83,6 +83,7 @@ final drivingScheduleProvider =
         result.add(
           TransportSelection({
             'mode': 'car',
+            if (route['walkingOnly'] == true) 'walkingOnly': true,
             'fromSpotId': from['id'],
             'toSpotId': to['id'],
             'selectedTripId': "car-${from['id']}-${to['id']}",

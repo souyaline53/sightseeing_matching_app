@@ -1,3 +1,4 @@
+import '../../../repository/driving_route_repository.dart';
 import '../../../repository/driving_schedule_repository.dart';
 import '../../../service/transport/driving_schedule.dart';
 import '../../../theme/app_theme.dart';
@@ -241,7 +242,7 @@ class _PlanSegment {
       from,
       to,
       trip?.publicTransport == false
-          ? false
+          ? isWalkableDrivingLeg(from, to)
           : ai != null
           ? ai.walkingOnly
           : sharesAccessStop(from.accessStops, to.accessStops) ||
@@ -262,14 +263,14 @@ class _PlanSegment {
   Map? get journey => selection?.data['journey'] as Map?;
   int? get departure => ai?.departureSeconds != null
       ? ai!.departureSeconds! ~/ 60
-      : walking
+      : walking && selection?.data['walkingOnly'] != true
       ? null
       : journey?['departureFromSpotSeconds'] is int
       ? (journey!['departureFromSpotSeconds'] as int) ~/ 60
       : selection?.data['departureMinutes'] as int?;
   int? get arrival => ai?.arrivalSeconds != null
       ? ai!.arrivalSeconds! ~/ 60
-      : walking
+      : walking && selection?.data['walkingOnly'] != true
       ? null
       : journey?['arrivalSeconds'] is int
       ? (journey!['arrivalSeconds'] as int) ~/ 60
@@ -316,7 +317,7 @@ class _SegmentRow extends StatelessWidget {
         ? publicTransport
               ? '交通を選ぶ'
               : '車の出発時刻を設定'
-        : '$modeで移動${duration != null && duration >= 0 ? ' · 約$duration分' : ''}';
+        : '$modeで移動${duration != null && duration >= 0 && !s.walking ? ' · 約$duration分' : ''}';
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
@@ -348,7 +349,12 @@ class _SegmentRow extends StatelessWidget {
               )
             : null,
         children: [
-          if (!publicTransport && s.selection != null)
+          if (!publicTransport && s.walking)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Text('この区間は徒歩で移動できます'),
+            )
+          else if (!publicTransport && s.selection != null)
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
@@ -405,7 +411,7 @@ class _SegmentRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 12),
               ),
             ),
-          if (missing || !publicTransport)
+          if (missing || (!publicTransport && !s.walking))
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(

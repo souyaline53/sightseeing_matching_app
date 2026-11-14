@@ -27,3 +27,5 @@ firebase deploy --only "functions:tabisaki:searchDrivingRoute,functions:tabisaki
 ```
 
 このエラーはデプロイ対象の絞り込みによるもので、Routes APIキーの内容が原因ではない。
+
+同じ住所（空白・全角数字・ハイフンの表記差は正規化）または同一座標にある地点間は、車APIを呼ばず「この区間は徒歩で移動できます」と表示する。しおりも徒歩扱いとし、車の移動時間を加算せず滞在時間を引き継ぐ。徒歩の所要時間は未計測のため表示しない。

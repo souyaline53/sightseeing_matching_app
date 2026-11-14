@@ -24,11 +24,52 @@ Json drivingEndpoint(Experience spot) => {
 };
 String drivingRouteKey(Experience from, Experience to) =>
     jsonEncode({'from': drivingEndpoint(from), 'to': drivingEndpoint(to)});
-final drivingRouteProvider = FutureProvider.family<Json, String>(
-  (ref, key) => ref.watch(drivingRouteSearchProvider)(
-    Map<String, dynamic>.from(jsonDecode(key) as Map),
-  ),
-);
+final drivingRouteProvider = FutureProvider.family<Json, String>((ref, key) {
+  final query = Map<String, dynamic>.from(jsonDecode(key) as Map);
+  if (sameDrivingLocation(query['from'] as Map, query['to'] as Map)) {
+    // No road journey is needed inside the same location. This is not a
+    // measured walking duration; the itinerary adds no driving time here.
+    return {
+      'walkingOnly': true,
+      'durationSeconds': 0,
+      'distanceMeters': 0,
+      'provider': 'same_location',
+    };
+  }
+  return ref.watch(drivingRouteSearchProvider)(query);
+});
+
+bool sameDrivingLocation(Map from, Map to) {
+  String address(Object? value) => (value as String? ?? '')
+      .trim()
+      .replaceAllMapped(
+        RegExp(r'[０-９]'),
+        (match) => String.fromCharCode(match[0]!.codeUnitAt(0) - 0xfee0),
+      )
+      .replaceAll(RegExp(r'[\s　]+'), '')
+      .replaceAll(RegExp('[－−‐‑–—]'), '-');
+  final a = address(from['address']), b = address(to['address']);
+  if (a.isNotEmpty && a == b) return true;
+  final lat1 = from['latitude'], lon1 = from['longitude'];
+  final lat2 = to['latitude'], lon2 = to['longitude'];
+  return lat1 is num &&
+      lon1 is num &&
+      lat2 is num &&
+      lon2 is num &&
+      lat1.isFinite &&
+      lon1.isFinite &&
+      lat2.isFinite &&
+      lon2.isFinite &&
+      lat1.abs() <= 90 &&
+      lat2.abs() <= 90 &&
+      lon1.abs() <= 180 &&
+      lon2.abs() <= 180 &&
+      (lat1 - lat2).abs() < 0.000001 &&
+      (lon1 - lon2).abs() < 0.000001;
+}
+
+bool isWalkableDrivingLeg(Experience from, Experience to) =>
+    sameDrivingLocation(drivingEndpoint(from), drivingEndpoint(to));
 
 bool hasDrivingLocation(Experience place) {
   final lat = place.latitude, lon = place.longitude;

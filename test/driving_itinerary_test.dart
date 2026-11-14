@@ -1,3 +1,4 @@
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_spot_card.dart';
 import 'package:sightseeing_matching_app/repository/driving_schedule_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -247,6 +248,106 @@ void main() {
       expect(drivingTime(1790), '翌日5:50');
       expect(drivingTime(2600), '翌日19:20');
       expect(drivingTime(2880), '2日後0:00');
+    },
+  );
+
+  test(
+    'same-location detection requires matching nonempty addresses or valid coordinates',
+    () {
+      expect(
+        sameDrivingLocation(
+          {'address': '北海道 夕張市１－２'},
+          {'address': '北海道夕張市1-2'},
+        ),
+        isTrue,
+      );
+      expect(sameDrivingLocation({'address': ''}, {'address': ''}), isFalse);
+      expect(
+        sameDrivingLocation(
+          {'latitude': 43, 'longitude': 141},
+          {'latitude': 43, 'longitude': 141},
+        ),
+        isTrue,
+      );
+      expect(
+        sameDrivingLocation(
+          {'address': '1', 'latitude': 43, 'longitude': 141},
+          {'address': '2', 'latitude': 44, 'longitude': 141},
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  testWidgets(
+    'same-address stops are walkable without API requests and do not stop automatic scheduling',
+    (tester) async {
+      final first = Experience.fromJson({...a.toJson(), 'name': '栗下食堂'});
+      final second = Experience.fromJson({
+        ...b.toJson(),
+        'name': '道の駅メロード',
+        'address': a.address,
+      });
+      final trip = plan().copyWith(stops: [first, second]);
+      var calls = 0;
+      final container = await containerFor(
+        trip,
+        search: (query) async {
+          calls++;
+          expect(
+            sameDrivingLocation(query['from'] as Map, query['to'] as Map),
+            isFalse,
+          );
+          return {
+            'durationSeconds': 1234,
+            'distanceMeters': 20000,
+            'provider': 'google_routes',
+          };
+        },
+      );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: ItineraryEditor()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final selections = container.read(tripProvider).transportSelections;
+      expect(selections, hasLength(3));
+      expect(selections[1].data['walkingOnly'], isTrue);
+      expect(selections[1].data['arrivalMinutes'], 561);
+      expect(selections[2].data['departureMinutes'], 591);
+      expect(selections[2].data['arrivalMinutes'], 612);
+      expect(calls, 2);
+      tester
+          .widgetList<ItinerarySpotCard>(find.byType(ItinerarySpotCard))
+          .firstWhere((card) => card.spot.id == first.id)
+          .onSelect();
+      await tester.pumpAndSettle();
+      expect(find.text('この区間は徒歩で移動できます'), findsOneWidget);
+      expect(find.textContaining('車ルートを取得できませんでした'), findsNothing);
+      expect(calls, 2);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: BookmarkTimeline(trip: container.read(tripProvider)),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final walking = find.text('徒歩で移動');
+      await tester.ensureVisible(walking);
+      await tester.tap(walking);
+      await tester.pumpAndSettle();
+      expect(find.text('この区間は徒歩で移動できます'), findsOneWidget);
+      expect(find.textContaining('約0分'), findsNothing);
+      expect(calls, 2);
+      expect(tester.takeException(), isNull);
     },
   );
 

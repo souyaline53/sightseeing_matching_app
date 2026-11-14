@@ -135,6 +135,22 @@ Webビルドはプロジェクトのスクリプトを使ってください。�
 
 Hostingのpredeployではプラグイン登録と配信用JavaScriptを検査します。`node tool/check_web_release.mjs --local-build` はコンパイル済みのHTML・JavaScript・アセットを、公開サイトと同じオリジンの新しい隔離Chromeに読み込ませる読み取り専用テストです。観光地の実画面が表示されること、実際のFirebase Web SDKでFirestoreとStorageを読めることを確認します。Chromeが標準パスにない場合は `CHROME_EXECUTABLE` を指定してください。Node.js 22以上が必要です。
 
+### Chrome起動チェックのCI設定
+
+CIのUbuntuでは`dbus-run-session -- node tool/check_web_release.mjs --local-build`でチェック専用のD-Busセッションを用意します。セッションのアドレスを子プロセスへ渡し、終了時には専用バスも停止します（[D-Bus公式マニュアル](https://dbus.freedesktop.org/doc/dbus-run-session.1.html)）。既存のCI専用`CHROME_NO_SANDBOX=true`は維持しています。
+
+Chromeの起動待ちは最大60秒です。`DevToolsActivePort`ファイルや標準エラーのエンドポイントを検出した後、HTTP応答とページのデバッグ接続先が利用できるまで待ちます。遅い環境では`CHROME_STARTUP_TIMEOUT_MS`で調整できます。失敗時はプロセスの終了状態・最後のHTTP接続エラー・Chromeの標準エラーを表示します。D-Busのメッセージだけでアプリの起動失敗とは判定しません。
+
+ホームの確認条件は現在の「興味から旅行を作る」と「もっと見る」です。廃止済みの「新しい旅を探す」は使いません。Flutterが見出しをアクセシビリティラベルとして出力する場合があるため、見出しの`innerText`には依存しません。
+
+チェック処理の回帰テストはネットワークやChromeを使わずに実行できます。
+
+```sh
+node --test tool/check_web_release.test.mjs
+```
+
+2026年11月14日の修正では、起動遅延・ポートファイル書き込み途中・HTTP応答待ち・起動失敗の診断・新ホームの表示判定を検証し、8件成功しました。加えてmacOSの新規隔離Chromeでローカル成果物の新ホーム表示、Firestore読み取り、有効交通フィード3件のStorage読み取りに成功しました。GitHub上のLinuxジョブの再実行は、この変更の反映後に確認します。Hostingへの公開やデータ更新は行っていません。
+
 2026年11月1日の修正では、不備のあった古い登録ファイルを公開前チェックが拒否すること、修正後のWebアプリで観光地と2事業者の交通データを読めることを確認しました。初期化のコードは[Firebaseの公式セットアップ](https://firebase.google.com/docs/flutter/setup)、配信用ビルドの実ブラウザー確認は[FlutterのWeb公開手順](https://docs.flutter.dev/deployment/web)も参照してください。
 
 

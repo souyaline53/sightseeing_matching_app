@@ -39,8 +39,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      - name: Test Web smoke-check helpers
+        run: node --test tool/check_web_release.test.mjs
       - name: Check compiled Web app in Chrome
-        run: node tool/check_web_release.mjs --local-build
+        # Give headless Chrome an isolated, valid D-Bus session on Linux.
+        run: dbus-run-session -- node tool/check_web_release.mjs --local-build
         env:
           # Hosted Linux runners restrict Chrome sandbox namespaces.
           CHROME_NO_SANDBOX: "true"

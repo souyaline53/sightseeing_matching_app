@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { isCatalogHomeReady, waitForChromePage } from "./web_smoke_helpers.mjs";
 const url =
   process.argv.find((a) => a.startsWith("https://")) ??
   "https://sightseeing-matching-prototype.web.app";
@@ -26,6 +27,8 @@ const chrome = spawn(
     "--no-first-run",
     "--no-default-browser-check",
     "--disable-extensions",
+    "--disable-background-networking",
+    ...(process.platform === "linux" ? ["--disable-dev-shm-usage"] : []),
     "about:blank",
   ],
   { stdio: ["ignore", "ignore", "pipe"] },
@@ -55,25 +58,17 @@ const send = (method, params = {}) =>
     socket.send(JSON.stringify({ id, method, params }));
   });
 try {
-  let port;
-  for (let n = 0; n < 60; n++) {
-    if (startupError) throw startupError;
-    if (chrome.exitCode !== null || chrome.signalCode !== null) break;
-    const file = path.join(profile, "DevToolsActivePort");
-    if (fs.existsSync(file)) {
-      port = fs.readFileSync(file, "utf8").split("\n")[0];
-      break;
-    }
-    await pause(200);
-  }
-  if (!port)
-    throw Error(
-      `Chrome did not start (${chromePath}, exit=${chrome.exitCode}, signal=${chrome.signalCode})\n${chromeStderr.trim()}`,
-    );
-  const pages = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-  socket = new WebSocket(
-    pages.find((p) => p.type === "page").webSocketDebuggerUrl,
-  );
+  const page = await waitForChromePage({
+    chrome,
+    profile,
+    chromePath,
+    getStartupError: () => startupError,
+    getStderr: () => chromeStderr,
+    ...(process.env.CHROME_STARTUP_TIMEOUT_MS
+      ? { timeoutMs: Number(process.env.CHROME_STARTUP_TIMEOUT_MS) }
+      : {}),
+  });
+  socket = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
     socket.onopen = resolve;
     socket.onerror = reject;
@@ -173,9 +168,9 @@ try {
     if (errors.length) throw Error(errors.join("\n"));
     if (text.includes("クラウドの観光地情報を読み込めませんでした"))
       throw Error("The compiled app cannot load the catalog");
-    if (text.includes("新しい旅を探す")) break;
+    if (isCatalogHomeReady(text)) break;
   }
-  if (!text.includes("新しい旅を探す"))
+  if (!isCatalogHomeReady(text))
     throw Error(
       `Catalog-backed home did not become ready: ${text.slice(0, 600)}`,
     );

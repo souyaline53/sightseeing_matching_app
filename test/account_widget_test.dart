@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/account_profile.dart';
 import 'package:sightseeing_matching_app/state/account_state.dart';
-import 'package:sightseeing_matching_app/screen/profile/account/account_form_screen.dart';
+import 'package:sightseeing_matching_app/screen/shared/account/account_form_screen.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot;
 

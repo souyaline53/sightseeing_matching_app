@@ -5,7 +5,7 @@ import 'package:sightseeing_matching_app/model/experience.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/repository/settings_repository.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
-import 'package:sightseeing_matching_app/screen/recommendation/experience_deck.dart';
+import 'package:sightseeing_matching_app/screen/shared/experiences/widgets/experience_deck.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:sightseeing_matching_app/state/settings_state.dart';
@@ -13,7 +13,7 @@ import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'test_support.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
-import 'package:sightseeing_matching_app/screen/recommendation/swipe_tips_animation.dart';
+import 'package:sightseeing_matching_app/screen/shared/experiences/widgets/swipe_tips_animation.dart';
 
 class _Deck extends DiscoveryNotifier {
   @override

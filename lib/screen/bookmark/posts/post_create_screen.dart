@@ -1,0 +1,353 @@
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../data/catalog_data.dart';
+import '../../../model/experience.dart';
+import '../../../model/post.dart';
+import '../../../service/post_media_picker.dart';
+import '../../../state/posts_state.dart';
+import '../../../widgets/settings_actions.dart';
+import '../../shared/posts/widgets/post_media_view.dart';
+
+class PostCreateScreen extends HookConsumerWidget {
+  const PostCreateScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(catalogProvider).requireValue.experiences;
+    final caption = useTextEditingController();
+    final query = useState('');
+    final selected = useState<Experience?>(null);
+    final media = useState<List<PostMedia>>([]);
+    final bytes = useState<Map<String, Uint8List>>({});
+    final rating = useState(0);
+    final category = useState<String?>(null);
+    final busy = useState(false);
+    final colors = Theme.of(context).colorScheme;
+    final candidates = catalog
+        .where(
+          (spot) => '${spot.area} ${spot.displayName} ${spot.category}'
+              .toLowerCase()
+              .contains(query.value.trim().toLowerCase()),
+        )
+        .take(8)
+        .toList();
+    Future<void> pick(PostMediaSource source) async {
+      if (busy.value) return;
+      busy.value = true;
+      try {
+        final picked = await ref
+            .read(postMediaPickerProvider)
+            .pick(source, remaining: 6 - media.value.length);
+        if (!context.mounted) return;
+        final nextBytes = {
+          ...bytes.value,
+          for (final item in picked) item.media.id: item.bytes,
+        };
+        media.value = [...media.value, ...picked.map((item) => item.media)];
+        bytes.value = nextBytes;
+      } catch (error) {
+        if (context.mounted) {
+          showMessage(
+            context,
+            error is StateError
+                ? error.message.toString()
+                : '画像を選択できませんでした。権限やファイル形式を確認してください。',
+          );
+        }
+      } finally {
+        if (context.mounted) busy.value = false;
+      }
+    }
+
+    Future<void> publish() async {
+      if (busy.value) return;
+      if (selected.value == null) {
+        showMessage(context, '訪れた場所を選択してください。');
+        return;
+      }
+      busy.value = true;
+      try {
+        await ref
+            .read(postsProvider.notifier)
+            .publish(
+              spotId: selected.value!.id,
+              caption: caption.text,
+              category: category.value ?? '',
+              rating: rating.value.toDouble(),
+              media: media.value,
+              bytes: bytes.value,
+            );
+        if (context.mounted) Navigator.pop(context, true);
+      } catch (error) {
+        if (context.mounted) {
+          showMessage(
+            context,
+            error is StateError
+                ? error.message.toString()
+                : '投稿を保存できませんでした。入力内容は残っています。',
+          );
+        }
+      } finally {
+        if (context.mounted) busy.value = false;
+      }
+    }
+
+    return PopScope(
+      canPop: !busy.value,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('旅の発見を投稿'),
+          actions: [
+            TextButton(
+              key: const ValueKey('publish-post'),
+              onPressed: busy.value ? null : publish,
+              child: Text(
+                busy.value ? 'アップロード中…' : '投稿する',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        body: ListView(
+          key: const ValueKey('post-create-form'),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.primaryContainer.withValues(alpha: .5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Text(
+                '写真・本文・評価はクラウドに保存され、ほかのユーザーにも表示されます。',
+                style: TextStyle(fontSize: 12, height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              '訪れた場所',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            if (selected.value == null) ...[
+              TextField(
+                key: const ValueKey('post-spot-search'),
+                enabled: !busy.value,
+                decoration: const InputDecoration(
+                  hintText: '地域・観光地名称・カテゴリを検索',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) => query.value = value,
+              ),
+              const SizedBox(height: 8),
+              if (candidates.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: Text('一致するスポットがありません。'),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: candidates.length,
+                    itemBuilder: (_, index) {
+                      final spot = candidates[index];
+                      return ListTile(
+                        key: ValueKey('post-spot-option-${spot.id}'),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                        ),
+                        leading: const Icon(Icons.place_outlined),
+                        title: Text(
+                          spot.displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        subtitle: Text(spot.area),
+                        onTap: busy.value
+                            ? null
+                            : () {
+                                selected.value = spot;
+                                FocusScope.of(context).unfocus();
+                              },
+                      );
+                    },
+                  ),
+                ),
+            ] else
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.check_circle, color: colors.primary),
+                title: Text(selected.value!.displayName),
+                subtitle: Text(selected.value!.area),
+                trailing: IconButton(
+                  tooltip: 'スポットを選び直す',
+                  onPressed: busy.value ? null : () => selected.value = null,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ),
+            const SizedBox(height: 24),
+            Text(
+              '画像（${media.value.length}/6）',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  key: const ValueKey('pick-post-media'),
+                  onPressed: busy.value || media.value.length >= 6
+                      ? null
+                      : () => pick(PostMediaSource.library),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('ライブラリから'),
+                ),
+                PopupMenuButton<PostMediaSource>(
+                  enabled: !busy.value && media.value.length < 6,
+                  tooltip: '画像を撮影',
+                  onSelected: pick,
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: PostMediaSource.cameraPhoto,
+                      child: Text('写真を撮影'),
+                    ),
+                  ],
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.camera_alt_outlined),
+                        SizedBox(width: 6),
+                        Text('撮影'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Text(
+              '画像は6枚まで・1枚5MB未満（JPEG・PNG・WebP・GIF）。動画は投稿できません。',
+              style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.5),
+            ),
+            if (media.value.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 150,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: media.value.length,
+                  separatorBuilder: (_, index) => const SizedBox(width: 10),
+                  itemBuilder: (_, index) {
+                    final item = media.value[index];
+                    return SizedBox(
+                      width: 125,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            PostMediaView(
+                              media: item,
+                              previewBytes: bytes.value[item.id],
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: IconButton.filledTonal(
+                                tooltip: 'メディアを削除',
+                                onPressed: busy.value
+                                    ? null
+                                    : () {
+                                        media.value = media.value
+                                            .where((m) => m.id != item.id)
+                                            .toList();
+                                        bytes.value = {...bytes.value}
+                                          ..remove(item.id);
+                                      },
+                                icon: const Icon(Icons.close, size: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            const Text(
+              '満足度',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            Row(
+              children: [
+                for (var i = 1; i <= 5; i++)
+                  IconButton(
+                    key: ValueKey('post-rating-$i'),
+                    tooltip: '$iつ星',
+                    onPressed: busy.value ? null : () => rating.value = i,
+                    icon: Icon(
+                      i <= rating.value
+                          ? Icons.star_rounded
+                          : Icons.star_outline_rounded,
+                      color: colors.primary,
+                      size: 29,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'カテゴリ',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final value in [
+                  'グルメ',
+                  '絶景',
+                  '宿・温泉',
+                  '自然',
+                  '歴史・文化',
+                  'ものづくり',
+                  '街歩き',
+                ])
+                  ChoiceChip(
+                    label: Text(value),
+                    selected: category.value == value,
+                    onSelected: busy.value
+                        ? null
+                        : (_) => category.value = value,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              key: const ValueKey('post-caption-input'),
+              controller: caption,
+              enabled: !busy.value,
+              minLines: 4,
+              maxLines: 8,
+              maxLength: 2000,
+              decoration: const InputDecoration(
+                labelText: '旅で見つけたこと',
+                alignLabelWithHint: true,
+                hintText: '本文を入力してください',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

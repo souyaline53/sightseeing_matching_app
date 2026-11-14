@@ -7,7 +7,7 @@ import 'package:sightseeing_matching_app/model/chat.dart';
 import 'package:sightseeing_matching_app/repository/chat_repository.dart';
 import 'package:sightseeing_matching_app/repository/firestore_chat_repository.dart';
 import 'package:sightseeing_matching_app/screen/admin/user_type_panel.dart';
-import 'package:sightseeing_matching_app/screen/chat/chat_room_screen.dart';
+import 'package:sightseeing_matching_app/screen/bookmark/chat/chat_room_screen.dart';
 import 'package:sightseeing_matching_app/service/cloud/municipality_admin_service.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot;

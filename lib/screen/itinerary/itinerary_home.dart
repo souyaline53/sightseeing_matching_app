@@ -3,7 +3,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../state/itinerary_navigation.dart';
 import 'itinerary_editor.dart';
 import 'itinerary_setup_screen.dart';
-export 'plan_screen.dart';
 
 class ItineraryHome extends ConsumerWidget {
   final bool active;

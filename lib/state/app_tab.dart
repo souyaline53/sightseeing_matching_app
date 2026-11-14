@@ -1,6 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-enum AppTab { recommendation, swipe, booklet, itinerary, profile }
+enum AppTab { home, swipe, bookmark, itinerary, profile }
 
 final appTabProvider = NotifierProvider<AppTabNotifier, AppTab>(
   AppTabNotifier.new,
@@ -8,7 +8,7 @@ final appTabProvider = NotifierProvider<AppTabNotifier, AppTab>(
 
 class AppTabNotifier extends Notifier<AppTab> {
   @override
-  AppTab build() => AppTab.recommendation;
+  AppTab build() => AppTab.home;
 
   void select(AppTab tab) {
     state = tab;

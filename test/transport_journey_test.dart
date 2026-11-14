@@ -6,7 +6,7 @@ import 'package:sightseeing_matching_app/model/experience.dart';
 import 'package:sightseeing_matching_app/model/transport.dart';
 import 'package:sightseeing_matching_app/model/transport_journey.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/transport_journey_panel.dart';
+import 'package:sightseeing_matching_app/screen/shared/transport/transport_journey_panel.dart';
 
 Json resultFixture() => {
   'journeys': [

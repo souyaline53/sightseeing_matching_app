@@ -6,7 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:sightseeing_matching_app/service/display_image.dart';
 import 'package:sightseeing_matching_app/service/image_cache/cache_store.dart';
 import 'package:sightseeing_matching_app/service/image_cache/cloud_photo_cache.dart';
-import 'package:sightseeing_matching_app/screen/recommendation/curiosity_question_flow.dart';
+import 'package:sightseeing_matching_app/screen/shared/discovery/widgets/curiosity_question_flow.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot;
 

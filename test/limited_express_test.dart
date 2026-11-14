@@ -4,7 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/model/experience.dart';
 import 'package:sightseeing_matching_app/model/transport.dart';
 import 'package:sightseeing_matching_app/repository/transport_repository.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_transport_sheet.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_transport_sheet.dart';
 
 void main() {
   testWidgets('paid switch appears only with paid options and filters them', (

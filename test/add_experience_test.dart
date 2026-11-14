@@ -5,7 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
-import 'package:sightseeing_matching_app/screen/recommendation/experience_deck.dart';
+import 'package:sightseeing_matching_app/screen/shared/experiences/widgets/experience_deck.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';

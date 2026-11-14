@@ -1,7 +1,7 @@
 import 'package:sightseeing_matching_app/model/trip_plan.dart' show TripLibrary;
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_map_route.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_map_route.dart';
 import 'package:latlong2/latlong.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
@@ -12,7 +12,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/data/catalog_data.dart';
 import 'package:sightseeing_matching_app/model/experience.dart';
 import 'package:sightseeing_matching_app/model/travel_catalog.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_map.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_map.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'package:sightseeing_matching_app/widgets/departure_map.dart';
 

@@ -135,8 +135,8 @@ FunctionsからFlutterへは `{"recommendations":[{"spot_id":"TAKI","reason":"�
 - `lib/service/ai_matching_service.dart`：既存サービスに型検証、認証、入力構築、注入可能な通信とProvider。実パスはservicesではなくserviceです。
 - `lib/state/discovery_state.dart`：非同期推薦、Dify順・理由の保持、古い応答の破棄。
 - `lib/service/search_execution_service.dart`：保存済みIDを初期化前に取得。
-- `lib/screen/recommendation/experience_deck.dart`：既存カード・スワイプ・詳細・保存を維持し、理由／読込／再試行／該当なしを表示。
-- `lib/screen/itinerary/add_experience_button.dart`：既存旅程への追加もDify経路へ変更。
+- `lib/screen/shared/experiences/widgets/experience_deck.dart`：既存カード・スワイプ・詳細・保存を維持し、理由／読込／再試行／該当なしを表示。
+- `lib/screen/itinerary/widgets/add_experience_button.dart`：既存旅程への追加もDify経路へ変更。
 - `functions/ai_matching.test.js`、`test/ai_matching_integration_test.dart`：新規テスト。
 - `test/test_support.dart`、`test/widget_test.dart`：ネットワークを使わないDifyモックを共通テスト環境に追加。
 - `test/settings_test.dart`、`test/conditions_steps_test.dart`：非同期呼出とDify順に期待を更新。

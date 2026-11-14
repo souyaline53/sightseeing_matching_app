@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../state/app_tab.dart';
-import '../state/itinerary_navigation.dart';
+import '../navigation/travel_navigation.dart';
 import '../state/trip_library_state.dart';
-
-void openItinerarySetup(BuildContext context, WidgetRef ref) {
-  ref.read(itineraryEditorProvider.notifier).close();
-  ref.read(appTabProvider.notifier).select(AppTab.itinerary);
-  Navigator.of(context).popUntil((route) => route.isFirst);
-}
 
 class TripFromSavedButton extends ConsumerWidget {
   const TripFromSavedButton({super.key});

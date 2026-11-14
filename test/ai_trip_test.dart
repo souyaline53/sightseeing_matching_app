@@ -1,3 +1,5 @@
+import 'package:sightseeing_matching_app/screen/shared/trips/plan_screen.dart';
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +14,7 @@ import 'package:sightseeing_matching_app/model/transport.dart';
 import 'package:sightseeing_matching_app/model/travel_catalog.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/ai_trip_panel.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/ai_trip_panel.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_home.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
 import 'package:sightseeing_matching_app/state/itinerary_setup_state.dart';
@@ -20,7 +22,7 @@ import 'package:sightseeing_matching_app/widgets/departure_map.dart';
 import 'package:sightseeing_matching_app/model/transport_journey.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
 import 'package:sightseeing_matching_app/repository/transport_repository.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/ai_transport_card.dart';
+import 'package:sightseeing_matching_app/screen/shared/transport/ai_transport_card.dart';
 import 'package:sightseeing_matching_app/service/transport/ai_trip_repository.dart';
 import 'package:sightseeing_matching_app/service/transport/transport_itinerary_service.dart';
 import 'package:sightseeing_matching_app/state/experience_photos.dart';

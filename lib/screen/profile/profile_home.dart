@@ -7,11 +7,10 @@ import '../../state/discovery_state.dart';
 import '../../state/settings_state.dart';
 import 'widgets/conditions_form.dart';
 import 'profile_setting_screen.dart';
-import 'account/account_card.dart';
+import 'widgets/account_card.dart';
 import '../../widgets/settings_actions.dart';
 import '../../service/cloud/cloud_services.dart';
 import '../admin/admin_menu_screen.dart';
-import '../ai_matching_test.dart';
 
 class ProfileHome extends HookConsumerWidget {
   const ProfileHome({super.key});
@@ -38,7 +37,6 @@ class ProfileHome extends HookConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 110),
         children: [
-          
           const AccountCard(),
           const SizedBox(height: 24),
           const Text(
@@ -132,7 +130,7 @@ class ProfileHome extends HookConsumerWidget {
                                       .startConditions();
                                   ref
                                       .read(appTabProvider.notifier)
-                                      .select(AppTab.recommendation);
+                                      .select(AppTab.home);
                                 },
                           child: const Text('読み込み'),
                         ),

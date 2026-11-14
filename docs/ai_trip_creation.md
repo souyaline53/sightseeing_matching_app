@@ -98,7 +98,7 @@ firebase deploy --only "functions:tabisaki:registerAiTrip,functions:tabisaki:opt
 
 - Flutter：lib/model/{trip_plan,optimized_transport_itinerary}.dart、lib/state/{trip_state,trip_library_state}.dart
 - 通信：lib/service/transport/{ai_trip_repository,transport_itinerary_service}.dart
-- UI：lib/screen/itinerary/{ai_trip_panel,itinerary_editor,itinerary_transport_sheet}.dart、lib/screen/recommendation/recommendation_home.dart
+- UI：lib/screen/itinerary/itinerary_editor.dart と lib/screen/itinerary/widgets/{ai_trip_panel,itinerary_transport_sheet}.dart、lib/screen/shared/discovery/interest_search_flow.dart
 - Functions：functions/{trip_ai,transport_dify,index}.js
 - Rules/Index：firestore.rules、firestore.indexes.json
 - Tests：functions/trip_ai.test.js、test/ai_trip_test.dart、test/{itinerary_origin,itinerary_walk,itinerary_transport_schedule}_test.dart
@@ -214,7 +214,7 @@ FlutterのHTTP詳細表示も使う場合はアプリを停止・再起動する
 
 ## 2026-11-13：AI作成UIの整理
 
-実装ファイル：`lib/screen/itinerary/ai_trip_panel.dart`（条件シートとOutlinedButton）、`ai_transport_card.dart`（区間カード）、`itinerary_editor.dart` / `itinerary_transport_sheet.dart` / `plan_screen.dart`（配置と自動遷移）、`lib/model/ai_trip_draft.dart`（登録情報と泊数）、`ai_trip_segment.dart`（区間への投影）。`Experience.visitInfo`は旅程保存時だけシリアライズし、既存の観光地マッチング用カードJSONを変更しない。
+実装ファイル：`lib/screen/itinerary/widgets/ai_trip_panel.dart`（条件シートとOutlinedButton）、`ai_transport_card.dart`（区間カード）、`itinerary_editor.dart` / `itinerary_transport_sheet.dart` / `plan_screen.dart`（配置と自動遷移）、`lib/model/ai_trip_draft.dart`（登録情報と泊数）、`ai_trip_segment.dart`（区間への投影）。`Experience.visitInfo`は旅程保存時だけシリアライズし、既存の観光地マッチング用カードJSONを変更しない。
 
 到着地の独立保存・地図表示と、シートの高さ変更時にレイアウト中の再描画が発生しない調整も含む。古い旅程の読み込みと、旧形式のAI往復提案の有効性判定は維持する。
 

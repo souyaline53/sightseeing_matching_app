@@ -87,6 +87,8 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 
 ## 構成と変更ファイル
 
+画面は5タブと共通画面に分離しています。配置・入口・依存方向は[画面構成ガイド](lib/screen/README.md)を参照してください。従来のホームは`bookmark/bookmark_home.dart`へ移動し、`home/home_screen.dart`は新ホームの入口です。
+
 | ファイル | 役割 |
 | --- | --- |
 | `lib/theme/app_theme.dart` | オレンジ基調の共通テーマと配色 |
@@ -100,28 +102,33 @@ Firebaseのアプリ接続設定は生成済みです。**利用前にAuthentica
 | `lib/state/discovery_state.dart` | 検索画面遷移・質問回答・探索位置 |
 | `lib/state/trip_state.dart` | 編集中旅程の投影と、既存画面から使う編集API |
 | `lib/state/trip_library_state.dart` | 旅程一覧の復元・編集・削除・保存とエラー通知 |
+| `lib/navigation/travel_navigation.dart` | 質問開始・保存した観光地から旅程作成への共通遷移 |
+| `lib/state/ai_trip_state.dart` | AI作成の要求・結果購読 |
+| `lib/state/swipe_state.dart` | ランダムなスワイプの独立した状態 |
 | `lib/state/app_tab.dart` | ホーム・スワイプ・旅のしおり・旅程作成・プロフィールの5タブ |
 | `lib/service/curiosity_questions.dart` | 4つの気分・12通りの理由・5種類のクエストセットと興味のヒント |
-| `lib/screen/recommendation/curiosity_question_flow.dart` | アイコン付き4択・理由3択・クエスト3択の質問UI |
+| `lib/screen/shared/discovery/widgets/curiosity_question_flow.dart` | アイコン付き4択・理由3択・クエスト3択の質問UI |
 | `lib/service/recommendation_service.dart` | 好みに近い・隣接・意外な体験を混ぜる推薦 |
 | `lib/service/mock_access_ranking.dart` | 条件からサンプルのアクセスしやすさを算出し、ジャンル内を並べ替え |
 | `lib/service/search_execution_service.dart` | 入力確定・プリセットとLastSearchの一括保存・旅程引継ぎ・探索開始 |
-| `lib/screen/home/discovery_home.dart` | 新しいホームと2列の観光地一覧 |
-| `lib/screen/recommendation/recommended_places_list.dart` | AI推薦の縦リストと共通保存 |
-| `lib/screen/recommendation/swipe_home.dart` | 独立したランダム10件のカードセッション |
-| `lib/screen/home/home_screen.dart` | 選択中のしおり・全スポットをスクロールできるタイムライン・空状態と既存画面への導線 |
-| `lib/screen/home/trips_drawer.dart` | 旅程一覧・切り替え・名前変更・複製・確認付き削除 |
-| `lib/screen/recommendation/recommendation_home.dart` | ホーム表示から既存の質問・探索へのフロー |
-| `lib/screen/search/search_conditions_screen.dart` | 4画面の進捗・固定ボタン・保存して検索 |
-| `lib/screen/search/conditions_step_pages.dart` | 検索専用の出発地・交通と期間・日付・同行者ページ（共通フォームやプロフィールは変更なし） |
+| `lib/screen/home/home_screen.dart` | ホームタブの入口・共通の質問フローとの切替 |
+| `lib/screen/home/home_overview.dart` | 新しいホームの概要画面 |
+| `lib/screen/shared/experiences/places_catalog_screen.dart` | 2列の観光地一覧 |
+| `lib/screen/shared/discovery/recommended_places_list.dart` | AI推薦の縦リストと共通保存 |
+| `lib/screen/swipe/swipe_home.dart` | 独立したランダム10件のカードセッション |
+| `lib/screen/bookmark/bookmark_home.dart` | 選択中のしおり・全スポットをスクロールできるタイムライン・空状態と既存画面への導線 |
+| `lib/screen/shared/trips/trips_drawer.dart` | 旅程一覧・切り替え・名前変更・複製・確認付き削除 |
+| `lib/screen/shared/discovery/interest_search_flow.dart` | 共通の7つの質問・AIおすすめ一覧へのフロー |
+| `lib/screen/shared/discovery/search_conditions_screen.dart` | 4画面の進捗・固定ボタン・保存して検索 |
+| `lib/screen/shared/discovery/widgets/conditions_step_pages.dart` | 検索専用の出発地・交通と期間・日付・同行者ページ（共通フォームやプロフィールは変更なし） |
 | `lib/state/conditions_step_state.dart` | 条件入力ステップの表示位置。編集値は既存のsearchDraftProviderで共通保持 |
 | `lib/screen/profile/profile_home.dart` | プロフィールとプリセットの管理・編集 |
 | `lib/screen/profile/widgets/conditions_form.dart` | プロフィール基本設定・保存プリセット編集用の共通入力UI（検索フローとは別） |
 | `lib/data/departure_places.dart` | 駅・バス停のローカル候補と概略座標 |
 | `lib/widgets/departure_map.dart` | flutter_map・OpenStreetMap地図、選択ピン、障害時の案内 |
 | `lib/widgets/settings_actions.dart` | プリセット名ダイアログ・結果通知 |
-| `lib/screen/recommendation/experience_deck.dart` | 事前読み込み済み画像の左右スワイプ探索 |
-| `lib/screen/recommendation/experience_detail.dart` | ストーリー詳細、固定の閉じるボタン |
+| `lib/screen/shared/experiences/widgets/experience_deck.dart` | 事前読み込み済み画像の左右スワイプ探索 |
+| `lib/screen/shared/experiences/experience_detail.dart` | ストーリー詳細、固定の閉じるボタン |
 | `lib/screen/itinerary/itinerary_home.dart` | 旅程入力と従来の編集画面の切替 |
 | `lib/screen/itinerary/itinerary_setup_screen.dart` | デフォルト値付きの旅程入力・保存した観光地の選択 |
 | `lib/state/itinerary_setup_state.dart` | 作成前の条件・選択と検索からの引継ぎ |

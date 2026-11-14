@@ -8,7 +8,7 @@ import '../../state/itinerary_setup_state.dart';
 import '../../state/trip_library_state.dart';
 import '../../state/trip_state.dart';
 import '../../widgets/travel_photo.dart';
-import 'ai_trip_panel.dart';
+import '../../state/ai_trip_state.dart';
 
 class ItinerarySetupScreen extends ConsumerStatefulWidget {
   const ItinerarySetupScreen({super.key});

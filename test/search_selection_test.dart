@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/repository/settings_repository.dart';
-import 'package:sightseeing_matching_app/screen/search/conditions_step_pages.dart';
+import 'package:sightseeing_matching_app/screen/shared/discovery/widgets/conditions_step_pages.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/search_selection_state.dart';
 import 'package:sightseeing_matching_app/state/settings_state.dart';

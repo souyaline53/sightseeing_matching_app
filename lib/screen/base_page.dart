@@ -1,15 +1,15 @@
+import 'home/home_screen.dart';
 import '../state/trip_library_state.dart';
 import '../data/catalog_data.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
 import 'profile/profile_home.dart';
-import 'home/home_screen.dart';
-import 'recommendation/swipe_home.dart';
+import 'bookmark/bookmark_home.dart';
+import 'swipe/swipe_home.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../state/app_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'recommendation/recommendation_home.dart';
 import 'itinerary/itinerary_home.dart';
 
 class BasePage extends HookConsumerWidget {
@@ -34,7 +34,7 @@ class BasePage extends HookConsumerWidget {
             if (active == null || active.stops.isEmpty) {
               ref.read(tripLibraryProvider.notifier).select(completed.first.id);
             }
-            ref.read(appTabProvider.notifier).select(AppTab.booklet);
+            ref.read(appTabProvider.notifier).select(AppTab.bookmark);
           }
         });
       }
@@ -72,9 +72,9 @@ class BasePage extends HookConsumerWidget {
       discoveryProvider.select((state) => state.step),
     );
     return PopScope(
-      canPop: tab != AppTab.recommendation.index || searchStep == 0,
+      canPop: tab != AppTab.home.index || searchStep == 0,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && tab == 0 && searchStep > 0) {
+        if (!didPop && tab == AppTab.home.index && searchStep > 0) {
           ref.read(discoveryProvider.notifier).back();
         }
       },
@@ -97,13 +97,13 @@ class BasePage extends HookConsumerWidget {
                 index: tab,
                 children: [
                   catalog.hasValue
-                      ? const RecommendationHome()
+                      ? const HomeScreen()
                       : const _CatalogNotice(),
                   catalog.hasValue && swipeOpened.value
                       ? const SwipeHome()
                       : const SizedBox.shrink(),
                   catalog.hasValue
-                      ? const HomeScreen()
+                      ? const BookmarkHome()
                       : const _CatalogNotice(),
                   catalog.hasValue
                       ? ItineraryHome(active: tab == AppTab.itinerary.index)
@@ -118,7 +118,7 @@ class BasePage extends HookConsumerWidget {
           selectedIndex: tab,
           onDestinationSelected: (value) {
             if (value == AppTab.swipe.index) swipeOpened.value = true;
-            if (value == AppTab.recommendation.index) {
+            if (value == AppTab.home.index) {
               ref.read(discoveryProvider.notifier).reset();
             }
             ref.read(appTabProvider.notifier).select(AppTab.values[value]);

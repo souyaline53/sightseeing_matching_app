@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/post.dart';
 import 'package:sightseeing_matching_app/service/post_media_picker.dart';
 import 'package:sightseeing_matching_app/state/posts_state.dart';
-import 'package:sightseeing_matching_app/screen/posts/widgets/post_card.dart';
-import 'package:sightseeing_matching_app/screen/recommendation/experience_detail.dart';
+import 'package:sightseeing_matching_app/screen/shared/posts/widgets/post_card.dart';
+import 'package:sightseeing_matching_app/screen/shared/experiences/experience_detail.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot;
 

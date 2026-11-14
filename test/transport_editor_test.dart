@@ -1,11 +1,11 @@
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_transport_sheet.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_transport_sheet.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
 import 'package:sightseeing_matching_app/model/transport_journey.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/plan_screen.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_map.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_spot_card.dart';
+import 'package:sightseeing_matching_app/screen/shared/trips/plan_screen.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_map.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_spot_card.dart';
 import 'dart:ui' show PointerDeviceKind;
 import 'dart:convert';
 import 'dart:io';

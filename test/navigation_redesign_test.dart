@@ -1,3 +1,5 @@
+import 'package:sightseeing_matching_app/screen/shared/experiences/places_catalog_screen.dart';
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,9 +7,9 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
-import 'package:sightseeing_matching_app/screen/home/discovery_home.dart';
+import 'package:sightseeing_matching_app/screen/home/home_overview.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
-import 'package:sightseeing_matching_app/screen/recommendation/experience_deck.dart';
+import 'package:sightseeing_matching_app/screen/shared/experiences/widgets/experience_deck.dart';
 import 'package:sightseeing_matching_app/service/ai_matching_service.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/itinerary_setup_state.dart';
@@ -85,7 +87,7 @@ void main() {
             .map((d) => d.label),
         ['ホーム', 'スワイプ', '旅のしおり', '旅程作成', 'プロフィール'],
       );
-      expect(find.byType(DiscoveryHome), findsOneWidget);
+      expect(find.byType(HomeOverview), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
       final preview = find.byKey(ValueKey('place-card-${experiences[0].id}'));
       expect(tester.widget<InkWell>(preview).onTap, isNull);
@@ -221,7 +223,7 @@ void main() {
         findsOneWidget,
       );
       await tab(tester, 'ホーム');
-      expect(find.byType(DiscoveryHome), findsOneWidget);
+      expect(find.byType(HomeOverview), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

@@ -14,7 +14,7 @@ import 'package:sightseeing_matching_app/repository/transport_journey_repository
 import 'package:sightseeing_matching_app/repository/transport_repository.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/itinerary_spot_card.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_spot_card.dart';
 import 'package:sightseeing_matching_app/service/transport/itinerary_transport_options.dart';
 import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';

@@ -1,12 +1,13 @@
-import 'ai_trip_panel.dart';
+import '../../state/ai_trip_state.dart';
+import 'widgets/ai_trip_panel.dart';
 import '../../state/itinerary_navigation.dart';
 import '../../widgets/find_experiences_button.dart';
-import '../home/discovery_home.dart';
-import '../home/trips_drawer.dart';
+import '../../navigation/travel_navigation.dart';
+import '../shared/trips/trips_drawer.dart';
 import '../../repository/transport_journey_repository.dart';
 import '../../service/transport/itinerary_transport_options.dart';
-import 'itinerary_endpoint_card.dart';
-import 'plan_screen.dart';
+import 'widgets/itinerary_endpoint_card.dart';
+import '../shared/trips/plan_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -19,10 +20,10 @@ import '../../repository/transport_repository.dart';
 import '../../service/transport/transport_search.dart';
 import '../../state/trip_state.dart';
 import '../../state/trip_library_state.dart';
-import 'add_experience_button.dart';
-import 'itinerary_map.dart';
-import 'itinerary_spot_card.dart';
-import 'itinerary_transport_sheet.dart';
+import 'widgets/add_experience_button.dart';
+import 'widgets/itinerary_map.dart';
+import 'widgets/itinerary_spot_card.dart';
+import 'widgets/itinerary_transport_sheet.dart';
 
 class ItineraryEditor extends ConsumerStatefulWidget {
   final VoidCallback? onBack;

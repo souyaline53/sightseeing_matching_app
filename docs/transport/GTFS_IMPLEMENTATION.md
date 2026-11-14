@@ -270,7 +270,7 @@ transport_routing_state/manual [サーバー専用]
 
 `dart format .`、`flutter analyze`（指摘なし）、`flutter test`（119成功・6スキップ）、サーバーテスト34件、Firestore/Auth/Storageエミュレーター、Webビルド成功。500mちょうど／501m、座標不明、別事業者、徒歩時間不足、3回成功／4回拒否、乗換禁止、遠方への連鎖防止、座標変更と無効化によるキャッシュ更新、保存互換と推定表示を確認しました。
 
-追加・変更の中心は `functions/transport_nearby_stops.js`、`transport_routing_bundle.js`、`transport_router.js`、`transport_journey_api.js`、`transport_nearby_stops.test.js`、`benchmark_journeys.cjs`、`lib/model/stop_selection.dart`、`transport_journey.dart`、`lib/screen/itinerary/transport_journey_panel.dart`、管理画面の停留所グループ表示と関連テストです。Security Rulesの追加変更はありません。
+追加・変更の中心は `functions/transport_nearby_stops.js`、`transport_routing_bundle.js`、`transport_router.js`、`transport_journey_api.js`、`transport_nearby_stops.test.js`、`benchmark_journeys.cjs`、`lib/model/stop_selection.dart`、`transport_journey.dart`、`lib/screen/shared/transport/transport_journey_panel.dart`、管理画面の停留所グループ表示と関連テストです。Security Rulesの追加変更はありません。
 
 検索方式の参考: [Round-Based Public Transit Routing](https://www.microsoft.com/en-us/research/publication/round-based-public-transit-routing/)、ルール仕様: [GTFS Schedule transfers.txt](https://gtfs.org/documentation/schedule/reference/#transferstxt)。
 

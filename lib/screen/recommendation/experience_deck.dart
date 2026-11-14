@@ -1,3 +1,4 @@
+import '../../theme/app_theme.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -5,6 +6,7 @@ import '../../model/experience.dart';
 import '../../state/discovery_state.dart';
 import '../../state/experience_photos.dart';
 import '../../state/trip_state.dart';
+import '../../state/trip_library_state.dart';
 import '../../state/settings_state.dart';
 import '../../widgets/travel_photo.dart';
 import 'experience_detail.dart';
@@ -12,7 +14,12 @@ import '../search/search_filter_sheet.dart';
 import 'swipe_tips_animation.dart';
 
 class ExperienceDeck extends HookConsumerWidget {
-  const ExperienceDeck({super.key});
+  final bool random, addToTrip;
+  const ExperienceDeck({
+    super.key,
+    this.random = false,
+    this.addToTrip = false,
+  });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
@@ -27,13 +34,13 @@ class ExperienceDeck extends HookConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.auto_awesome, size: 27, color: Colors.greenAccent),
+                Icon(Icons.auto_awesome, size: 27, color: AppColors.accent),
                 SizedBox(width: 8),
                 Text('AIがあなたに合う体験を探しています…\nもう少しで完了します…'),
               ],
             ),
           ],
-        )
+        ),
       );
     }
     if (discovery.aiError != null || discovery.deck.isEmpty) {
@@ -43,14 +50,18 @@ class ExperienceDeck extends HookConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(discovery.aiError ?? '条件に合う推薦結果がありませんでした。'),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref
-                    .read(discoveryProvider.notifier)
-                    .showExplore(retry: true),
-                child: const Text('再試行'),
+              Text(
+                discovery.aiError ??
+                    (random ? '観光地がありません。' : '条件に合う推薦結果がありませんでした。'),
               ),
+              const SizedBox(height: 16),
+              if (!random)
+                FilledButton(
+                  onPressed: () => ref
+                      .read(discoveryProvider.notifier)
+                      .showExplore(retry: true),
+                  child: const Text('再試行'),
+                ),
             ],
           ),
         ),
@@ -78,6 +89,8 @@ class ExperienceDeck extends HookConsumerWidget {
         return _SwipeExperienceCards(
           key: ValueKey(discovery.deck.map((e) => e.id).join(',')),
           images: images,
+          random: random,
+          addToTrip: addToTrip,
         );
       },
     );
@@ -85,10 +98,11 @@ class ExperienceDeck extends HookConsumerWidget {
 }
 
 class _DeckCompletion extends HookConsumerWidget {
-  const _DeckCompletion();
+  final bool random;
+  const _DeckCompletion({this.random = false});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final trip = ref.watch(tripProvider);
+    final saved = ref.watch(savedExperiencesProvider);
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(28),
@@ -99,19 +113,17 @@ class _DeckCompletion extends HookConsumerWidget {
             const SizedBox(height: 20),
             const Text('すべての観光地を見終わりました', textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            Text(
-              '${trip.saved.length}件の体験を保存しました。\n「旅を組み立てる」から、自分だけの一日へ。',
-              textAlign: TextAlign.center,
-            ),
+            Text('${saved.length}件の観光地を保存しました', textAlign: TextAlign.center),
             const SizedBox(height: 20),
             TextButton(
               onPressed: () => ref.read(discoveryProvider.notifier).goTo(0),
               child: const Text('最初のカードに戻る'),
             ),
-            FilledButton(
-              onPressed: () => showSearchFilterSheet(context),
-              child: const Text('条件を変更して再検索'),
-            ),
+            if (!random)
+              FilledButton(
+                onPressed: () => showSearchFilterSheet(context),
+                child: const Text('条件を変更して再検索'),
+              ),
           ],
         ),
       ),
@@ -121,12 +133,19 @@ class _DeckCompletion extends HookConsumerWidget {
 
 class _SwipeExperienceCards extends HookConsumerWidget {
   final Map<String, ImageInfo?> images;
-  const _SwipeExperienceCards({super.key, required this.images});
+  final bool random, addToTrip;
+  const _SwipeExperienceCards({
+    super.key,
+    required this.images,
+    required this.random,
+    required this.addToTrip,
+  });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final discovery = ref.watch(discoveryProvider);
-    final trip = ref.watch(tripProvider);
+    final saved = ref.watch(savedExperiencesProvider);
     final settings = ref.watch(settingsProvider);
+    final trip = ref.watch(tripProvider);
     final tipsRequested = useRef(false);
     final pages = usePageController(initialPage: discovery.index);
     useEffect(() {
@@ -169,8 +188,22 @@ class _SwipeExperienceCards extends HookConsumerWidget {
             : RawImage(image: image.image, fit: BoxFit.cover),
         number: '${index + 1} / ${discovery.deck.length}',
         reason: discovery.recommendationReasons[e.id] ?? '',
-        saved: trip.contains(e),
-        onSave: () => ref.read(tripProvider.notifier).toggle(e),
+        heading: random ? '今日の偶然な発見' : 'あなたへのおすすめ',
+        saved: addToTrip
+            ? trip.stops.any((spot) => spot.id == e.id)
+            : saved.any((spot) => spot.id == e.id),
+        onSave: () {
+          if (addToTrip) {
+            final notifier = ref.read(tripProvider.notifier);
+            if (trip.stops.any((spot) => spot.id == e.id)) {
+              notifier.removeStop(e);
+            } else {
+              notifier.save(e);
+            }
+          } else {
+            ref.read(tripLibraryProvider.notifier).toggleExperience(e);
+          }
+        },
         onSkip: () => next(index),
       );
     }
@@ -182,7 +215,9 @@ class _SwipeExperienceCards extends HookConsumerWidget {
       onPageChanged: (index) =>
           ref.read(discoveryProvider.notifier).goTo(index),
       itemBuilder: (context, index) {
-        if (index == discovery.deck.length) return const _DeckCompletion();
+        if (index == discovery.deck.length) {
+          return _DeckCompletion(random: random);
+        }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: ClipRRect(
@@ -223,7 +258,13 @@ class _SwipeExperienceCards extends HookConsumerWidget {
               ),
               resizeDuration: null,
               confirmDismiss: (_) async {
-                ref.read(tripProvider.notifier).save(discovery.deck[index]);
+                if (addToTrip) {
+                  ref.read(tripProvider.notifier).save(discovery.deck[index]);
+                } else {
+                  ref
+                      .read(tripLibraryProvider.notifier)
+                      .saveExperience(discovery.deck[index]);
+                }
                 pages.jumpToPage(index + 1);
                 // Keep the page available when swiping back to this saved card.
                 return false;
@@ -243,12 +284,14 @@ class _ExperienceCard extends HookConsumerWidget {
   final String number;
   final bool saved;
   final String reason;
+  final String heading;
   final VoidCallback onSave, onSkip;
   const _ExperienceCard({
     required this.experience,
     required this.photo,
     required this.number,
     required this.reason,
+    required this.heading,
     required this.saved,
     required this.onSave,
     required this.onSkip,
@@ -281,7 +324,7 @@ class _ExperienceCard extends HookConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'あなたへのおすすめ',
+                      heading,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -345,11 +388,14 @@ class _ExperienceCard extends HookConsumerWidget {
                     onPressed: onSkip,
                     icon: const Icon(Icons.arrow_forward, color: Colors.white),
                   ),
-                  TextButton(
-                    onPressed: () => showExperience(context, experience),
-                    child: const Text(
-                      '詳しく見る',
-                      style: TextStyle(color: Colors.white),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => showExperience(context, experience),
+                      child: const Text(
+                        '詳しく見る',
+                        style: TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                   IconButton.filled(

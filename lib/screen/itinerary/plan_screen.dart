@@ -1,3 +1,4 @@
+import '../../theme/app_theme.dart';
 import '../../model/ai_trip_segment.dart';
 import 'ai_transport_card.dart';
 import '../../state/itinerary_navigation.dart';
@@ -149,8 +150,8 @@ class PlanScreen extends HookConsumerWidget {
       floatingActionButton: demo
           ? null
           : FloatingActionButton.extended(
-              backgroundColor: const Color(0xffa7f3d8),
-              foregroundColor: _green,
+              backgroundColor: AppColors.soft,
+              foregroundColor: _accent,
               elevation: 3,
               onPressed: editPlan,
               icon: const Icon(Icons.route_outlined),
@@ -290,7 +291,7 @@ class PlanScreen extends HookConsumerWidget {
                 ),
                 _TimelineRow(
                   label: '${i + 1}',
-                  child: _MintCard(
+                  child: _TripCard(
                     onTap: () => showExperience(context, stops[i]),
                     child: Padding(
                       padding: const EdgeInsets.all(14),
@@ -328,7 +329,7 @@ class PlanScreen extends HookConsumerWidget {
                                       vertical: 3,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xffdcefe8),
+                                      color: AppColors.softSurface,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
@@ -390,8 +391,8 @@ class PlanScreen extends HookConsumerWidget {
   }
 }
 
-const _green = Color(0xff006743);
-const _muted = Color(0xff56615f);
+const _accent = AppColors.primary;
+const _muted = AppColors.muted;
 
 class _PlanSegment {
   final Experience from, to;
@@ -524,7 +525,7 @@ class _SegmentRow extends StatelessWidget {
                   : publicTransport
                   ? Icons.directions_bus_outlined
                   : Icons.directions_car_outlined,
-              color: missing ? const Color(0xffdd5b14) : _green,
+              color: missing ? const Color(0xffdd5b14) : _accent,
               size: 26,
             ),
             const SizedBox(width: 10),
@@ -598,7 +599,7 @@ class _SegmentRow extends StatelessWidget {
                             }
                           },
                     style: TextButton.styleFrom(
-                      foregroundColor: _green,
+                      foregroundColor: _accent,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 0,
                         vertical: 6,
@@ -618,7 +619,7 @@ class _SegmentRow extends StatelessWidget {
               IconButton(
                 tooltip: '交通を選択',
                 onPressed: onChoose,
-                icon: const Icon(Icons.chevron_right, color: _green),
+                icon: const Icon(Icons.chevron_right, color: _accent),
               ),
             if (s.selection != null && !s.walking)
               const Icon(Icons.expand_more, color: _muted, size: 18),
@@ -629,10 +630,10 @@ class _SegmentRow extends StatelessWidget {
   }
 }
 
-class _MintCard extends StatelessWidget {
+class _TripCard extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
-  const _MintCard({required this.child, this.onTap});
+  const _TripCard({required this.child, this.onTap});
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
@@ -640,12 +641,12 @@ class _MintCard extends StatelessWidget {
     child: Ink(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xffeaf6f0), Color(0xffeef7f6)],
+          colors: [AppColors.softSurface, AppColors.surface],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12004934),
+            color: Color(0x12a64708),
             offset: Offset(0, 2),
             blurRadius: 3,
           ),
@@ -686,7 +687,7 @@ class _TimelineRow extends StatelessWidget {
                     : const VerticalDivider(
                         width: 2,
                         thickness: 1.5,
-                        color: Color(0xff38bc88),
+                        color: AppColors.accent,
                       ),
               ),
               if (label != null)
@@ -701,13 +702,13 @@ class _TimelineRow extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: first || last ? _green : const Color(0xffa9f1d7),
+                    color: first || last ? _accent : AppColors.soft,
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Text(
                     label!,
                     style: TextStyle(
-                      color: first || last ? Colors.white : _green,
+                      color: first || last ? Colors.white : _accent,
                       fontSize: first || last ? 12 : 21,
                       fontWeight: FontWeight.w800,
                     ),
@@ -719,10 +720,7 @@ class _TimelineRow extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xff38bc88),
-                      width: 2,
-                    ),
+                    border: Border.all(color: AppColors.accent, width: 2),
                   ),
                 ),
               Expanded(
@@ -731,7 +729,7 @@ class _TimelineRow extends StatelessWidget {
                     : const VerticalDivider(
                         width: 2,
                         thickness: 1.5,
-                        color: Color(0xff38bc88),
+                        color: AppColors.accent,
                       ),
               ),
             ],
@@ -762,7 +760,7 @@ class _EndpointCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
       color: Colors.white,
-      border: Border.all(color: const Color(0xffe0e6e3)),
+      border: Border.all(color: AppColors.border),
       borderRadius: BorderRadius.circular(14),
     ),
     child: Padding(
@@ -773,7 +771,7 @@ class _EndpointCard extends StatelessWidget {
             publicTransport
                 ? Icons.train_outlined
                 : Icons.directions_car_outlined,
-            color: _green,
+            color: _accent,
             size: 29,
           ),
           const SizedBox(width: 17),
@@ -822,9 +820,9 @@ class _ChooseTransport extends StatelessWidget {
   Widget build(BuildContext context) => OutlinedButton(
     onPressed: onTap,
     style: OutlinedButton.styleFrom(
-      foregroundColor: _green,
+      foregroundColor: _accent,
       backgroundColor: Colors.white,
-      side: const BorderSide(color: Color(0xffb6dfce)),
+      side: const BorderSide(color: AppColors.border),
       visualDensity: VisualDensity.compact,
     ),
     child: const Text('交通を選択 ›', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -853,7 +851,7 @@ class _LandscapePainter extends CustomPainter {
         ..close();
       canvas.drawPath(
         path,
-        Paint()..color = Color(0xffa8ebd1).withValues(alpha: .15 + i * .08),
+        Paint()..color = AppColors.accent.withValues(alpha: .15 + i * .08),
       );
     }
   }

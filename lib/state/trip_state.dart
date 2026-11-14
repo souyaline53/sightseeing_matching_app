@@ -4,6 +4,7 @@ import '../model/experience.dart';
 import '../model/search_settings.dart';
 import '../model/trip_plan.dart';
 import 'trip_library_state.dart';
+import 'itinerary_navigation.dart';
 export '../model/trip_plan.dart' show TripState;
 
 final tripProvider = NotifierProvider<TripNotifier, TripState>(
@@ -54,6 +55,7 @@ class TripNotifier extends Notifier<TripState> {
         ...state.ai,
         'status': 'completed',
         'result': result,
+        'resultRequestId': state.ai['requestId'],
         'enabled': canApply,
       },
     );
@@ -104,6 +106,27 @@ class TripNotifier extends Notifier<TripState> {
     if (plan == null) return;
     ref.read(tripLibraryProvider.notifier).select(id);
     state = plan;
+    ref.read(itineraryEditorProvider.notifier).open();
+  }
+
+  void createItinerary({
+    required SearchConditions conditions,
+    required String destination,
+    required int departureMinutes,
+    required List<Experience> stops,
+  }) {
+    if (stops.isEmpty) return;
+    _commit(
+      TripState(
+        conditions: conditions,
+        destination: destination,
+        travelDate: conditions.resolveDate(),
+        departureMinutes: departureMinutes,
+        saved: stops,
+        stops: stops,
+      ),
+    );
+    ref.read(itineraryEditorProvider.notifier).open();
   }
 
   void applySearchFilters(SearchConditions filters) {
@@ -125,11 +148,14 @@ class TripNotifier extends Notifier<TripState> {
   }
 
   void save(Experience e) {
-    if (!state.contains(e)) {
+    ref.read(tripLibraryProvider.notifier).saveExperience(e);
+    if (!state.contains(e) || !state.stops.any((spot) => spot.id == e.id)) {
       _commit(
         state.copyWith(
-          saved: [...state.saved, e],
-          stops: state.stops.contains(e) ? state.stops : [...state.stops, e],
+          saved: state.contains(e) ? state.saved : [...state.saved, e],
+          stops: state.stops.any((spot) => spot.id == e.id)
+              ? state.stops
+              : [...state.stops, e],
         ),
       );
     }
@@ -149,7 +175,7 @@ class TripNotifier extends Notifier<TripState> {
   }
 
   void addStop(Experience e) {
-    if (!state.stops.contains(e)) {
+    if (!state.stops.any((spot) => spot.id == e.id)) {
       _commit(state.copyWith(stops: [...state.stops, e]));
     }
   }

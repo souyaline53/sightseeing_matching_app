@@ -3,25 +3,43 @@ import '../data/catalog_data.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
 import 'profile/profile_home.dart';
-import 'posts/posts_home.dart';
-import 'chat/chat_home.dart';
+import 'home/home_screen.dart';
+import 'recommendation/swipe_home.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../state/app_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import '../state/trip_state.dart';
 import 'recommendation/recommendation_home.dart';
 import 'itinerary/itinerary_home.dart';
-import 'preparing_page.dart';
 
 class BasePage extends HookConsumerWidget {
   const BasePage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chatOpened = useState(false);
+    final initialized = useRef(false);
+    final swipeOpened = useState(false);
     final settings = ref.watch(settingsProvider);
     final trips = ref.watch(tripLibraryProvider);
     final catalog = ref.watch(catalogProvider);
+    useEffect(() {
+      if (trips.hasValue && !initialized.value) {
+        initialized.value = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          final completed = trips.requireValue.plans.where(
+            (p) => p.stops.isNotEmpty,
+          );
+          if (completed.isNotEmpty) {
+            final active = trips.requireValue.activeTrip;
+            if (active == null || active.stops.isEmpty) {
+              ref.read(tripLibraryProvider.notifier).select(completed.first.id);
+            }
+            ref.read(appTabProvider.notifier).select(AppTab.booklet);
+          }
+        });
+      }
+      return null;
+    }, [trips.hasValue]);
     if (settings.isLoading || trips.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -48,14 +66,13 @@ class BasePage extends HookConsumerWidget {
         ),
       );
     }
-    final trip = ref.watch(tripProvider);
     final saveFailed = ref.watch(tripSaveErrorProvider);
     final tab = ref.watch(appTabProvider).index;
     final searchStep = ref.watch(
       discoveryProvider.select((state) => state.step),
     );
     return PopScope(
-      canPop: tab != 0 || searchStep == 0,
+      canPop: tab != AppTab.recommendation.index || searchStep == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && tab == 0 && searchStep > 0) {
           ref.read(discoveryProvider.notifier).back();
@@ -82,14 +99,15 @@ class BasePage extends HookConsumerWidget {
                   catalog.hasValue
                       ? const RecommendationHome()
                       : const _CatalogNotice(),
+                  catalog.hasValue && swipeOpened.value
+                      ? const SwipeHome()
+                      : const SizedBox.shrink(),
                   catalog.hasValue
-                      ? const ItineraryHome()
+                      ? const HomeScreen()
                       : const _CatalogNotice(),
-                  catalog.hasValue ? const PostsHome() : const _CatalogNotice(),
-                  /*chatOpened.value || tab == AppTab.chat.index
-                      ? const ChatHome()
-                      : const SizedBox.shrink(),*/
-                  const PreparingPage(),
+                  catalog.hasValue
+                      ? ItineraryHome(active: tab == AppTab.itinerary.index)
+                      : const _CatalogNotice(),
                   const ProfileHome(),
                 ],
               ),
@@ -99,7 +117,7 @@ class BasePage extends HookConsumerWidget {
         bottomNavigationBar: NavigationBar(
           selectedIndex: tab,
           onDestinationSelected: (value) {
-            if (value == AppTab.chat.index) chatOpened.value = true;
+            if (value == AppTab.swipe.index) swipeOpened.value = true;
             if (value == AppTab.recommendation.index) {
               ref.read(discoveryProvider.notifier).reset();
             }
@@ -111,23 +129,20 @@ class BasePage extends HookConsumerWidget {
               selectedIcon: Icon(Icons.home),
               label: 'ホーム',
             ),
-            NavigationDestination(
-              icon: Badge(
-                label: Text('${trip.saved.length}'),
-                isLabelVisible: trip.saved.isNotEmpty,
-                child: const Icon(Icons.route_outlined),
-              ),
+            const NavigationDestination(
+              icon: Icon(Icons.style_outlined),
+              selectedIcon: Icon(Icons.style),
+              label: 'スワイプ',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.menu_book_outlined),
+              selectedIcon: Icon(Icons.menu_book),
+              label: '旅のしおり',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.route_outlined),
+              selectedIcon: Icon(Icons.route),
               label: '旅程作成',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.photo_library_outlined),
-              selectedIcon: Icon(Icons.photo_library),
-              label: '投稿',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline),
-              selectedIcon: Icon(Icons.chat_bubble),
-              label: 'チャット',
             ),
             const NavigationDestination(
               icon: Icon(Icons.person_outline),

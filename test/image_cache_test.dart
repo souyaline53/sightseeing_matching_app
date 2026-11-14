@@ -112,7 +112,7 @@ void main() {
     'all curiosity questions use icons and never mount image widgets',
     (tester) async {
       await boot(tester);
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       final flow = find.byType(CuriosityQuestionFlow);
       expect(

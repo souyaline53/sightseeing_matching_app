@@ -2,6 +2,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screen/base_page.dart';
+import 'theme/app_theme.dart';
 
 void main() => runApp(const ProviderScope(child: MyApp()));
 
@@ -14,35 +15,9 @@ class MyApp extends HookConsumerWidget {
     supportedLocales: const [Locale('ja')],
     localizationsDelegates: GlobalMaterialLocalizations.delegates,
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      fontFamily: 'NotoSansJP',
-      scaffoldBackgroundColor: const Color(0xfffafbf8),
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xff145c49),
-        primary: const Color(0xff145c49),
-      ),
-      appBarTheme: const AppBarTheme(
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: 'NotoSansJP',
-          fontSize: 26,
-          fontWeight: FontWeight.bold,
-          color: Color(0xff1a1c19),
-        ),
-        backgroundColor: Color(0xfffafbf8),
-      ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(minimumSize: const Size(48, 50)),
-      ),
-    ),
+    theme: buildAppTheme(),
     builder: (context, child) => ColoredBox(
-      color: const Color(0xffe6ece7),
+      color: const Color(0xfff1e3d5),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),

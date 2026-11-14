@@ -6,7 +6,8 @@ import '../data/catalog_data.dart';
 
 class TravelPhoto extends HookConsumerWidget {
   final Experience experience;
-  const TravelPhoto(this.experience, {super.key});
+  final Widget? placeholder;
+  const TravelPhoto(this.experience, {super.key, this.placeholder});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final current = ref
@@ -16,13 +17,14 @@ class TravelPhoto extends HookConsumerWidget {
         .where((item) => item.id == experience.id)
         .firstOrNull;
     final photo = current?.photo ?? experience.photo;
-    if (photo.isEmpty) return PhotoPlaceholder(experience);
+    if (photo.isEmpty) return placeholder ?? PhotoPlaceholder(experience);
     return Image(
       image: photoSource(photo),
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (_, error, stack) => PhotoPlaceholder(experience),
+      errorBuilder: (_, error, stack) =>
+          placeholder ?? PhotoPlaceholder(experience),
     );
   }
 }
@@ -32,17 +34,17 @@ class PhotoPlaceholder extends HookConsumerWidget {
   const PhotoPlaceholder(this.experience, {super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => Container(
-    color: const Color(0xffd9e7df),
+    color: Theme.of(context).colorScheme.primaryContainer,
     child: Center(
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.landscape_outlined,
               size: 52,
-              color: Color(0xff285c4b),
+              color: Theme.of(context).colorScheme.primary,
             ),
             Text(experience.area, maxLines: 1),
             const Text('風景のイメージ', style: TextStyle(fontSize: 11)),

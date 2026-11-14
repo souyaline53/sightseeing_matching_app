@@ -120,13 +120,13 @@ class _QuestionHeader extends HookConsumerWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       LinearProgressIndicator(
-        value: number / 3,
+        value: number / 7,
         minHeight: 4,
         borderRadius: BorderRadius.circular(4),
       ),
       const SizedBox(height: 18),
       Text(
-        'Q$number  /  3',
+        'Q$number  /  7',
         style: TextStyle(
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.bold,

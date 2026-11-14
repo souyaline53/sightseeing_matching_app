@@ -11,8 +11,13 @@ import 'widget_test.dart' show boot;
 
 Future<void> openPosts(WidgetTester tester) async {
   await tester.tap(
-    find.descendant(of: find.byType(NavigationBar), matching: find.text('投稿')),
+    find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text('旅のしおり'),
+    ),
   );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byTooltip('投稿'));
   await tester.pumpAndSettle();
 }
 

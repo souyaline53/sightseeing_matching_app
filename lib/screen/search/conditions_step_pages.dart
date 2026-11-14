@@ -10,13 +10,9 @@ import '../../state/conditions_step_state.dart';
 import '../../widgets/departure_map.dart';
 
 class _StepLayout extends HookConsumerWidget {
-  final String title, subtitle;
+  final String title;
   final List<Widget> children;
-  const _StepLayout({
-    required this.title,
-    required this.subtitle,
-    required this.children,
-  });
+  const _StepLayout({required this.title, required this.children});
   @override
   Widget build(BuildContext context, WidgetRef ref) => SingleChildScrollView(
     key: ValueKey(title),
@@ -30,13 +26,6 @@ class _StepLayout extends HookConsumerWidget {
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
             height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 24),
@@ -176,7 +165,6 @@ class DepartureStepPage extends HookConsumerWidget {
 
     return _StepLayout(
       title: 'どこから旅を始める？',
-      subtitle: '出発地をタップすると、移動手段の選択へ進みます。',
       children: [
         if (departures.isLoading) const LinearProgressIndicator(),
         if (departures.hasError) ...[
@@ -214,12 +202,11 @@ class DepartureStepPage extends HookConsumerWidget {
           ),
         ),
         const SizedBox(height: 20),
-        /*ExpansionTile(
+        ExpansionTile(
           key: const ValueKey('departure-map-dropdown'),
           initiallyExpanded: false,
           tilePadding: EdgeInsets.zero,
           title: const Text('地図から選ぶ'),
-          subtitle: const Text('ピンを選んだ後、下のボタンで確定します。'),
           onExpansionChanged: (expanded) => mapExpanded.value = expanded,
           children: [
             if (mapExpanded.value)
@@ -231,16 +218,11 @@ class DepartureStepPage extends HookConsumerWidget {
               ),
           ],
         ),
-        const SizedBox(height: 10),*/
+        const SizedBox(height: 10),
         Text(
           '${selections.contains(SearchSelection.origin) ? '選択中の出発地' : '出発地の初期値'}：${draft.origin.isEmpty ? '未選択' : draft.origin}',
           key: const ValueKey('selected-origin'),
           style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          '登録された住所・座標を表示しています。運行情報とは異なります。',
-          style: TextStyle(fontSize: 11),
         ),
       ],
     );
@@ -255,7 +237,6 @@ class TransportStepPage extends HookConsumerWidget {
     final selections = ref.watch(searchSelectionProvider);
     return _StepLayout(
       title: 'どうやって旅する？',
-      subtitle: 'いつもの移動手段でも、違う旅のかたちでも。',
       children: [
         for (final mode in TravelMode.values)
           Padding(
@@ -307,9 +288,31 @@ class TripLengthStepPage extends HookConsumerWidget {
     bool available(TripLength length) =>
         length == TripLength.halfDay || length == TripLength.day;
     return _StepLayout(
-      title: 'どのくらい旅する？',
-      subtitle: '旅行期間をタップして、出発日の選択へ。',
+      title: 'どんな旅にする？',
       children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final mode in TravelMode.values)
+              ChoiceChip(
+                key: ValueKey('travel-${mode.name}'),
+                label: Text(mode.label),
+                selected: draft.transport == mode,
+                onSelected: (_) {
+                  ref
+                      .read(searchSelectionProvider.notifier)
+                      .choose(SearchSelection.transport);
+                  ref
+                      .read(searchDraftProvider.notifier)
+                      .replace(
+                        ref.read(searchDraftProvider).copyWith(transport: mode),
+                      );
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
             spacing: 12,
@@ -336,7 +339,7 @@ class TripLengthStepPage extends HookConsumerWidget {
                         ? null
                         : () {
                             if (ref.read(discoveryProvider).step != 1 ||
-                                ref.read(conditionsStepProvider) != 2) {
+                                ref.read(conditionsStepProvider) != 1) {
                               return;
                             }
                             ref
@@ -351,7 +354,7 @@ class TripLengthStepPage extends HookConsumerWidget {
                                 );
                             ref
                                 .read(conditionsStepProvider.notifier)
-                                .nextFrom(2);
+                                .nextFrom(1);
                           },
                   ),
                 ),
@@ -371,7 +374,6 @@ class DepartureDateStepPage extends HookConsumerWidget {
     final today = DateUtils.dateOnly(DateTime.now());
     return _StepLayout(
       title: 'いつ出発する？',
-      subtitle: '出発日をタップすると次へ進みます。',
       children: [
         CalendarDatePicker(
           initialDate: draft.resolveDate().isBefore(today)
@@ -380,7 +382,7 @@ class DepartureDateStepPage extends HookConsumerWidget {
           firstDate: today,
           lastDate: DateTime(today.year + 5, 12, 31),
           onDateChanged: (date) {
-            if (ref.read(conditionsStepProvider) != 3) return;
+            if (ref.read(conditionsStepProvider) != 2) return;
             ref
                 .read(searchDraftProvider.notifier)
                 .replace(
@@ -391,7 +393,7 @@ class DepartureDateStepPage extends HookConsumerWidget {
             ref
                 .read(searchSelectionProvider.notifier)
                 .choose(SearchSelection.date);
-            ref.read(conditionsStepProvider.notifier).nextFrom(3);
+            ref.read(conditionsStepProvider.notifier).nextFrom(2);
           },
         ),
       ],
@@ -410,7 +412,6 @@ class CompanionStepPage extends HookConsumerWidget {
         .replace(change(ref.read(searchDraftProvider)));
     return _StepLayout(
       title: '誰と旅する？',
-      subtitle: '同行者を選んで、旅の条件を仕上げましょう。',
       children: [
         LayoutBuilder(
           builder: (context, constraints) => Wrap(

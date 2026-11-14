@@ -84,7 +84,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'STEP ${step + 1}/5',
+                        'Q${step + 4} / 7',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
@@ -92,7 +92,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: (step + 1) / 5,
+                        value: (step + 4) / 7,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
@@ -107,7 +107,6 @@ class SearchConditionsScreen extends HookConsumerWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 children: const [
                   DepartureStepPage(),
-                  TransportStepPage(),
                   TripLengthStepPage(),
                   DepartureDateStepPage(),
                   CompanionStepPage(),
@@ -147,25 +146,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                         child: const Text('この出発地にする'),
                       ),
                     ),
-                  if (step == 1)
-                    const Text(
-                      '移動手段をタップして、次へ進みます。',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  if (step == 2)
-                    const Text(
-                      '旅行期間をタップして、次へ進みます。',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  if (step == 4) ...[
-                    if (!companyChosen)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          '同行者を選択してください。',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
+                  if (step == 3) ...[
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(

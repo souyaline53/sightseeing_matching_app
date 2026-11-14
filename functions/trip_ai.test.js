@@ -32,14 +32,20 @@ test('duplicate and changed local IDs preserve server root and quota; alias cann
   assert.notEqual(other.tripId,tripId);
   assert.equal((await registerAiTrip({auth:{uid:'u'},data:{trip:trip(),rootId:other.tripId}},db)).tripId,tripId);
 });
-test('concurrent requests dispatch once and every later request returns saved full result',async()=>{
+test('concurrent requests dispatch once; retries return their result and new requests can regenerate',async()=>{
   const {db,tripId,ref} = await setup(); let calls=0;
   const options={run: async(...args)=>{calls++; return run(...args);}};
   const both=await Promise.allSettled([optimizeTripTransport(request(tripId),db,null,()=> 'test',options),optimizeTripTransport(request(tripId,'request-two'),db,null,()=> 'test',options)]);
   assert.equal(calls,1); assert(both.some(r=>r.status==='fulfilled'));
-  const cached=await optimizeTripTransport(request(tripId,'request-three'),db,null,()=>{throw Error('must not read');},{run:()=>assert.fail('no dispatch')});
+  const cached=await optimizeTripTransport(request(tripId,'request-one'),db,null,()=>{throw Error('must not read');},{run:()=>assert.fail('no dispatch')});
   assert.equal(cached.itinerary.status,'feasible'); assert.equal((await ref.get()).data().aiGenerationStatus,'completed');
   assert.equal(typeof (await ref.get()).data().aiResult,'string');
+  await optimizeTripTransport(request(tripId,'request-three'),db,null,()=> 'test',options);
+  assert.equal(calls,2);
+  assert.equal((await ref.get()).data().aiGenerationRequestId,'request-three');
+  // Replaying an older successful request must never dispatch again.
+  await optimizeTripTransport(request(tripId,'request-one'),db,null,()=>assert.fail('no key'),{run:()=>assert.fail('no dispatch')});
+  assert.equal(calls,2);
 });
 test('a timeout after dispatch remains uncertain and cannot be retried',async()=>{
   const {db,tripId,ref}=await setup();let calls=0;

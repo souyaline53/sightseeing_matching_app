@@ -13,8 +13,14 @@ import 'package:sightseeing_matching_app/model/travel_catalog.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/ai_trip_panel.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/itinerary_home.dart';
+import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
+import 'package:sightseeing_matching_app/state/itinerary_setup_state.dart';
+import 'package:sightseeing_matching_app/widgets/departure_map.dart';
+import 'package:sightseeing_matching_app/model/transport_journey.dart';
+import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
+import 'package:sightseeing_matching_app/repository/transport_repository.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/ai_transport_card.dart';
-import 'package:sightseeing_matching_app/screen/itinerary/plan_screen.dart';
 import 'package:sightseeing_matching_app/service/transport/ai_trip_repository.dart';
 import 'package:sightseeing_matching_app/service/transport/transport_itinerary_service.dart';
 import 'package:sightseeing_matching_app/state/experience_photos.dart';
@@ -98,7 +104,7 @@ class FakeAiRepository extends AiTripRepository {
   @override
   Future<Json> register(TripState trip) async => {
     'tripId': 'root',
-    'aiGenerationStatus': 'unused',
+    'aiGenerationStatus': trip.aiStatus == 'completed' ? 'completed' : 'unused',
   };
   @override
   Future<Json?> read(String id) async => {'aiGenerationStatus': 'failed'};
@@ -197,6 +203,14 @@ Future<ProviderContainer> scope(
   final c = ProviderContainer(
     overrides: [
       tripsRepositoryProvider.overrideWithValue(repo),
+      mapTilesEnabledProvider.overrideWithValue(false),
+      itineraryJourneysProvider.overrideWith(
+        (ref, key) async =>
+            JourneySearchResult({'journeys': [], 'warnings': []}),
+      ),
+      transportDataProvider.overrideWith(
+        (ref, key) async => TransportData([], [], [], [], []),
+      ),
       aiTripRepositoryProvider.overrideWithValue(FakeAiRepository()),
       departurePlacesProvider.overrideWith(
         (ref) => Stream.value(places ?? endpoints),
@@ -241,6 +255,65 @@ Future<void> panel(WidgetTester tester, ProviderContainer c) async {
 }
 
 void main() {
+  testWidgets(
+    'setup AI opens the existing editor and a completed itinerary can generate again',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final requests = <String>[];
+      final c = await scope(
+        initial(),
+        service: TransportItineraryService(
+          isAuthenticated: () async => true,
+          invoke: (input) async {
+            requests.add(input['requestId'] as String);
+            return generated();
+          },
+        ),
+      );
+      addTearDown(c.dispose);
+      c.read(itinerarySetupProvider.notifier).toggle('a');
+      c.read(itinerarySetupProvider.notifier).toggle('b');
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: const MaterialApp(home: ItineraryHome()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('setup-create-ai')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ItineraryEditor), findsOneWidget);
+      expect(find.byType(AiTripConditionsSheet), findsOneWidget);
+      expect(requests, isEmpty);
+      await tester.tap(find.text('AIで旅程を作成'));
+      await tester.pumpAndSettle();
+      expect(requests, hasLength(1));
+      expect(find.byType(PlanScreen), findsOneWidget);
+      expect(c.read(tripProvider).aiLocked, false);
+      final tripId = c.read(tripProvider).id;
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ai-create-trip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('AIで旅程を作成'));
+      await tester.pumpAndSettle();
+      expect(requests.toSet(), hasLength(2));
+      expect(c.read(tripProvider).id, tripId);
+      expect(c.read(tripProvider).aiStatus, 'completed');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('setup-create-manual')));
+      await tester.pumpAndSettle();
+      expect(find.byType(AiTripConditionsSheet), findsNothing);
+      expect(requests, hasLength(2));
+      expect(tester.takeException(), isNull);
+      await c.read(tripLibraryProvider.notifier).flush();
+    },
+  );
+
   test(
     'AI result and editable trip persist separately; order, time, destination and stays invalidate routes',
     () {
@@ -249,7 +322,7 @@ void main() {
         jsonDecode(jsonEncode(trip.toJson())) as Json,
       );
       expect(restored.aiProposalValid, true);
-      expect(restored.aiLocked, true);
+      expect(restored.aiLocked, false);
       for (final t in [
         restored.copyWith(stops: [a, b]),
         restored.copyWith(stayMinutes: {'a': 99}),
@@ -397,7 +470,7 @@ void main() {
     },
   );
   testWidgets(
-    'completed or quota-blocked button is an outlined disabled button with no explanation',
+    'completed trips can regenerate; quota-blocked trips remain disabled',
     (tester) async {
       for (final state in [
         {'status': 'completed'},
@@ -416,7 +489,7 @@ void main() {
                 find.byKey(const ValueKey('ai-create-trip')),
               )
               .onPressed,
-          isNull,
+          state['status'] == 'completed' ? isNotNull : isNull,
         );
         expect(find.textContaining('観光地の順番と'), findsNothing);
         expect(find.text('AI提案を採用'), findsNothing);

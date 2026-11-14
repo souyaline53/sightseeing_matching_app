@@ -1,3 +1,4 @@
+import '../theme/app_theme.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -53,7 +54,7 @@ class DepartureMap extends HookConsumerWidget {
                 initialZoom: 13,
                 minZoom: 5,
                 maxZoom: 17,
-                backgroundColor: const Color(0xffe4ece4),
+                backgroundColor: AppColors.softSurface,
                 onMapReady: () => ready.value = true,
               ),
               children: [
@@ -93,8 +94,10 @@ class DepartureMap extends HookConsumerWidget {
                             color: !isDepartureSelectable(p.name)
                                 ? Colors.grey
                                 : highlightSelected && p.name == selected
-                                ? const Color(0xff145c49)
-                                : Colors.blueGrey,
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                             size: highlightSelected && p.name == selected
                                 ? 40
                                 : 32,

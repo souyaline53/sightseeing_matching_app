@@ -1,4 +1,6 @@
-import '../../widgets/find_experiences_button.dart';
+import '../../widgets/trip_from_saved_button.dart';
+import '../chat/chat_home.dart';
+import '../posts/posts_home.dart';
 import '../../data/catalog_data.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -6,28 +8,22 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../model/search_settings.dart';
 import '../../state/app_tab.dart';
-import '../../state/discovery_state.dart';
-import '../../state/settings_state.dart';
 import '../../state/trip_library_state.dart';
 import '../../state/trip_state.dart';
 import '../../widgets/travel_photo.dart';
 import '../itinerary/itinerary_home.dart';
 import 'trips_drawer.dart';
 import 'home_experience_gallery.dart';
+import 'discovery_home.dart';
 
 class HomeScreen extends HookConsumerWidget {
   const HomeScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(tripLibraryProvider).requireValue;
-    final settings = ref.watch(settingsProvider).requireValue;
-    final trip = library.activeTrip;
-    void search() {
-      ref
-          .read(searchDraftProvider.notifier)
-          .replace(settings.profile.defaults());
-      ref.read(discoveryProvider.notifier).beginSearch();
-    }
+    final active = library.activeTrip;
+    final trip = active != null && active.stops.isNotEmpty ? active : null;
+    void search() => beginInterestSearch(ref);
 
     void edit() {
       if (trip == null) return;
@@ -61,8 +57,24 @@ class HomeScreen extends HookConsumerWidget {
             icon: const Icon(Icons.menu),
           ),
         ),
-        title: const Text('ホーム'),
-        actions: [if (trip != null) TripActionsMenu(trip: trip)],
+        title: const FittedBox(fit: BoxFit.scaleDown, child: Text('旅のしおり')),
+        actions: [
+          IconButton(
+            tooltip: 'チャット',
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const ChatHome())),
+            icon: const Icon(Icons.chat_bubble_outline, size: 21),
+          ),
+          IconButton(
+            tooltip: '投稿',
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const PostsHome())),
+            icon: const Icon(Icons.edit_square, size: 21),
+          ),
+          if (trip != null) TripActionsMenu(trip: trip),
+        ],
       ),
       drawer: TripsDrawer(onNewTrip: search),
       body: SafeArea(
@@ -165,7 +177,7 @@ class _EmptyHome extends HookConsumerWidget {
                         ),
                         const SizedBox(height: 20),
                         const Text(
-                          'まだ旅行の予定はありません',
+                          'まだ旅のしおりがありません',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 22,
@@ -175,7 +187,7 @@ class _EmptyHome extends HookConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          '体験を保存すると、旅程の作成ができます。',
+                          '気になる観光地から旅を作りましょう。',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: colors.onSurfaceVariant,
@@ -183,7 +195,21 @@ class _EmptyHome extends HookConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 28),
-                        FindExperiencesButton(onPressed: onSearch),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ref.watch(savedExperiencesProvider).isEmpty
+                              ? FilledButton.icon(
+                                  onPressed: onSearch,
+                                  icon: const Icon(Icons.travel_explore),
+                                  label: const Text('Step1. 興味から旅行を作る'),
+                                )
+                              : FilledButton.icon(
+                                  onPressed: () =>
+                                      openItinerarySetup(context, ref),
+                                  icon: const Icon(Icons.route_outlined),
+                                  label: const Text('Step2. 交通を選んで旅程を完成'),
+                                ),
+                        ),
                       ],
                     ),
                   ),

@@ -1,6 +1,7 @@
 import '../service/transport/ai_trip_repository.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../model/trip_plan.dart';
+import '../model/experience.dart';
 import '../repository/trips_repository.dart';
 
 final tripsRepositoryProvider = Provider<TripsRepository>(
@@ -10,6 +11,11 @@ final tripLibraryProvider =
     AsyncNotifierProvider<TripLibraryNotifier, TripLibrary>(
       TripLibraryNotifier.new,
     );
+
+/// Favorites belong to the library, independently of any completed itinerary.
+final savedExperiencesProvider = Provider<List<Experience>>(
+  (ref) => ref.watch(tripLibraryProvider).value?.savedSpots ?? const [],
+);
 final tripSaveErrorProvider = NotifierProvider<TripSaveErrorNotifier, bool>(
   TripSaveErrorNotifier.new,
 );
@@ -32,25 +38,65 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
       for (final p in library.plans) p.id == plan.id ? plan : p,
       if (!exists) plan,
     ];
-    _replace(TripLibrary(plans: plans, activeId: plan.id));
+    _replace(
+      TripLibrary(
+        plans: plans,
+        activeId: plan.id,
+        savedSpots: library.savedSpots,
+      ),
+    );
+  }
+
+  void saveExperience(Experience spot) {
+    final library = state.requireValue;
+    if (library.savedSpots.any((e) => e.id == spot.id)) return;
+    _setSaved([...library.savedSpots, spot]);
+  }
+
+  void toggleExperience(Experience spot) {
+    final saved = state.requireValue.savedSpots;
+    _setSaved(
+      saved.any((e) => e.id == spot.id)
+          ? saved.where((e) => e.id != spot.id).toList()
+          : [...saved, spot],
+    );
+  }
+
+  void _setSaved(List<Experience> saved) {
+    final library = state.requireValue;
+    _replace(
+      TripLibrary(
+        plans: library.plans,
+        activeId: library.activeId,
+        savedSpots: saved,
+      ),
+      saveActive: false,
+    );
   }
 
   void select(String id) {
     final library = state.requireValue;
     if (!library.plans.any((p) => p.id == id)) return;
-    _replace(TripLibrary(plans: library.plans, activeId: id));
+    _replace(
+      TripLibrary(
+        plans: library.plans,
+        activeId: id,
+        savedSpots: library.savedSpots,
+      ),
+    );
   }
 
   void delete(String id) {
     final library = state.requireValue;
     final remaining = library.plans.where((p) => p.id != id).toList();
     if (remaining.isEmpty) {
-      _replace(TripLibrary.empty());
+      _replace(TripLibrary(plans: [], savedSpots: library.savedSpots));
       return;
     }
     _replace(
       TripLibrary(
         plans: remaining,
+        savedSpots: library.savedSpots,
         activeId: library.activeId == id
             ? TripLibrary.fallback(remaining)?.id
             : library.activeId,
@@ -69,6 +115,7 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
             p.id == id ? p.copyWith(title: name) : p,
         ],
         activeId: library.activeId,
+        savedSpots: library.savedSpots,
       ),
     );
   }
@@ -90,14 +137,14 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
     upsert(TripState.fromJson(data));
   }
 
-  void _replace(TripLibrary next) {
+  void _replace(TripLibrary next, {bool saveActive = true}) {
     state = AsyncData(next);
-    _persist(next);
+    _persist(next, saveActive: saveActive);
   }
 
-  void _persist(TripLibrary next) {
+  void _persist(TripLibrary next, {bool saveActive = true}) {
     _writes = _writes
-        .then((_) => _save(next))
+        .then((_) => _save(next, saveActive: saveActive))
         .then(
           (_) {
             if (ref.mounted) {
@@ -112,10 +159,10 @@ class TripLibraryNotifier extends AsyncNotifier<TripLibrary> {
         );
   }
 
-  Future<void> _save(TripLibrary next) async {
+  Future<void> _save(TripLibrary next, {bool saveActive = true}) async {
     await ref.read(tripsRepositoryProvider).save(next);
     final active = next.activeTrip;
-    if (active != null && active.ai['rootId'] != null) {
+    if (saveActive && active != null && active.ai['rootId'] != null) {
       await ref.read(aiTripRepositoryProvider).save(active);
     }
   }

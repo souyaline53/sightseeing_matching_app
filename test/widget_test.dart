@@ -21,6 +21,8 @@ import 'package:sightseeing_matching_app/state/settings_state.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/experience_photos.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
+import 'package:sightseeing_matching_app/state/itinerary_setup_state.dart';
+import 'package:sightseeing_matching_app/screen/recommendation/experience_deck.dart';
 import 'package:sightseeing_matching_app/service/curiosity_questions.dart';
 import 'test_support.dart';
 import 'package:sightseeing_matching_app/state/account_state.dart';
@@ -184,7 +186,7 @@ void main() {
     (tester) async {
       final container = await boot(tester);
       expect(find.text('前回の条件で探す'), findsNothing);
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('mood-food')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('mood-food')));
@@ -202,33 +204,28 @@ void main() {
       expect(find.text('どこから旅を始める？'), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
       expect(container.read(settingsProvider).requireValue.lastSearch, isNull);
-      await enterDetails(tester, length: 'overnight');
+      await enterDetails(tester, length: 'day');
       await tester.pumpAndSettle();
       await tester.tap(find.text('この条件で探す'));
       await tester.pumpAndSettle();
       final last = container.read(settingsProvider).requireValue.lastSearch!;
       expect(last.conditions.origin, '小樽駅');
       expect(last.conditions.transport, TravelMode.car);
-      expect(last.conditions.length, TripLength.overnight);
+      expect(last.conditions.length, TripLength.day);
       expect(last.searchedAt.isUtc, isTrue);
       expect(
-        container.read(tripProvider).travelDate,
+        container.read(itinerarySetupProvider).conditions.resolveDate(),
         DateUtils.dateOnly(DateTime.now()),
       );
       final initial = container.read(discoveryProvider).deck;
-      await tester.drag(
-        find.byKey(const ValueKey('experience-pages')),
-        const Offset(-350, 0),
+      expect(container.read(savedExperiencesProvider), isEmpty);
+      await tester.tap(
+        find.byKey(ValueKey('recommendation-save-${initial[0].id}')),
       );
       await tester.pumpAndSettle();
-      expect(container.read(tripProvider).saved, isEmpty);
-      await tester.drag(
-        find.byKey(const ValueKey('experience-pages')),
-        const Offset(0, -600),
+      await tester.tap(
+        find.byKey(ValueKey('recommended-place-${initial[1].id}')),
       );
-      await tester.pumpAndSettle();
-      expect(container.read(tripProvider).saved.single.id, initial[1].id);
-      await tester.longPress(find.text(initial[2].title));
       await tester.pumpAndSettle();
       expect(find.text('こんな一面も！'), findsOneWidget);
       await reveal(tester, find.text('この体験を保存'));
@@ -236,7 +233,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('閉じる'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, '旅を組み立てる'));
+      expect(container.read(tripLibraryProvider).requireValue.plans, isEmpty);
+      await tester.tap(find.text('保存した観光地で旅を作る'));
+      await tester.pumpAndSettle();
+      for (final spot in initial.take(2)) {
+        final checkbox = find.byKey(ValueKey('setup-spot-${spot.id}'));
+        await reveal(tester, checkbox);
+        await tester.tap(checkbox);
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.byKey(const ValueKey('setup-create-manual')));
       await tester.pumpAndSettle();
       final date = DateUtils.dateOnly(DateTime.now());
       expect(
@@ -285,7 +291,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('ホーム'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       await answerQuestions(tester);
       expect(container.read(searchDraftProvider).origin, '旭川駅');
@@ -380,7 +386,7 @@ void main() {
       );
       final container = await boot(tester, storage: storage);
       expect(find.text('前回の条件で探す'), findsNothing);
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('mood-food')), findsOneWidget);
       await answerQuestions(tester);
@@ -408,12 +414,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).step, 3);
       expect(
-        container.read(tripProvider).travelDate,
+        container.read(itinerarySetupProvider).conditions.resolveDate(),
         DateUtils.dateOnly(DateTime.now()),
       );
       container.read(discoveryProvider.notifier).reset();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       await answerQuestions(tester);
       expect(container.read(searchDraftProvider).origin, '旭川駅');
@@ -452,40 +458,42 @@ void main() {
         return ready.future;
       },
     );
-    final flow = container.read(discoveryProvider.notifier);
-    flow.startQuestions();
-    flow.selectMood(0);
-    flow.answer(0);
-    flow.answer(0);
-    flow.showExplore();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('スワイプ'),
+      ),
+    );
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     ready.complete({});
     await tester.pumpAndSettle();
+    final scope = ProviderScope.containerOf(
+      tester.element(find.byType(ExperienceDeck)),
+    );
     await tester.drag(
       find.byKey(const ValueKey('experience-pages')),
       const Offset(-350, 0),
     );
     await tester.pumpAndSettle();
-    expect(container.read(discoveryProvider).index, 1);
+    expect(scope.read(discoveryProvider).index, 1);
     await tester.drag(
       find.byKey(const ValueKey('experience-pages')),
       const Offset(350, 0),
     );
     await tester.pumpAndSettle();
-    expect(container.read(discoveryProvider).index, 0);
-    expect(container.read(tripProvider).saved, isEmpty);
-    final experience = container
-        .read(discoveryProvider)
-        .deck[container.read(discoveryProvider).index];
+    expect(scope.read(discoveryProvider).index, 0);
+    expect(container.read(savedExperiencesProvider), isEmpty);
+    final experience = scope.read(discoveryProvider).deck.first;
     await tester.drag(
       find.byKey(const ValueKey('experience-pages')),
       const Offset(0, -600),
     );
     await tester.pumpAndSettle();
-    expect(container.read(tripProvider).saved.map((e) => e.id), [
+    expect(container.read(savedExperiencesProvider).map((e) => e.id), [
       experience.id,
     ]);
+    expect(container.read(tripLibraryProvider).requireValue.plans, isEmpty);
     expect(loads, 1);
     expect(tester.takeException(), isNull);
   });

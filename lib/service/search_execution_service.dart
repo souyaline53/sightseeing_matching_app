@@ -2,7 +2,8 @@ import '../state/search_selection_state.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../state/settings_state.dart';
 import '../state/discovery_state.dart';
-import '../state/trip_state.dart';
+import '../state/trip_library_state.dart';
+import '../state/itinerary_setup_state.dart';
 import 'curiosity_questions.dart';
 
 final searchExecutionProvider = Provider((ref) => SearchExecutionService(ref));
@@ -30,8 +31,11 @@ class SearchExecutionService {
           .read(settingsProvider.notifier)
           .saveSearch(filters, presetName: presetName);
       ref.read(searchDraftProvider.notifier).replace(filters);
-      final savedIds = ref.read(tripProvider).saved.map((e) => e.id).toList();
-      ref.read(tripProvider.notifier).applySearchFilters(filters);
+      final savedIds = ref
+          .read(savedExperiencesProvider)
+          .map((e) => e.id)
+          .toList();
+      ref.read(itinerarySetupProvider.notifier).applySearch(filters);
       await ref
           .read(discoveryProvider.notifier)
           .showExplore(savedSpotIds: savedIds);

@@ -1,3 +1,4 @@
+import '../../theme/app_theme.dart';
 import '../../service/transport/transport_itinerary_service.dart';
 import '../../model/ai_trip_draft.dart';
 import '../../model/ai_trip_segment.dart';
@@ -21,6 +22,7 @@ class AiSetupIntent extends Notifier<int> {
   @override
   int build() => 0;
   void open() => state++;
+  void clear() => state = 0;
 }
 
 final aiRestoreIntentProvider = NotifierProvider<AiSetupIntent, int>(
@@ -101,6 +103,7 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
           ...saved.ai,
           'rootId': record['rootId'],
           'status': record['aiGenerationStatus'],
+          'requestId': record['aiGenerationRequestId'],
         },
       );
       ref.read(tripLibraryProvider.notifier).upsert(trip);
@@ -161,7 +164,7 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
         notice('旅程が変更されました。条件を確認してから作成してください。');
         return;
       }
-      if (['completed', 'processing', 'uncertain'].contains(status)) {
+      if (['processing', 'uncertain'].contains(status)) {
         await refresh(root);
         return;
       }
@@ -268,7 +271,22 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
       return;
     }
     final trip = ref.read(tripProvider);
-    if (data['aiResult'] is Map && trip.ai['result'] == null) {
+    // A failed new attempt must not adopt the previous generation's result.
+    if (trip.ai['requestId'] != null &&
+        trip.ai['requestId'] != data['aiGenerationRequestId'] &&
+        trip.aiStatus != 'completed') {
+      final status =
+          ['processing', 'uncertain'].contains(data['aiGenerationStatus'])
+          ? data['aiGenerationStatus']
+          : 'failed';
+      if (trip.aiStatus == status) return;
+      ref.read(tripProvider.notifier).replaceAi({...trip.ai, 'status': status});
+      return;
+    }
+    if (data['aiResult'] is Map &&
+        data['aiGenerationStatus'] == 'completed' &&
+        (trip.ai['result'] == null ||
+            trip.ai['resultRequestId'] != data['aiGenerationRequestId'])) {
       ref
           .read(tripProvider.notifier)
           .acceptAi(
@@ -287,10 +305,14 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
   Widget build(BuildContext context) {
     final trip = ref.watch(tripProvider);
     final intent = ref.watch(aiSetupIntentProvider);
-    if (intent != seenIntent) {
+    if (intent != 0 && intent != seenIntent) {
       seenIntent = intent;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) generate();
+        if (mounted && ref.read(aiSetupIntentProvider) != 0) {
+          ref.read(aiSetupIntentProvider.notifier).clear();
+          seenIntent = 0;
+          generate();
+        }
       });
     }
     final restoreIntent = ref.watch(aiRestoreIntentProvider),
@@ -479,7 +501,7 @@ class _AiTripConditionsSheetState extends ConsumerState<AiTripConditionsSheet> {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xff66756d),
+              color: AppColors.muted,
             ),
           ),
         ),
@@ -487,7 +509,7 @@ class _AiTripConditionsSheetState extends ConsumerState<AiTripConditionsSheet> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: const Color(0xffe2e9e4)),
+            border: Border.all(color: AppColors.border),
             borderRadius: BorderRadius.circular(18),
           ),
           child: child,
@@ -599,7 +621,7 @@ class _AiTripConditionsSheetState extends ConsumerState<AiTripConditionsSheet> {
             ),
           ),
         ),
-        Container(width: 1, height: 24, color: const Color(0xffe2e9e4)),
+        Container(width: 1, height: 24, color: AppColors.border),
         Expanded(
           flex: 2,
           child: TextButton.icon(
@@ -617,7 +639,7 @@ class _AiTripConditionsSheetState extends ConsumerState<AiTripConditionsSheet> {
     return Container(
       height: MediaQuery.sizeOf(context).height * .91,
       decoration: const BoxDecoration(
-        color: Color(0xfff6f9f6),
+        color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -629,7 +651,7 @@ class _AiTripConditionsSheetState extends ConsumerState<AiTripConditionsSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xffcdd8d0),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -680,7 +702,7 @@ class _AiTripConditionsSheetState extends ConsumerState<AiTripConditionsSheet> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xff66756d),
+                            color: AppColors.muted,
                           ),
                         ),
                       ),

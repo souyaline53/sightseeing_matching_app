@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/service/ai_matching_service.dart';
 import 'package:sightseeing_matching_app/model/search_settings.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
-import 'package:sightseeing_matching_app/state/trip_state.dart';
+import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot;
 
@@ -97,7 +97,7 @@ void main() {
       controller.answer(0);
       final first = controller.showExplore(savedSpotIds: ['existing']);
       await tester.pump();
-      expect(find.text('あなたに合う体験を探しています…'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
       pending.completeError(StateError('do not expose internal detail'));
       await first;
       await tester.pumpAndSettle();
@@ -112,15 +112,22 @@ void main() {
         experiences[1].id,
         experiences[0].id,
       ]);
-      expect(find.text('Difyが選んだ最初の理由').hitTestable(), findsOneWidget);
-      await tester.tap(find.text('長押し・タップで詳しく').hitTestable());
+      expect(find.byType(PageView), findsNothing);
+      await tester.tap(
+        find.byKey(ValueKey('recommended-place-${experiences[1].id}')),
+      );
       await tester.pumpAndSettle();
       expect(find.text('こんな一面も！'), findsOneWidget);
       await tester.tap(find.byTooltip('閉じる'));
       await tester.pumpAndSettle();
-      await tester.drag(find.byType(Dismissible).first, const Offset(0, -600));
+      await tester.tap(
+        find.byKey(ValueKey('recommendation-save-${experiences[1].id}')),
+      );
       await tester.pumpAndSettle();
-      expect(container.read(tripProvider).saved.single.id, experiences[1].id);
+      expect(
+        container.read(savedExperiencesProvider).single.id,
+        experiences[1].id,
+      );
     },
   );
   testWidgets(

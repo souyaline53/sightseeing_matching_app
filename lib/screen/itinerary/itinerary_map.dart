@@ -1,3 +1,4 @@
+import '../../theme/app_theme.dart';
 import 'dart:math' as math;
 import 'itinerary_map_route.dart';
 import 'package:flutter/material.dart';
@@ -131,7 +132,7 @@ class _MapState extends ConsumerState<ItineraryMap> {
                 initialZoom: 12,
                 minZoom: 0,
                 maxZoom: 18,
-                backgroundColor: const Color(0xffe3ebe4),
+                backgroundColor: AppColors.softSurface,
               ),
               children: [
                 if (enabled)

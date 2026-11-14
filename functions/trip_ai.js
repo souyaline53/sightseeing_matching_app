@@ -29,7 +29,12 @@ async function registerAiTrip(request, db) {
       if (!snap.exists || snap.data().ownerUid !== uid) throw new HttpsError('permission-denied', '旅程を操作できません。');
       const data = snap.data();
       const recoverable = data.aiGenerationStatus === 'processing' && data.aiGenerationPhase === 'reserved' && Date.now() - data.aiGenerationStartedAt >= 600000;
-      if (recoverable) tx.update(doc(db, uid, root), { aiGenerationStatus: 'failed', aiGenerationPhase: 'expired_before_dispatch' });
+      if (recoverable || !['processing', 'uncertain'].includes(data.aiGenerationStatus)) {
+        tx.update(doc(db, uid, root), {
+          currentTrip: JSON.stringify(trip),
+          ...(recoverable ? { aiGenerationStatus: 'failed', aiGenerationPhase: 'expired_before_dispatch' } : {}),
+        });
+      }
       if (!previous.exists) tx.set(alias, { rootId: root, ownerUid: uid });
       return { tripId: root, aiGenerationStatus: recoverable ? 'failed' : data.aiGenerationStatus };
     }
@@ -44,7 +49,10 @@ async function optimizeTripTransport(request, db, bucket, getApiKey, options = {
   const ref = doc(db, uid, tripId);
   const initial = await ref.get();
   if (!initial.exists || initial.data().ownerUid !== uid) throw new HttpsError('permission-denied', '旅程を操作できません。');
-  if (initial.data().aiGenerationStatus === 'completed') return JSON.parse(initial.data().aiResult);
+  const generationRef = db.doc(`${ref.path}/generations/${requestId}`);
+  const previousGeneration = await generationRef.get();
+  if (previousGeneration.data()?.aiResult) return JSON.parse(previousGeneration.data().aiResult);
+  if (initial.data().aiGenerationStatus === 'completed' && initial.data().aiGenerationRequestId === requestId) return JSON.parse(initial.data().aiResult);
   if (initial.data().aiGenerationStatus === 'uncertain' || (initial.data().aiGenerationStatus === 'processing' && (initial.data().aiGenerationPhase !== 'reserved' || Date.now() - initial.data().aiGenerationStartedAt < 600000))) throw new HttpsError('already-exists', '処理中または結果確認待ちです。保存済み結果を確認してください。');
   // Generate using the existing GTFS builder when the UI sends input conditions.
   let transport = request.data.transport_data;
@@ -65,7 +73,9 @@ async function optimizeTripTransport(request, db, bucket, getApiKey, options = {
   const reservation = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref), data = snap.data();
     if (!data || data.ownerUid !== uid) throw new HttpsError('permission-denied', '旅程を操作できません。');
-    if (data.aiGenerationStatus === 'completed') return JSON.parse(data.aiResult);
+    const previous = await tx.get(generationRef);
+    if (previous.data()?.aiResult) return JSON.parse(previous.data().aiResult);
+    if (data.aiGenerationStatus === 'completed' && data.aiGenerationRequestId === requestId) return JSON.parse(data.aiResult);
     if (data.aiGenerationStatus === 'uncertain' || (data.aiGenerationStatus === 'processing' && (data.aiGenerationPhase !== 'reserved' || Date.now() - data.aiGenerationStartedAt < 600000))) throw new HttpsError('already-exists', '処理中または結果確認待ちです。再送信せず保存済み結果を確認してください。');
     if (JSON.stringify(JSON.parse(data.currentTrip).stops.map((s) => s.id).sort()) !== JSON.stringify(visits)) throw new HttpsError('aborted', '訪問先が変わりました。');
     const usage = (await tx.get(usageRef)).data()?.count ?? 0;
@@ -123,6 +133,7 @@ async function optimizeTripTransport(request, db, bucket, getApiKey, options = {
           date: network.date, departureSeconds: network.departureSeconds, deadlineSeconds: network.deadlineSeconds,
           places: network.places, modes: network.modes,
         }) });
+      tx.set(generationRef, { aiResult: JSON.stringify(result), createdAt: Date.now() });
     });
     console.info('aiTripGeneration', { outcome: 'completed', tripId, requestId });
     return result;

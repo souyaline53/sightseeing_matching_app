@@ -68,6 +68,8 @@ void main() {
         } else {
           await tester.tap(find.text('旅程作成'));
           await tester.pumpAndSettle();
+          await tester.tap(find.byTooltip('作成済みの旅程を編集'));
+          await tester.pumpAndSettle();
         }
         await tester.pumpAndSettle();
         expect(find.byType(ItineraryEditor), findsOneWidget);
@@ -129,24 +131,39 @@ void main() {
   }
 
   testWidgets(
-    'add button also opens cards after restart with no question answers or saved trip',
+    'setup creates a trip before the editor adds more experiences without questions',
     (tester) async {
       final container = await boot(tester);
+      container
+          .read(tripLibraryProvider.notifier)
+          .saveExperience(experiences.first);
       await tester.tap(find.text('旅程作成'));
+      await tester.pumpAndSettle();
+      final chosen = find.byKey(ValueKey('setup-spot-${experiences.first.id}'));
+      await reveal(tester, chosen);
+      await tester.tap(chosen);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('setup-create-manual')));
       await tester.pumpAndSettle();
       final button = find.widgetWithText(OutlinedButton, '体験を追加する');
       await reveal(tester, button);
       await tester.tap(button);
       await tester.pumpAndSettle();
       await showCoal(tester);
-      expect(container.read(tripLibraryProvider).requireValue.plans, isEmpty);
+      expect(
+        container.read(tripLibraryProvider).requireValue.plans,
+        hasLength(1),
+      );
       await tester.tap(find.byTooltip('体験を保存').hitTestable());
       await tester.pumpAndSettle();
       expect(
         container.read(tripLibraryProvider).requireValue.plans,
         hasLength(1),
       );
-      expect(container.read(tripProvider).stops.single.id, 'coal');
+      expect(container.read(tripProvider).stops.map((e) => e.id), [
+        'melon',
+        'coal',
+      ]);
       expect(container.read(discoveryProvider).step, 0);
       expect(tester.takeException(), isNull);
     },

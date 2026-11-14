@@ -2,7 +2,7 @@ import '../../data/catalog_data.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../../model/experience.dart';
-import '../../state/trip_state.dart';
+import '../../state/trip_library_state.dart';
 import '../../widgets/travel_photo.dart';
 import '../posts/spot_reviews.dart';
 
@@ -32,7 +32,9 @@ class ExperienceDetail extends HookConsumerWidget {
             .where((item) => item.id == this.experience.id)
             .firstOrNull ??
         this.experience;
-    final trip = ref.watch(tripProvider);
+    final saved = ref
+        .watch(savedExperiencesProvider)
+        .any((e) => e.id == experience.id);
     return Material(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       clipBehavior: Clip.antiAlias,
@@ -97,16 +99,12 @@ class ExperienceDetail extends HookConsumerWidget {
                         width: double.infinity,
                         child: FilledButton.icon(
                           onPressed: () => ref
-                              .read(tripProvider.notifier)
-                              .toggle(experience),
+                              .read(tripLibraryProvider.notifier)
+                              .toggleExperience(experience),
                           icon: Icon(
-                            trip.contains(experience)
-                                ? Icons.favorite
-                                : Icons.favorite_border,
+                            saved ? Icons.favorite : Icons.favorite_border,
                           ),
-                          label: Text(
-                            trip.contains(experience) ? '保存済み・解除する' : 'この体験を保存',
-                          ),
+                          label: Text(saved ? '保存済み・解除する' : 'この体験を保存'),
                         ),
                       ),
                       SpotReviews(spotId: experience.id),

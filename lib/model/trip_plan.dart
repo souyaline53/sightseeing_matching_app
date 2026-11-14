@@ -10,8 +10,7 @@ class TripState {
   bool get aiQuotaBlocked =>
       ai['blockedUntil'] is int &&
       (ai['blockedUntil'] as int) > DateTime.now().millisecondsSinceEpoch;
-  bool get aiLocked =>
-      ['processing', 'uncertain', 'completed'].contains(aiStatus);
+  bool get aiLocked => ['processing', 'uncertain'].contains(aiStatus);
   String get aiBasis => jsonEncode({
     'stops': stops.map((e) => e.id).toList(),
     'date': travelDate?.toIso8601String(),
@@ -196,12 +195,23 @@ typedef TripPlan = TripState;
 
 class TripLibrary {
   final List<TripState> plans;
+  final List<Experience> savedSpots;
   final String? activeId;
-  TripLibrary({required List<TripState> plans, String? activeId})
-    : plans = List.unmodifiable(plans),
-      activeId = plans.any((p) => p.id == activeId)
-          ? activeId
-          : fallback(plans)?.id;
+  TripLibrary({
+    required List<TripState> plans,
+    List<Experience>? savedSpots,
+    String? activeId,
+  }) : plans = List.unmodifiable(plans),
+       savedSpots = List.unmodifiable(
+         savedSpots ??
+             {
+               for (final plan in plans)
+                 for (final spot in plan.saved) spot.id: spot,
+             }.values,
+       ),
+       activeId = plans.any((p) => p.id == activeId)
+           ? activeId
+           : fallback(plans)?.id;
   factory TripLibrary.empty() => TripLibrary(plans: const []);
   TripState? get activeTrip => plans.where((p) => p.id == activeId).firstOrNull;
 
@@ -262,6 +272,9 @@ class TripLibrary {
   Map<String, dynamic> toJson() => {
     'version': 1,
     'activeId': activeId,
+    'savedSpots': savedSpots
+        .map((e) => e.toJson(includeVisitInfo: true))
+        .toList(),
     'plans': plans.map((p) => p.toJson()).toList(),
   };
   factory TripLibrary.fromJson(Map<String, dynamic> json) {
@@ -274,6 +287,12 @@ class TripLibrary {
     if (plans.map((p) => p.id).toSet().length != plans.length) {
       throw const FormatException('Duplicate trip ids');
     }
-    return TripLibrary(plans: plans, activeId: json['activeId'] as String?);
+    return TripLibrary(
+      plans: plans,
+      activeId: json['activeId'] as String?,
+      savedSpots: (json['savedSpots'] as List?)
+          ?.map((e) => Experience.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+    );
   }
 }

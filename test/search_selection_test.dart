@@ -32,7 +32,7 @@ void main() {
         ),
       );
       final container = await boot(tester, storage: storage);
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       expect(container.read(discoveryProvider).interests.moodSelected, isFalse);
       expect(
@@ -51,15 +51,16 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('origin-chip-札幌駅')));
       await tester.pumpAndSettle();
       expect(container.read(searchDraftProvider).transport, TravelMode.either);
-      expect(selectedCards(tester, TransportStepPage), isEmpty);
+      expect(find.byType(TripLengthStepPage), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('travel-car')));
       await tester.pumpAndSettle();
-      expect(selectedCards(tester, TripLengthStepPage), isEmpty);
+      expect(container.read(searchDraftProvider).transport, TravelMode.car);
       expect(
         tester
             .widgetList<ChoiceChip>(find.byType(ChoiceChip))
-            .every((chip) => !chip.selected),
-        isTrue,
+            .where((chip) => chip.selected)
+            .length,
+        1,
       );
       expect(container.read(searchDraftProvider).budget, 23000);
       await tester.tap(find.text('日帰り'));
@@ -100,16 +101,13 @@ void main() {
       expect(find.byType(CalendarDatePicker), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-      expect(selectedCards(tester, TripLengthStepPage).length, 1);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-      expect(selectedCards(tester, TransportStepPage).length, 1);
+      expect(selectedCards(tester, TripLengthStepPage).length, 2);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(selectedCards(tester, DepartureStepPage).length, 1);
       container.read(discoveryProvider.notifier).reset();
       await tester.pumpAndSettle();
-      await tester.tap(find.text('新しい旅を探す'));
+      await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
       expect(container.read(searchSelectionProvider), isEmpty);
       expect(container.read(discoveryProvider).interests.moodSelected, isFalse);

@@ -115,9 +115,11 @@ Future<void> openChatTab(WidgetTester tester) async {
   await tester.tap(
     find.descendant(
       of: find.byType(NavigationBar),
-      matching: find.text('チャット'),
+      matching: find.text('旅のしおり'),
     ),
   );
+  await tester.pumpAndSettle();
+  await tester.tap(find.byTooltip('チャット'));
   await tester.pumpAndSettle();
 }
 
@@ -155,7 +157,7 @@ void main() {
       await boot(tester);
       expect(find.byType(NavigationDestination), findsNWidgets(5));
       await openChatTab(tester);
-      expect(find.text('COMMUNITY'), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'チャット'), findsOneWidget);
       expect(find.text('ログインする'), findsOneWidget);
       expect(find.text('観光案内'), findsNothing);
       await tester.tap(find.text('ログインする'));

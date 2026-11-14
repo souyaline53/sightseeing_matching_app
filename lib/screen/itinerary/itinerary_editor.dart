@@ -1,9 +1,7 @@
 import 'ai_trip_panel.dart';
 import '../../state/itinerary_navigation.dart';
 import '../../widgets/find_experiences_button.dart';
-import '../../state/app_tab.dart';
-import '../../state/discovery_state.dart';
-import '../../state/settings_state.dart';
+import '../home/discovery_home.dart';
 import '../home/trips_drawer.dart';
 import '../../repository/transport_journey_repository.dart';
 import '../../service/transport/itinerary_transport_options.dart';
@@ -27,7 +25,8 @@ import 'itinerary_spot_card.dart';
 import 'itinerary_transport_sheet.dart';
 
 class ItineraryEditor extends ConsumerStatefulWidget {
-  const ItineraryEditor({super.key});
+  final VoidCallback? onBack;
+  const ItineraryEditor({super.key, this.onBack});
   @override
   ConsumerState<ItineraryEditor> createState() => _EditorState();
 }
@@ -70,12 +69,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     super.dispose();
   }
 
-  void _searchExperiences() {
-    final settings = ref.read(settingsProvider).requireValue;
-    ref.read(searchDraftProvider.notifier).replace(settings.profile.defaults());
-    ref.read(discoveryProvider.notifier).beginSearch();
-    ref.read(appTabProvider.notifier).select(AppTab.recommendation);
-  }
+  void _searchExperiences() => beginInterestSearch(ref);
 
   void _reorder(int from, int to) {
     if (to == from || to == from + 1) return;
@@ -431,13 +425,15 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        leading: Builder(
-          builder: (context) => IconButton(
-            tooltip: '旅の一覧を開く',
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            icon: const Icon(Icons.menu),
-          ),
-        ),
+        leading: widget.onBack != null
+            ? BackButton(onPressed: widget.onBack)
+            : Builder(
+                builder: (context) => IconButton(
+                  tooltip: '旅の一覧を開く',
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                  icon: const Icon(Icons.menu),
+                ),
+              ),
         title: const Text('旅程作成', style: TextStyle(fontSize: 22)),
         actions: isEmpty
             ? null

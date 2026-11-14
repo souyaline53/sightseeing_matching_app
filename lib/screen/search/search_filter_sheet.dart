@@ -1,3 +1,4 @@
+import '../../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -5,7 +6,7 @@ import '../../data/departure_places.dart';
 import '../../model/search_settings.dart';
 import '../../state/discovery_state.dart';
 import '../../state/settings_state.dart';
-import '../../state/trip_state.dart';
+import '../../state/itinerary_setup_state.dart';
 
 Future<void> showSearchFilterSheet(BuildContext context) {
   final container = ProviderScope.containerOf(context, listen: false);
@@ -52,8 +53,9 @@ class _SearchFilterSheet extends HookConsumerWidget {
       List<T> values,
       T selected,
       String Function(T) label,
-      ValueChanged<T> select,
-    ) => Wrap(
+      ValueChanged<T> select, {
+      bool Function(T)? enabled,
+    }) => Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
@@ -61,7 +63,9 @@ class _SearchFilterSheet extends HookConsumerWidget {
           ChoiceChip(
             label: Text(label(value)),
             selected: value == selected,
-            onSelected: (_) => select(value),
+            onSelected: enabled?.call(value) == false
+                ? null
+                : (_) => select(value),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -81,7 +85,7 @@ class _SearchFilterSheet extends HookConsumerWidget {
       try {
         await ref.read(settingsProvider.notifier).saveSearch(filters);
         ref.read(searchDraftProvider.notifier).replace(filters);
-        ref.read(tripProvider.notifier).updateSearchFilters(filters);
+        ref.read(itinerarySetupProvider.notifier).applySearch(filters);
         ref.read(discoveryProvider.notifier).showExplore();
         if (context.mounted) Navigator.pop(context);
       } catch (_) {
@@ -110,7 +114,7 @@ class _SearchFilterSheet extends HookConsumerWidget {
                           style: TextStyle(
                             fontSize: 10,
                             letterSpacing: 2,
-                            color: Color(0xff007f69),
+                            color: AppColors.primary,
                           ),
                         ),
                         SizedBox(height: 4),
@@ -191,8 +195,12 @@ class _SearchFilterSheet extends HookConsumerWidget {
                         choices(
                           TripLength.values,
                           draft.value.length,
-                          (v) => v.label,
+                          (v) => v == TripLength.halfDay || v == TripLength.day
+                              ? v.label
+                              : '${v.label}（対応予定）',
                           (v) => update(draft.value.copyWith(length: v)),
+                          enabled: (v) =>
+                              v == TripLength.halfDay || v == TripLength.day,
                         ),
                       ),
                       section(

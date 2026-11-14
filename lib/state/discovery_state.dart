@@ -6,7 +6,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../service/curiosity_questions.dart';
 import '../model/experience.dart';
 import '../service/ai_matching_service.dart';
-import 'trip_state.dart';
+import 'trip_library_state.dart';
 
 // step: home=0, conditions=1, questions=2, explore=3.
 class DiscoveryState {
@@ -166,7 +166,8 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
         : travelContext ??
               aiTravelContext(
                 ref.read(searchDraftProvider),
-                savedSpotIds ?? ref.read(tripProvider).saved.map((e) => e.id),
+                savedSpotIds ??
+                    ref.read(savedExperiencesProvider).map((e) => e.id),
               );
     _lastContext = context;
     state = state.copyWith(
@@ -187,10 +188,11 @@ class DiscoveryNotifier extends Notifier<DiscoveryState> {
       final catalog = await ref.read(catalogProvider.future);
       if (!ref.mounted || version != _requestVersion) return;
       final byId = {for (final e in catalog.experiences) e.id: e};
-      final deck = [
+      final deck = <String, Experience>{
         for (final result in results)
-          if (byId.containsKey(result.spotId)) byId[result.spotId]!,
-      ];
+          if (byId.containsKey(result.spotId))
+            result.spotId: byId[result.spotId]!,
+      }.values.take(10).toList();
       if (results.isNotEmpty && deck.isEmpty) {
         throw StateError('推薦先のデータがありません。');
       }

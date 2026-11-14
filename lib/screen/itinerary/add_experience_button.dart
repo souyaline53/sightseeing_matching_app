@@ -5,6 +5,7 @@ import '../../service/ai_matching_service.dart';
 import '../../state/discovery_state.dart';
 import '../../state/additional_discovery_cache.dart';
 import '../../state/trip_state.dart';
+import '../../state/trip_library_state.dart';
 import '../recommendation/experience_deck.dart';
 
 class AddExperienceButton extends HookConsumerWidget {
@@ -36,7 +37,7 @@ class AddExperienceButton extends HookConsumerWidget {
                 travelContext: {
                   ...aiTravelContext(
                     trip.conditions,
-                    trip.saved.map((e) => e.id),
+                    ref.read(savedExperiencesProvider).map((e) => e.id),
                   ),
                   if (travelDate != null)
                     'visitDate':
@@ -87,7 +88,7 @@ class _AdditionalExperiences extends HookConsumerWidget {
     final count = ref.watch(tripProvider.select((trip) => trip.stops.length));
     return Scaffold(
       appBar: AppBar(title: const Text('体験を追加する')),
-      body: const SafeArea(top: false, child: ExperienceDeck()),
+      body: const SafeArea(top: false, child: ExperienceDeck(addToTrip: true)),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),

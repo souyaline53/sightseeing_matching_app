@@ -311,8 +311,13 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
             ),
           const SizedBox(height: 24),
           const Text(
-            '保存した観光地から選ぶ',
+            '保存した観光地から行き先を選ぶ',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '行き先にチェックを入れて、旅程作成画面に進みます',
+            style: TextStyle(fontSize: 11),
           ),
           const SizedBox(height: 12),
           if (saved.isEmpty)
@@ -354,38 +359,36 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: selected == 0
-          ? null
-          : SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      key: const ValueKey('setup-create-manual'),
-                      onPressed: () => create(ai: false),
-                      child: const Text('旅程を作成'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      key: const ValueKey('setup-create-ai'),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(48, 50),
-                      ),
-                      onPressed: () => create(ai: true),
-                      child: const Text(
-                        'AIで旅を組み立てる\n(beta版)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ),
-                ],
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                key: const ValueKey('setup-create-manual'),
+                onPressed: selected == 0 ? null : () => create(ai: false),
+                child: const Text('旅程を作成'),
               ),
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                key: const ValueKey('setup-create-ai'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(48, 50),
+                ),
+                onPressed: selected == 0 ? null : () => create(ai: true),
+                child: const Text(
+                  'AIで旅を組み立てる\n(beta版)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

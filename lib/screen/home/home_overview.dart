@@ -57,7 +57,7 @@ class HomeOverview extends ConsumerWidget {
                 const SizedBox(width: 6),
                 const Expanded(
                   child: Text(
-                    'もっと見る',
+                    'おすすめの観光地',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -67,7 +67,7 @@ class HomeOverview extends ConsumerWidget {
                       builder: (_) => const PlacesCatalogScreen(),
                     ),
                   ),
-                  child: const Text('観光地一覧へ'),
+                  child: const Text('もっと見る'),
                 ),
               ],
             ),

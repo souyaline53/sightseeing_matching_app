@@ -51,7 +51,7 @@ class InterestSearchFlow extends HookConsumerWidget {
               padding: const EdgeInsets.only(right: 16),
               child: Center(
                 child: Text(
-                  step == 2 ? '${question + 1} / 7' : '体験を発見',
+                  step == 2 ? '${question + 1} / 8' : '体験を発見',
                   style: const TextStyle(fontSize: 12),
                 ),
               ),

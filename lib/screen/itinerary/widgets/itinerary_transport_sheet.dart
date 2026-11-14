@@ -22,6 +22,8 @@ class ItineraryTransportSheet extends StatefulWidget {
   final bool walkingOnly;
   final int index, segmentCount;
   final bool collapsed;
+  final VoidCallback? onOpenBooklet;
+  final int unselectedSegments;
   final Widget? aiProposal;
   final Widget? drivingOptions;
   final VoidCallback? onPrevious, onNext, onClear;
@@ -53,6 +55,8 @@ class ItineraryTransportSheet extends StatefulWidget {
     required this.onHeaderDragUpdate,
     required this.onHeaderDragEnd,
     required this.onHeaderDragCancel,
+    this.onOpenBooklet,
+    this.unselectedSegments = 0,
     this.collapsed = false,
     this.aiProposal,
     this.drivingOptions,
@@ -258,50 +262,41 @@ class _ItineraryTransportSheetState extends State<ItineraryTransportSheet> {
                       else
                         _results(context),
                     ],
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: onExpand,
-                            icon: const Icon(Icons.compare_arrows, size: 20),
-                            label: Text(
-                              widget.drivingOptions != null
-                                  ? '車ルートを確認'
-                                  : '候補を比較',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                              ),
-                              minimumSize: const Size(0, 43),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            key: const ValueKey('itinerary-show-map'),
-                            onPressed: onMap,
-                            icon: const Icon(Icons.map_outlined, size: 20),
-                            label: const Text(
-                              '地図で見る',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                              ),
-                              minimumSize: const Size(0, 43),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 9),
                   ],
                 ],
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: color.surface,
+                border: Border(top: BorderSide(color: color.outlineVariant)),
+              ),
+              child: SafeArea(
+                top: false,
+                minimum: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (widget.unselectedSegments > 0) ...[
+                      Text(
+                        '交通をあと${widget.unselectedSegments}区間選択してください',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: color.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    OutlinedButton(
+                      key: const ValueKey('itinerary-open-booklet'),
+                      onPressed: widget.onOpenBooklet,
+                      child: const Text('旅のしおりへ'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

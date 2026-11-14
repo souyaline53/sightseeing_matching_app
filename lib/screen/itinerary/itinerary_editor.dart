@@ -358,6 +358,25 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
     if (stops.isNotEmpty) {
       listenToDrivingSchedule(ref, trip, [origin, ...stops, destination]);
     }
+    final routePoints = [origin, ...stops, destination];
+    final unselectedSegments = !trip.publicTransport || stops.isEmpty
+        ? 0
+        : List.generate(routePoints.length - 1, (i) {
+            final start = routePoints[i], end = routePoints[i + 1];
+            final pool = itineraryJourneysProvider(
+              itineraryJourneyKey(trip, start, end),
+            );
+            final walking =
+                sharesAccessStop(start.accessStops, end.accessStops) ||
+                (ref.exists(pool) &&
+                    ref.watch(pool).value?.walkingOnly == true);
+            return !walking &&
+                !trip.transportSelections.any(
+                  (selection) =>
+                      selection.from == start.id && selection.to == end.id,
+                );
+          }).where((unselected) => unselected).length;
+    final canOpenBooklet = stops.isNotEmpty && unselectedSegments == 0;
     final from = returnSelected
         ? stops.lastOrNull
         : originSelected
@@ -451,7 +470,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
             : [
                 TextButton.icon(
                   key: const ValueKey('itinerary-view-booklet'),
-                  onPressed: trip.stops.isEmpty ? null : _openBooklet,
+                  onPressed: canOpenBooklet ? _openBooklet : null,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 32),
@@ -648,11 +667,14 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                   .clamp(0.0, mapBounds.maxHeight * .55);
                               final mapHeight =
                                   mapBounds.maxHeight - cardsHeight;
-                              middleSheet = mapHeight / mapBounds.maxHeight;
-                              minimumSheet = (76 / mapBounds.maxHeight).clamp(
-                                .1,
-                                middleSheet * .8,
-                              );
+                              final footerHeight =
+                                  (unselectedSegments > 0 ? 96 : 68) +
+                                  MediaQuery.paddingOf(context).bottom;
+                              minimumSheet =
+                                  ((76 + footerHeight) / mapBounds.maxHeight)
+                                      .clamp(.1, .9);
+                              middleSheet = (mapHeight / mapBounds.maxHeight)
+                                  .clamp(minimumSheet + .01, 1.0);
                               return Stack(
                                 fit: StackFit.expand,
                                 children: [
@@ -879,6 +901,11 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
                                       expand: true,
                                       builder: (context, scroll) =>
                                           ItineraryTransportSheet(
+                                            onOpenBooklet: canOpenBooklet
+                                                ? _openBooklet
+                                                : null,
+                                            unselectedSegments:
+                                                unselectedSegments,
                                             collapsed: collapsed,
                                             drivingOptions:
                                                 !trip.publicTransport &&

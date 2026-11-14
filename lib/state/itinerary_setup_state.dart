@@ -44,6 +44,7 @@ class ItinerarySetupNotifier extends Notifier<ItinerarySetup> {
   void update(ItinerarySetup setup) => state = setup;
   void applySearch(SearchConditions conditions) => state = ItinerarySetup(
     conditions: conditions,
+    destination: conditions.origin,
     selectedIds: state.selectedIds,
   );
   void toggle(String id) {

@@ -51,17 +51,13 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('origin-chip-札幌駅')));
       await tester.pumpAndSettle();
       expect(container.read(searchDraftProvider).transport, TravelMode.transit);
-      expect(find.byType(TripLengthStepPage), findsOneWidget);
+      expect(find.byType(TransportStepPage), findsOneWidget);
+      expect(selectedCards(tester, TransportStepPage), isEmpty);
       await tester.tap(find.byKey(const ValueKey('travel-car')));
       await tester.pumpAndSettle();
       expect(container.read(searchDraftProvider).transport, TravelMode.car);
-      expect(
-        tester
-            .widgetList<ChoiceChip>(find.byType(ChoiceChip))
-            .where((chip) => chip.selected)
-            .length,
-        1,
-      );
+      expect(find.byType(TripLengthStepPage), findsOneWidget);
+      expect(find.byKey(const ValueKey('travel-car')), findsNothing);
       expect(container.read(searchDraftProvider).budget, 23000);
       await tester.tap(find.text('日帰り'));
       await tester.pumpAndSettle();
@@ -101,7 +97,10 @@ void main() {
       expect(find.byType(CalendarDatePicker), findsOneWidget);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-      expect(selectedCards(tester, TripLengthStepPage).length, 2);
+      expect(selectedCards(tester, TripLengthStepPage).length, 1);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(selectedCards(tester, TransportStepPage).length, 1);
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(selectedCards(tester, DepartureStepPage).length, 1);

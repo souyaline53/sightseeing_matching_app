@@ -311,6 +311,12 @@ void main() {
           child: const MaterialApp(home: ItineraryEditor()),
         ),
       );
+      await tester.pump();
+      final bottomBooklet = find.byKey(
+        const ValueKey('itinerary-open-booklet'),
+      );
+      expect(tester.widget<OutlinedButton>(bottomBooklet).onPressed, isNotNull);
+      expect(bottomBooklet.hitTestable(), findsOneWidget);
       await tester.pumpAndSettle();
       final selections = container.read(tripProvider).transportSelections;
       expect(selections, hasLength(3));

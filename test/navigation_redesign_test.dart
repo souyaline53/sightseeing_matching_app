@@ -268,7 +268,7 @@ void main() {
   );
 
   testWidgets(
-    'seven answers yield a vertical AI list; only hearts become candidates and conditions carry over',
+    'eight answers yield a vertical AI list; only hearts become candidates and conditions carry over',
     (tester) async {
       final container = await boot(tester);
       final original = TripState(
@@ -283,9 +283,9 @@ void main() {
           .saveExperience(experiences.last);
       await tester.tap(find.text('興味から旅行を作る'));
       await tester.pumpAndSettle();
-      expect(find.text('Q1  /  7'), findsOneWidget);
+      expect(find.text('Q1  /  8'), findsOneWidget);
       await answerQuestions(tester);
-      expect(find.text('Q4 / 7'), findsOneWidget);
+      expect(find.text('Q4 / 8'), findsOneWidget);
       await enterDetails(
         tester,
         origin: '小樽駅',
@@ -293,7 +293,7 @@ void main() {
         length: 'halfDay',
         company: 'family',
       );
-      expect(find.text('Q7 / 7'), findsOneWidget);
+      expect(find.text('Q8 / 8'), findsOneWidget);
       await tester.tap(find.text('この条件で探す'));
       await tester.pumpAndSettle();
       expect(

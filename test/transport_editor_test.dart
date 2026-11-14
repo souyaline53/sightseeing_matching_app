@@ -30,6 +30,155 @@ import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'test_support.dart';
 
 void main() {
+  testWidgets(
+    'booklet footer stays inside sheet and requires every transit segment',
+    (tester) async {
+      final fixture =
+          jsonDecode(File('docs/transport/sample.json').readAsStringSync())
+              as Map<String, dynamic>;
+      List<T> records<T>(
+        String key,
+        T Function(String, Map<String, dynamic>) create,
+      ) => (fixture[key] as Map<String, dynamic>).entries
+          .map((e) => create(e.key, Map<String, dynamic>.from(e.value as Map)))
+          .toList();
+      final data = TransportData(
+        records('transport_stops', TransportStop.new),
+        records('transport_routes', TransportRoute.new),
+        records('transport_trips', TransportTrip.new),
+        records('transport_services', TransportService.new),
+        [],
+      );
+      Experience spot(String id, String key) => Experience.fromJson({
+        ...const Experience('', '', '', '', '', '', '', '', 60).toJson(),
+        'id': id,
+        'title': '興味を惹く長い紹介文章$id',
+        'name': '架空体験$id',
+        'accessStops': fixture['exampleSpotAccess'][key],
+      });
+      final spots = [spot('A', 'from'), spot('B', 'to')];
+      final repo = LocalTripsRepository(storage: MemorySettingsStorage());
+      await repo.save(
+        TripLibrary(
+          plans: [
+            TripState(
+              stops: spots
+                  .map(
+                    (spot) =>
+                        Experience.fromJson(spot.toJson()..remove('name')),
+                  )
+                  .toList(),
+              saved: spots,
+            ),
+          ],
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          departurePlacesProvider.overrideWith(
+            (ref) => Stream.value(departurePlaces),
+          ),
+          catalogProvider.overrideWith(
+            (ref) => Stream.value(TravelCatalog(experiences: spots)),
+          ),
+          tripsRepositoryProvider.overrideWithValue(repo),
+          itineraryJourneysProvider.overrideWith(
+            (ref, key) async =>
+                JourneySearchResult({'journeys': [], 'warnings': []}),
+          ),
+          transportDataProvider.overrideWith((ref, key) async => data),
+          mapTilesEnabledProvider.overrideWithValue(false),
+          experiencePhotosProvider.overrideWith((ref) async => {}),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(tripLibraryProvider.future);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(home: _withBooklet(const ItineraryEditor())),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('交通をあと3区間選択してください'), findsOneWidget);
+      final button = find.byKey(const ValueKey('itinerary-open-booklet'));
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+      final trip = container.read(tripProvider);
+      container
+          .read(tripProvider.notifier)
+          .selectTransport(
+            TransportSelection({
+              'fromSpotId': trip.originEndpointId,
+              'toSpotId': trip.stops.first.id,
+              'selectedTripId': 'sample_trip_1',
+            }),
+          );
+      await tester.pumpAndSettle();
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+      expect(find.text('交通をあと2区間選択してください'), findsOneWidget);
+      final route = [
+        trip.originEndpointId,
+        ...trip.stops.map((s) => s.id),
+        trip.destinationEndpointId,
+      ];
+      for (var i = 1; i < route.length - 1; i++) {
+        container
+            .read(tripProvider.notifier)
+            .selectTransport(
+              TransportSelection({
+                'fromSpotId': route[i],
+                'toSpotId': route[i + 1],
+                'selectedTripId': 'sample_trip_1',
+              }),
+            );
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<OutlinedButton>(button).onPressed != null,
+          i == route.length - 2,
+        );
+      }
+      expect(find.textContaining('区間選択してください'), findsNothing);
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNotNull);
+      final sheet = tester.widget<DraggableScrollableSheet>(
+        find.byType(DraggableScrollableSheet),
+      );
+      for (final extent in [sheet.minChildSize, 1.0]) {
+        sheet.controller!.jumpTo(extent);
+        await tester.pumpAndSettle();
+        expect(button.hitTestable(), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(ItineraryTransportSheet),
+            matching: button,
+          ),
+          findsOneWidget,
+        );
+        final panel = tester.getRect(find.byType(BottomSheet));
+        expect(tester.getRect(button).bottom, lessThanOrEqualTo(panel.bottom));
+        expect(tester.getRect(button).top, greaterThan(panel.top));
+      }
+      container
+          .read(tripProvider.notifier)
+          .clearTransport(trip.originEndpointId, trip.stops.first.id);
+      await tester.pumpAndSettle();
+      expect(tester.widget<OutlinedButton>(button).onPressed, isNull);
+      expect(find.text('交通をあと1区間選択してください'), findsOneWidget);
+      await tester.binding.setSurfaceSize(const Size(320, 568));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpAndSettle();
+      sheet.controller!.jumpTo(
+        tester
+            .widget<DraggableScrollableSheet>(
+              find.byType(DraggableScrollableSheet),
+            )
+            .minChildSize,
+      );
+      await tester.pumpAndSettle();
+      expect(button.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final size in [const Size(320, 568), const Size(390, 844)]) {
     testWidgets('map, sheet, timetable, save and reorder at $size', (
       tester,
@@ -251,20 +400,8 @@ void main() {
       );
       sheet.controller!.jumpTo(1);
       await tester.pumpAndSettle();
-      final mapButton = find.byKey(const ValueKey('itinerary-show-map'));
-      await tester.scrollUntilVisible(
-        mapButton,
-        160,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const ValueKey('transport-sheet-scroll')),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      await tester.ensureVisible(mapButton);
-      await tester.pumpAndSettle();
-      await tester.tap(mapButton);
+      expect(find.byKey(const ValueKey('itinerary-show-map')), findsNothing);
+      sheet.controller!.jumpTo(sheet.minChildSize);
       await tester.pumpAndSettle();
       expect(sheet.controller!.size, closeTo(sheet.minChildSize, .01));
       expect(find.text('開く'), findsNothing);
@@ -307,15 +444,9 @@ void main() {
       await slowHeaderSwipe(-70);
       expect(sheet.controller!.size, closeTo(1, .001));
       // The fixed header remains draggable after the timetable has been scrolled.
-      await tester.scrollUntilVisible(
-        mapButton,
-        160,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const ValueKey('transport-sheet-scroll')),
-              matching: find.byType(Scrollable),
-            )
-            .first,
+      await tester.drag(
+        find.byKey(const ValueKey('transport-sheet-scroll')),
+        const Offset(0, -160),
       );
       await tester.pumpAndSettle();
       expect(

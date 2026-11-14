@@ -84,7 +84,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Q${step + 4} / 7',
+                        'Q${step + 4} / 8',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
@@ -92,7 +92,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: (step + 4) / 7,
+                        value: (step + 4) / 8,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ],
@@ -107,6 +107,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 children: const [
                   DepartureStepPage(),
+                  TransportStepPage(),
                   TripLengthStepPage(),
                   DepartureDateStepPage(),
                   CompanionStepPage(),
@@ -146,7 +147,7 @@ class SearchConditionsScreen extends HookConsumerWidget {
                         child: const Text('この出発地にする'),
                       ),
                     ),
-                  if (step == 3) ...[
+                  if (step == 4) ...[
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(

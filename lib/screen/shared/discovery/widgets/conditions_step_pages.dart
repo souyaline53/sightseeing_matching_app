@@ -290,29 +290,6 @@ class TripLengthStepPage extends HookConsumerWidget {
     return _StepLayout(
       title: 'どんな旅にする？',
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final mode in TravelMode.values)
-              ChoiceChip(
-                key: ValueKey('travel-${mode.name}'),
-                label: Text(mode.label),
-                selected: draft.transport == mode,
-                onSelected: (_) {
-                  ref
-                      .read(searchSelectionProvider.notifier)
-                      .choose(SearchSelection.transport);
-                  ref
-                      .read(searchDraftProvider.notifier)
-                      .replace(
-                        ref.read(searchDraftProvider).copyWith(transport: mode),
-                      );
-                },
-              ),
-          ],
-        ),
-        const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) => Wrap(
             spacing: 12,
@@ -339,7 +316,7 @@ class TripLengthStepPage extends HookConsumerWidget {
                         ? null
                         : () {
                             if (ref.read(discoveryProvider).step != 1 ||
-                                ref.read(conditionsStepProvider) != 1) {
+                                ref.read(conditionsStepProvider) != 2) {
                               return;
                             }
                             ref
@@ -354,7 +331,7 @@ class TripLengthStepPage extends HookConsumerWidget {
                                 );
                             ref
                                 .read(conditionsStepProvider.notifier)
-                                .nextFrom(1);
+                                .nextFrom(2);
                           },
                   ),
                 ),
@@ -382,7 +359,7 @@ class DepartureDateStepPage extends HookConsumerWidget {
           firstDate: today,
           lastDate: DateTime(today.year + 5, 12, 31),
           onDateChanged: (date) {
-            if (ref.read(conditionsStepProvider) != 2) return;
+            if (ref.read(conditionsStepProvider) != 3) return;
             ref
                 .read(searchDraftProvider.notifier)
                 .replace(
@@ -393,7 +370,7 @@ class DepartureDateStepPage extends HookConsumerWidget {
             ref
                 .read(searchSelectionProvider.notifier)
                 .choose(SearchSelection.date);
-            ref.read(conditionsStepProvider.notifier).nextFrom(2);
+            ref.read(conditionsStepProvider.notifier).nextFrom(3);
           },
         ),
       ],

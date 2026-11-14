@@ -61,7 +61,7 @@ void main() {
       expect(container.read(searchDraftProvider).origin, '小樽駅');
       await tester.tap(find.text('この出発地にする'));
       await tester.pumpAndSettle();
-      expect(find.text('どんな旅にする？'), findsOneWidget);
+      expect(find.text('どうやって旅する？'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('travel-car')));
       await tester.pumpAndSettle();
       expect(find.text('どんな旅にする？'), findsOneWidget);
@@ -72,6 +72,9 @@ void main() {
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(container.read(searchDraftProvider).transport, TravelMode.car);
+      expect(find.text('どうやって旅する？'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
       expect(find.text('どこから旅を始める？'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
@@ -148,15 +151,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(conditionsStepProvider), 1);
     final modePoint = tester.getCenter(
-      find.byKey(const ValueKey('travel-either')),
+      find.byKey(const ValueKey('travel-transit')),
     );
     await tester.tapAt(modePoint);
     await tester.tapAt(modePoint);
     await tester.pumpAndSettle();
-    expect(container.read(conditionsStepProvider), 1);
+    expect(container.read(conditionsStepProvider), 2);
     await tester.tap(find.byKey(const ValueKey('length-day')));
     await tester.pumpAndSettle();
-    expect(container.read(conditionsStepProvider), 2);
+    expect(container.read(conditionsStepProvider), 3);
     expect(tester.takeException(), isNull);
   });
   testWidgets(
@@ -169,9 +172,9 @@ void main() {
       await answerQuestions(tester);
       await tester.tap(find.byKey(const ValueKey('origin-chip-小樽駅')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('travel-either')));
+      await tester.tap(find.byKey(const ValueKey('travel-transit')));
       await tester.pumpAndSettle();
-      expect(find.text('Q5 / 7'), findsOneWidget);
+      expect(find.text('Q6 / 8'), findsOneWidget);
       expect(find.text('詳細設定をスキップ'), findsNothing);
       final periods = ['halfDay', 'day', 'overnight', 'longer'];
       final rects = [
@@ -197,16 +200,16 @@ void main() {
         final before = container.read(searchDraftProvider).length;
         await tester.tap(card);
         await tester.pumpAndSettle();
-        expect(container.read(conditionsStepProvider), 1);
+        expect(container.read(conditionsStepProvider), 2);
         expect(container.read(searchDraftProvider).length, before);
       }
       for (final period in ['halfDay', 'day']) {
         await tester.tap(find.byKey(ValueKey('length-$period')));
         await tester.pumpAndSettle();
-        expect(container.read(conditionsStepProvider), 2);
+        expect(container.read(conditionsStepProvider), 3);
         expect(find.byType(CalendarDatePicker), findsOneWidget);
         await chooseDepartureDate(tester);
-        expect(container.read(conditionsStepProvider), 3);
+        expect(container.read(conditionsStepProvider), 4);
         expect(find.text('誰と旅する？'), findsOneWidget);
         expect(
           tester
@@ -337,8 +340,8 @@ void main() {
         }
         await tester.tap(find.byKey(const ValueKey('origin-chip-札幌駅')));
         await tester.pumpAndSettle();
-        await reveal(tester, find.byKey(const ValueKey('travel-either')));
-        await tester.tap(find.byKey(const ValueKey('travel-either')));
+        await reveal(tester, find.byKey(const ValueKey('travel-transit')));
+        await tester.tap(find.byKey(const ValueKey('travel-transit')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('length-day')));
         await tester.pumpAndSettle();
@@ -349,7 +352,7 @@ void main() {
         expect(find.text('条件を保存して検索').hitTestable(), findsOneWidget);
         expect(find.text('詳細設定をスキップ'), findsNothing);
         expect(find.byType(CalendarDatePicker), findsNothing);
-        expect(container.read(conditionsStepProvider), 3);
+        expect(container.read(conditionsStepProvider), 4);
         expect(tester.takeException(), isNull);
       },
       variant: TargetPlatformVariant({TargetPlatform.android}),

@@ -28,7 +28,7 @@ void main() {
   initializeCatalogTests();
   for (final fromBooklet in [false, true]) {
     testWidgets(
-      'add cards to existing trip from ${fromBooklet ? 'booklet FAB' : 'itinerary button'}',
+      'add cards to existing trip from ${fromBooklet ? 'inline booklet' : 'itinerary button'}',
       (tester) async {
         final storage = MemorySettingsStorage();
         final trip = TripState(
@@ -61,10 +61,8 @@ void main() {
         );
         final originalSearch = container.read(discoveryProvider);
         if (fromBooklet) {
-          await reveal(tester, find.text('旅のしおりを開く'));
-          await tester.tap(find.text('旅のしおりを開く'));
-          await tester.pumpAndSettle();
-          await tester.tap(find.byType(FloatingActionButton));
+          await reveal(tester, find.text('旅程を編集する'));
+          await tester.tap(find.text('旅程を編集する'));
         } else {
           await tester.tap(find.text('旅程作成'));
           await tester.pumpAndSettle();

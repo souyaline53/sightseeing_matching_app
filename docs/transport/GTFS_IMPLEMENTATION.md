@@ -295,7 +295,7 @@ Functions（searchTransportJourneys・importTransport・saveManualTransport）�
 
 候補プールはJSON配列をgzip+base64にして `journeyPool:{encoding,rawBytes,data}` で返し、アプリ側で復元します。既存の `journeys:[]` 応答との互換性を維持します。画面で使わない注意書きは表示しません。サーバー側でも現在のネットワーク版/revisionごとに最大32条件の検索結果を保持し、繰り返し計算を避けます。Firestore読取り・権限・GTFS保存方式は変更していません。
 
-主な変更: `trip_plan.dart`、`trip_state.dart`、`transport_journey.dart`、`itinerary_transport_options.dart`、`transport_journey_repository.dart`、`itinerary_editor.dart`、`itinerary_transport_sheet.dart`、`transport_journey_panel.dart`（詳細表示のみ）、`plan_screen.dart`、`functions/transport_router.js`、`transport_journey_api.js`。サーバーの通常モードは従来どおり最大4候補で、既存クライアントと管理機能を維持します。
+主な変更: `trip_plan.dart`、`trip_state.dart`、`transport_journey.dart`、`itinerary_transport_options.dart`、`transport_journey_repository.dart`、`itinerary_editor.dart`、`itinerary_transport_sheet.dart`、`transport_journey_panel.dart`（詳細表示のみ）、`bookmark_timeline.dart`、`functions/transport_router.js`、`transport_journey_api.js`。サーバーの通常モードは従来どおり最大4候補で、既存クライアントと管理機能を維持します。
 
 検証: `dart format .`、`flutter analyze` 指摘なし、Flutter121成功・6スキップ、サーバー36成功、エミュレーター成功、Webビルド成功。追加テストでは、旧データ08:00互換、日付と時刻の再保存、ピッカー入力、到着09:00の境界、直前便の変更・解除でもRPC回数が増えないこと、ヘッダー出発時刻変更時の新規取得、ID・徒歩不明注意書きの非表示、圧縮プールの復元とサーバーキャッシュを確認しました。
 
@@ -309,7 +309,7 @@ A・BのaccessStopsが同じ正規化stopIdを1件以上共有する場合、旅
 
 保存済みの折り返し便のスナップショットは削除せず、徒歩区間の表示から除外します。その古い便の到着時刻を、次区間の候補絞り込みにも流用しません。徒歩の所要時間は未定なので、次区間に仮の徒歩到着時刻を設定しません。GTFS原本・有効版・停留所ID・観光地情報・保存済み旅程の一括変更はありません。
 
-変更の中心: `transport_router.js`、`transport_journey_api.js`、`transport_journey.dart`、`itinerary_transport_options.dart`、`transport_journey_repository.dart`、`itinerary_editor.dart`、`itinerary_transport_sheet.dart`、`plan_screen.dart`、`itinerary_walk_test.dart` とサーバーテスト。
+変更の中心: `transport_router.js`、`transport_journey_api.js`、`transport_journey.dart`、`itinerary_transport_options.dart`、`transport_journey_repository.dart`、`itinerary_editor.dart`、`itinerary_transport_sheet.dart`、`bookmark_timeline.dart`、`itinerary_walk_test.dart` とサーバーテスト。
 
 検証: 作業ツリーの `flutter analyze` 指摘なし、関連Flutter16件成功、サーバー38件成功、Firestore/Auth/Storageエミュレーター成功。共通ID・複数候補・別フィードID・500m境界・遠隔同名・禁止接続、折り返し便の早期抑止、所要時間を捏造しないこと、しおりと保存データ保持、検索回数0、古い折り返し便の到着時刻を次区間へ流用しないことを確認。
 

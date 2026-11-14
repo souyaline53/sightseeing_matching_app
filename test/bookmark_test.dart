@@ -1,13 +1,16 @@
+import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_transport_sheet.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/itinerary_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sightseeing_matching_app/model/trip_plan.dart';
+import 'package:sightseeing_matching_app/model/transport.dart';
 import 'package:sightseeing_matching_app/repository/trips_repository.dart';
 import 'package:sightseeing_matching_app/state/trip_library_state.dart';
 import 'package:sightseeing_matching_app/state/discovery_state.dart';
 import 'package:sightseeing_matching_app/state/trip_state.dart';
 import 'package:sightseeing_matching_app/screen/shared/trips/trips_drawer.dart';
-import 'package:sightseeing_matching_app/screen/bookmark/widgets/bookmark_experience_gallery.dart';
+import 'package:sightseeing_matching_app/screen/bookmark/widgets/bookmark_timeline.dart';
+import 'package:sightseeing_matching_app/screen/bookmark/widgets/booklet_illustration.dart';
 import 'package:sightseeing_matching_app/screen/shared/experiences/experience_detail.dart';
 import 'test_support.dart';
 import 'widget_test.dart' show boot, reveal;
@@ -15,7 +18,7 @@ import 'widget_test.dart' show boot, reveal;
 void main() {
   initializeCatalogTests();
   testWidgets(
-    'empty home gallery opens the matching detail sheet without creating a trip',
+    'empty booklet shows illustration and creation entry without recommendations',
     (tester) async {
       final container = await boot(tester);
       await tester.tap(
@@ -25,49 +28,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byType(BookmarkExperienceGallery), findsOneWidget);
-      final photo = find.byKey(const ValueKey('home-gallery-melon'));
-      await reveal(tester, photo);
-      expect(
-        tester.getRect(find.text('Step1. 興味から旅行を作る')).top,
-        lessThan(tester.getRect(find.byType(BookmarkExperienceGallery)).top),
-      );
-      await tester.tap(photo);
-      await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsOneWidget);
-      expect(
-        tester
-            .widget<ExperienceDetail>(find.byType(ExperienceDetail))
-            .experience
-            .id,
-        'melon',
-      );
-      expect(find.text(experiences.first.story), findsOneWidget);
+      expect(find.byType(BookletIllustration), findsOneWidget);
+      expect(find.text('おすすめの体験'), findsNothing);
+      expect(find.byType(ExperienceDetail), findsNothing);
       expect(container.read(tripLibraryProvider).requireValue.plans, isEmpty);
-      await tester.tap(find.byTooltip('閉じる'));
+      await reveal(tester, find.text('Step1. 興味から旅行を作る'));
+      await tester.tap(find.text('Step1. 興味から旅行を作る'));
       await tester.pumpAndSettle();
-      expect(find.text('まだ旅のしおりがありません'), findsOneWidget);
-      await tester.drag(
-        find.byKey(const ValueKey('home-gallery-list')),
-        const Offset(-80, 0),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('home-gallery-coal')));
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ExperienceDetail>(find.byType(ExperienceDetail))
-            .experience
-            .id,
-        'coal',
-      );
-      await tester.tap(find.byTooltip('閉じる'));
-      await tester.pumpAndSettle();
-      container
-          .read(tripLibraryProvider.notifier)
-          .upsert(TripState(stops: [experiences.first]));
-      await tester.pumpAndSettle();
-      expect(find.byType(BookmarkExperienceGallery), findsNothing);
+      expect(container.read(discoveryProvider).question, 0);
+      expect(container.read(tripLibraryProvider).requireValue.plans, isEmpty);
       expect(tester.takeException(), isNull);
     },
   );
@@ -83,7 +52,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('まだ旅のしおりがありません'), findsOneWidget);
+    expect(find.text('まだ旅のしおりが\nありません'), findsOneWidget);
     await tester.tap(find.byTooltip('旅の一覧を開く'));
     await tester.pumpAndSettle();
     expect(find.text('わたしの旅'), findsOneWidget);
@@ -112,14 +81,14 @@ void main() {
       ).save(TripLibrary(plans: [draft, past], activeId: past.id));
       final container = await boot(tester, tripStorage: storage);
       expect(find.text('昔の小旅行'), findsOneWidget);
-      expect(find.text('2020年1月1日'), findsOneWidget);
-      await reveal(tester, find.text('すべて見る'));
-      expect(find.text('旅のしおり（4スポット）'), findsOneWidget);
-      await tester.tap(find.text('すべて見る'));
-      await tester.pumpAndSettle();
-      expect(find.text('マイプラン'), findsOneWidget);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
+      expect(find.text('2020年1月1日'), findsNWidgets(2));
+      expect(find.byType(BookmarkTimeline), findsOneWidget);
+      expect(find.text('旅のしおりを開く'), findsNothing);
+      await reveal(tester, find.byKey(const ValueKey('bookmark-stop-3')));
+      expect(
+        find.byKey(const ValueKey('bookmark-stop-3')).hitTestable(),
+        findsOneWidget,
+      );
       await tester.tap(find.byTooltip('旅の一覧を開く'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('作りかけの旅'));
@@ -129,8 +98,8 @@ void main() {
         draft.id,
       );
       expect(find.byKey(const ValueKey('home-trip-hero')), findsNothing);
-      expect(find.text('Step2. 交通を選んで旅程を完成'), findsOneWidget);
-      await tester.tap(find.text('Step2. 交通を選んで旅程を完成'));
+      expect(find.text('保存した観光地から旅を作る'), findsOneWidget);
+      await tester.tap(find.text('保存した観光地から旅を作る'));
       await tester.pumpAndSettle();
       final spot = find.byKey(ValueKey('setup-spot-${experiences.first.id}'));
       await reveal(tester, spot);
@@ -209,7 +178,7 @@ void main() {
     expect(container.read(tripLibraryProvider).requireValue.plans, isEmpty);
     await tester.tap(find.byTooltip('閉じる'));
     await tester.pumpAndSettle();
-    expect(find.text('まだ旅のしおりがありません'), findsOneWidget);
+    expect(find.text('まだ旅のしおりが\nありません'), findsOneWidget);
     await container.read(tripLibraryProvider.notifier).retrySave();
     expect(
       (await LocalTripsRepository(storage: storage).load()).activeId,
@@ -249,146 +218,148 @@ void main() {
     variant: TargetPlatformVariant({TargetPlatform.android}),
   );
   testWidgets(
-    'only the booklet list scrolls and every saved stop is reachable',
+    'saved transport details expand inline and remain collapsed when switching trips',
+    (tester) async {
+      final storage = MemorySettingsStorage();
+      final trip = TripState(
+        id: 'with-transport',
+        stops: [experiences.first],
+        transportSelections: [
+          TransportSelection({
+            'fromSpotId': TripState.departureEndpointId('札幌駅'),
+            'toSpotId': experiences.first.id,
+            'selectedTripId': 'saved-service',
+            'boardingStopName': '札幌の乗車駅',
+            'alightingStopName': '夕張の降車駅',
+            'departureMinutes': 480,
+            'arrivalMinutes': 540,
+          }),
+        ],
+      );
+      final other = TripState(id: 'another-trip', stops: [experiences[1]]);
+      await LocalTripsRepository(
+        storage: storage,
+      ).save(TripLibrary(plans: [trip, other], activeId: trip.id));
+      final container = await boot(tester, tripStorage: storage);
+      final row = find.byKey(const ValueKey('saved-transport-saved-service'));
+      await reveal(tester, row);
+      expect(find.textContaining('札幌の乗車駅'), findsNothing);
+      await tester.tap(
+        find.descendant(of: row, matching: find.byType(ListTile)).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('札幌の乗車駅'), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      await tester.tap(
+        find.descendant(of: row, matching: find.byType(ListTile)).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('札幌の乗車駅'), findsNothing);
+      container.read(tripLibraryProvider.notifier).select(other.id);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('saved-transport-saved-service')),
+        findsNothing,
+      );
+      expect(find.text('交通を選ぶ'), findsWidgets);
+      final missing = find.byType(ExpansionTile).first;
+      await reveal(tester, missing);
+      await tester.tap(missing);
+      await tester.pumpAndSettle();
+      final choose = find.text('交通を選択');
+      await reveal(tester, choose);
+      await tester.tap(choose);
+      await tester.pumpAndSettle();
+      expect(find.byType(ItineraryEditor), findsOneWidget);
+      expect(container.read(tripProvider).id, other.id);
+      final sheet = tester.widget<ItineraryTransportSheet>(
+        find.byType(ItineraryTransportSheet),
+      );
+      expect(sheet.from?.id, other.originEndpointId);
+      expect(sheet.to?.id, experiences[1].id);
+      expect(sheet.collapsed, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'inline timeline reaches every stop, details and editor without another page',
     (tester) async {
       final storage = MemorySettingsStorage();
       final trip = TripState(title: '全スポットを巡る旅', stops: experiences);
       await LocalTripsRepository(
         storage: storage,
       ).save(TripLibrary(plans: [trip]));
-      await boot(tester, tripStorage: storage);
-      final hero = find.byKey(const ValueKey('home-trip-hero'));
-      final button = find.byKey(const ValueKey('home-open-booklet'));
-      final heroBefore = tester.getRect(hero);
-      final buttonBefore = tester.getRect(button);
-      final list = find.byKey(PageStorageKey('home-stops-${trip.id}'));
-      final scrollable = find.descendant(
-        of: list,
-        matching: find.byType(Scrollable),
-      );
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('home-stop-9')),
-        200,
-        scrollable: scrollable,
-      );
+      final container = await boot(tester, tripStorage: storage);
+      expect(find.byType(BookmarkTimeline), findsOneWidget);
+      expect(find.text('旅のしおりを開く'), findsNothing);
+      expect(find.byType(BackButton), findsNothing);
+      final first = find.byKey(const ValueKey('bookmark-stop-0'));
+      await reveal(tester, first);
+      await tester.tap(first);
       await tester.pumpAndSettle();
-      final lastRow = tester.getRect(find.byKey(const ValueKey('home-stop-9')));
-      final viewport = tester.getRect(scrollable);
-      expect(lastRow.top, greaterThanOrEqualTo(viewport.top - 1));
-      expect(lastRow.bottom, lessThanOrEqualTo(viewport.bottom + 1));
-      expect(tester.getRect(hero), heroBefore);
-      expect(tester.getRect(button), buttonBefore);
-      expect(button.hitTestable(), findsOneWidget);
-      expect(find.text('旅のしおり（10スポット）'), findsOneWidget);
+      expect(
+        tester
+            .widget<ExperienceDetail>(find.byType(ExperienceDetail))
+            .experience
+            .id,
+        experiences.first.id,
+      );
+      await tester.tap(find.byTooltip('閉じる'));
+      await tester.pumpAndSettle();
+      final last = find.byKey(const ValueKey('bookmark-stop-9'));
+      await reveal(tester, last);
+      expect(last.hitTestable(), findsOneWidget);
+      final button = find.byKey(const ValueKey('bookmark-edit'));
+      await reveal(tester, button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.byType(ItineraryEditor), findsOneWidget);
+      expect(container.read(tripProvider).id, trip.id);
       expect(tester.takeException(), isNull);
     },
   );
 
-  for (final size in [const Size(390, 844), const Size(360, 740)]) {
-    testWidgets('hero overlaps sheet and three stops fit at $size', (
-      tester,
-    ) async {
-      final storage = MemorySettingsStorage();
-      final trip = TripState(
-        title: '夕張で見つける、新しい景色',
-        stops: experiences.take(4).toList(),
-      );
-      await LocalTripsRepository(
-        storage: storage,
-      ).save(TripLibrary(plans: [trip]));
-      await boot(tester, tripStorage: storage);
-      await tester.binding.setSurfaceSize(size);
-      await tester.pumpAndSettle();
-      final hero = tester.getRect(find.byKey(const ValueKey('home-trip-hero')));
-      final sheet = tester.getRect(
-        find.byKey(const ValueKey('home-booklet-sheet')),
-      );
-      expect(hero.left, 0);
-      expect(hero.width, size.width);
-      expect(sheet.top, closeTo(hero.bottom - 24, .1));
-      final content = find.byKey(const ValueKey('home-booklet-sheet'));
-      final viewport = tester.getRect(
-        find.descendant(of: content, matching: find.byType(Scrollable)),
-      );
-      for (var i = 0; i < 3; i++) {
-        final row = find.descendant(
-          of: content,
-          matching: find.byKey(ValueKey('home-stop-$i')),
-        );
-        expect(row, findsOneWidget);
-        final rect = tester.getRect(row);
-        expect(rect.top, greaterThanOrEqualTo(viewport.top - 1));
-        expect(rect.bottom, lessThanOrEqualTo(viewport.bottom + 1));
-      }
-      expect(find.byKey(const ValueKey('home-stop-3')), findsOneWidget);
-      expect(find.text('旅のしおり（4スポット）'), findsOneWidget);
-      expect(find.text('すべて見る'), findsOneWidget);
-      expect(find.text('興味から旅行を作る'), findsNothing);
-      expect(find.text('前回の条件で探す'), findsNothing);
-      final button = tester.getRect(
-        find.byKey(const ValueKey('home-open-booklet')),
-      );
-      final navigation = tester.getRect(find.byType(NavigationBar));
-      expect(button.bottom, lessThanOrEqualTo(navigation.top));
-      expect(
-        find.byKey(const ValueKey('home-open-booklet')).hitTestable(),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    });
-  }
-
-  for (final count in [1, 2, 3]) {
-    testWidgets('sheet renders exactly $count existing stops', (tester) async {
-      final storage = MemorySettingsStorage();
-      final trip = TripState(stops: experiences.take(count).toList());
-      await LocalTripsRepository(
-        storage: storage,
-      ).save(TripLibrary(plans: [trip]));
-      await boot(tester, tripStorage: storage);
-      expect(find.text('旅のしおり（$countスポット）'), findsOneWidget);
-      expect(find.text('すべて見る'), findsNothing);
-      expect(
-        find.text('まだスポットがありません'),
-        count == 0 ? findsOneWidget : findsNothing,
-      );
-      for (var i = 0; i < 3; i++) {
-        expect(
-          find.byKey(ValueKey('home-stop-$i')),
-          i < count ? findsOneWidget : findsNothing,
-        );
-      }
-      expect(tester.takeException(), isNull);
-    });
-  }
-
   for (final hasTrip in [true, false]) {
-    testWidgets(
-      'small screen with enlarged text scrolls without overflow: trip=$hasTrip',
-      (tester) async {
-        final storage = MemorySettingsStorage();
-        if (hasTrip) {
-          final trip = TripState(
-            title: '少し長い旅のタイトルでも気持ちよく読めるしおり',
-            stops: experiences.take(3).toList(),
-          );
-          await LocalTripsRepository(
-            storage: storage,
-          ).save(TripLibrary(plans: [trip]));
-        }
-        await boot(tester, tripStorage: storage);
-        await tester.binding.setSurfaceSize(const Size(320, 568));
-        tester.platformDispatcher.textScaleFactorTestValue = 2;
-        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        final button = hasTrip
-            ? find.byKey(const ValueKey('home-open-booklet'))
-            : find.text('興味から旅行を作る');
-        await reveal(tester, button);
-        expect(button.hitTestable(), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
+    for (final size in [const Size(390, 844), const Size(320, 568)]) {
+      testWidgets(
+        'booklet remains usable with enlarged text at $size: trip=$hasTrip',
+        (tester) async {
+          final storage = MemorySettingsStorage();
+          if (hasTrip) {
+            await LocalTripsRepository(storage: storage).save(
+              TripLibrary(
+                plans: [
+                  TripState(
+                    title: '少し長い旅のタイトルでも気持ちよく読めるしおり',
+                    stops: experiences.take(3).toList(),
+                  ),
+                ],
+              ),
+            );
+          }
+          await boot(tester, tripStorage: storage);
+          if (!hasTrip) {
+            await tester.tap(
+              find.descendant(
+                of: find.byType(NavigationBar),
+                matching: find.text('旅のしおり'),
+              ),
+            );
+          }
+          await tester.binding.setSurfaceSize(size);
+          tester.platformDispatcher.textScaleFactorTestValue = 2;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          final button = hasTrip
+              ? find.byKey(const ValueKey('bookmark-edit'))
+              : find.text('Step1. 興味から旅行を作る');
+          await reveal(tester, button);
+          expect(button.hitTestable(), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   }
 }

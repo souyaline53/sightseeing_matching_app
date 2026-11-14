@@ -1,3 +1,5 @@
+import 'package:sightseeing_matching_app/screen/bookmark/bookmark_home.dart';
+import 'package:sightseeing_matching_app/state/app_tab.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:flutter/material.dart';
@@ -143,7 +145,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(home: ItineraryEditor()),
+            child: MaterialApp(home: _withBooklet(const ItineraryEditor())),
           ),
         );
         await tester.pumpAndSettle();
@@ -161,7 +163,7 @@ void main() {
         expect(timetableReads, exact ? 0 : 1);
         await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
         await tester.pumpAndSettle();
-        final walking = find.text('徒歩のみ');
+        final walking = find.text('徒歩で移動');
         await tester.ensureVisible(walking);
         await tester.pumpAndSettle();
         expect(walking, findsOneWidget);
@@ -179,3 +181,10 @@ void main() {
     );
   }
 }
+
+Widget _withBooklet(Widget editor) => Consumer(
+  builder: (context, ref, child) => IndexedStack(
+    index: ref.watch(appTabProvider) == AppTab.bookmark ? 1 : 0,
+    children: [editor, const BookmarkHome()],
+  ),
+);

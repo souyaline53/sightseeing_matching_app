@@ -19,7 +19,7 @@ screen/
 │   └── widgets/                 # 写真付きヒーロー
 ├── swipe/
 ├── bookmark/
-│   ├── bookmark_home.dart       # 従来のホームを移動したしおり画面
+│   ├── bookmark_home.dart       # しおり・交通詳細をタブ内で表示
 │   ├── widgets/                 # 代表写真・タイムライン・空状態
 │   ├── posts/                   # 投稿一覧・投稿作成
 │   └── chat/                    # 会話一覧・チャットルーム
@@ -35,7 +35,7 @@ screen/
 │   │   └── widgets/             # 好奇心の質問・旅行条件の各ページ
 │   ├── experiences/             # 観光地一覧・詳細
 │   │   └── widgets/             # 一覧カード・PageViewのカード・スワイプ説明
-│   ├── trips/                   # 共通の詳細しおり（PlanScreen）・旅行一覧Drawer
+│   ├── trips/                   # 旅行一覧Drawer
 │   ├── transport/               # AI交通カード・乗換詳細
 │   ├── posts/                   # 詳細画面でも使うレビュー・投稿カード・コメント
 │   └── account/                 # プロフィールとチャットで使うログイン・登録画面

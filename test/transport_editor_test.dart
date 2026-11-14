@@ -3,7 +3,8 @@ import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
 import 'package:sightseeing_matching_app/model/transport_journey.dart';
-import 'package:sightseeing_matching_app/screen/shared/trips/plan_screen.dart';
+import 'package:sightseeing_matching_app/screen/bookmark/bookmark_home.dart';
+import 'package:sightseeing_matching_app/state/app_tab.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_map.dart';
 import 'package:sightseeing_matching_app/screen/itinerary/widgets/itinerary_spot_card.dart';
 import 'dart:ui' show PointerDeviceKind;
@@ -98,7 +99,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: MaterialApp(home: const ItineraryEditor()),
+          child: MaterialApp(home: _withBooklet(const ItineraryEditor())),
         ),
       );
       await tester.pumpAndSettle();
@@ -197,13 +198,13 @@ void main() {
       );
       await tester.tap(viewBooklet);
       await tester.pumpAndSettle();
-      expect(find.text('マイプラン'), findsOneWidget);
+      expect(find.byKey(const ValueKey('bookmark-timeline')), findsOneWidget);
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('saved-transport-sample_trip_1')),
         180,
         scrollable: find
             .descendant(
-              of: find.byType(PlanScreen),
+              of: find.byType(BookmarkHome),
               matching: find.byType(Scrollable),
             )
             .first,
@@ -212,7 +213,7 @@ void main() {
         find.byKey(const ValueKey('saved-transport-sample_trip_1')),
         findsOneWidget,
       );
-      await tester.tap(find.byType(BackButton));
+      container.read(appTabProvider.notifier).select(AppTab.itinerary);
       await tester.pumpAndSettle();
       await tester.tap(
         find
@@ -372,11 +373,15 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
       await tester.pumpAndSettle();
-      final chooseTransport = find.text('交通を選択 ›');
+      final transportRow = find.byType(ExpansionTile).first;
+      await tester.ensureVisible(transportRow);
+      await tester.tap(transportRow);
+      await tester.pumpAndSettle();
+      final chooseTransport = find.text('交通を選択');
       await tester.ensureVisible(chooseTransport);
       await tester.tap(chooseTransport);
       await tester.pumpAndSettle();
-      expect(find.byType(PlanScreen), findsNothing);
+      expect(find.byType(BookmarkHome).hitTestable(), findsNothing);
       expect(sheet.controller!.size, closeTo(1, .001));
       final transportSheet = tester.widget<ItineraryTransportSheet>(
         find.byType(ItineraryTransportSheet),
@@ -390,3 +395,10 @@ void main() {
     });
   }
 }
+
+Widget _withBooklet(Widget editor) => Consumer(
+  builder: (context, ref, child) => IndexedStack(
+    index: ref.watch(appTabProvider) == AppTab.bookmark ? 1 : 0,
+    children: [editor, const BookmarkHome()],
+  ),
+);

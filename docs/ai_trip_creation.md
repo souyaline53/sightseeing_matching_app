@@ -214,7 +214,7 @@ FlutterのHTTP詳細表示も使う場合はアプリを停止・再起動する
 
 ## 2026-11-13：AI作成UIの整理
 
-実装ファイル：`lib/screen/itinerary/widgets/ai_trip_panel.dart`（条件シートとOutlinedButton）、`ai_transport_card.dart`（区間カード）、`itinerary_editor.dart` / `itinerary_transport_sheet.dart` / `plan_screen.dart`（配置と自動遷移）、`lib/model/ai_trip_draft.dart`（登録情報と泊数）、`ai_trip_segment.dart`（区間への投影）。`Experience.visitInfo`は旅程保存時だけシリアライズし、既存の観光地マッチング用カードJSONを変更しない。
+実装ファイル：`lib/screen/itinerary/widgets/ai_trip_panel.dart`（条件シートとOutlinedButton）、`ai_transport_card.dart`（区間カード）、`itinerary_editor.dart` / `itinerary_transport_sheet.dart` / `bookmark_timeline.dart`（配置と自動遷移）、`lib/model/ai_trip_draft.dart`（登録情報と泊数）、`ai_trip_segment.dart`（区間への投影）。`Experience.visitInfo`は旅程保存時だけシリアライズし、既存の観光地マッチング用カードJSONを変更しない。
 
 到着地の独立保存・地図表示と、シートの高さ変更時にレイアウト中の再描画が発生しない調整も含む。古い旅程の読み込みと、旧形式のAI往復提案の有効性判定は維持する。
 

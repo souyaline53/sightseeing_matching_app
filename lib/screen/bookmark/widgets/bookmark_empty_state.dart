@@ -2,108 +2,115 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../state/trip_library_state.dart';
 import '../../../navigation/travel_navigation.dart';
-import 'bookmark_experience_gallery.dart';
+import '../../../theme/app_theme.dart';
+import 'booklet_illustration.dart';
 
 class BookmarkEmptyState extends HookConsumerWidget {
   final VoidCallback onSearch;
   const BookmarkEmptyState({super.key, required this.onSearch});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = Theme.of(context).colorScheme;
+    final hasSaved = ref.watch(savedExperiencesProvider).isNotEmpty;
     return LayoutBuilder(
-      builder: (context, constraints) => Column(
-        children: [
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, upperConstraints) => SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: upperConstraints.maxHeight,
+      builder: (context, constraints) => SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 720,
+              minHeight: constraints.maxHeight,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'あなたの次の旅行プラン',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 28,
-                      vertical: 24,
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(22, 20, 22, 30),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.surface, AppColors.softSurface],
+                      ),
                     ),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const SizedBox(
+                          height: 230,
+                          width: 310,
+                          child: BookletIllustration(),
+                        ),
+                        const SizedBox(height: 22),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 280),
+                          child: const Text(
+                            'まだ旅のしおりが\nありません',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              height: 1.6,
+                            ),
+                          ),
+                        ),
                         Container(
-                          width: 100,
-                          height: 100,
+                          margin: const EdgeInsets.symmetric(vertical: 18),
+                          height: 3,
+                          width: 150,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colors.primary.withValues(alpha: .07),
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Icon(
-                                Icons.landscape_outlined,
-                                size: 64,
-                                color: colors.primary,
-                              ),
-                              Positioned(
-                                right: 8,
-                                top: 12,
-                                child: Icon(
-                                  Icons.auto_awesome,
-                                  size: 20,
-                                  color: colors.primary,
-                                ),
-                              ),
-                            ],
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'まだ旅のしおりがありません',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
                         Text(
-                          '気になる観光地から旅を作りましょう。',
+                          hasSaved
+                              ? '保存したお気に入りを、ひとつの旅に。'
+                              : '気になる場所を保存して、あなたの旅を作りましょう。',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: colors.onSurfaceVariant,
-                            height: 1.7,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            height: 1.8,
+                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 26),
                         SizedBox(
                           width: double.infinity,
-                          child: ref.watch(savedExperiencesProvider).isEmpty
-                              ? FilledButton.icon(
-                                  onPressed: onSearch,
-                                  icon: const Icon(Icons.travel_explore),
-                                  label: const Text('Step1. 興味から旅行を作る'),
-                                )
-                              : FilledButton.icon(
-                                  onPressed: () =>
-                                      openItinerarySetup(context, ref),
-                                  icon: const Icon(Icons.route_outlined),
-                                  label: const Text('Step2. 交通を選んで旅程を完成'),
-                                ),
+                          child: FilledButton.icon(
+                            onPressed: hasSaved
+                                ? () => openItinerarySetup(context, ref)
+                                : onSearch,
+                            icon: Icon(
+                              hasSaved
+                                  ? Icons.route_outlined
+                                  : Icons.travel_explore,
+                            ),
+                            label: Text(
+                              hasSaved ? '保存した観光地から旅を作る' : 'Step1. 興味から旅行を作る',
+                              textAlign: TextAlign.center,
+                            ),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 18,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
-            child: BookmarkExperienceGallery(
-              photoHeight: (constraints.maxHeight * .3 - 54).clamp(80.0, 150.0),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

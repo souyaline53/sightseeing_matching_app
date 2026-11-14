@@ -266,9 +266,8 @@ void main() {
       expect(find.textContaining('時刻表は参考情報です'), findsNothing);
       await tester.tap(find.byKey(const ValueKey('itinerary-view-booklet')));
       await tester.pumpAndSettle();
-      expect(find.text('マイプラン'), findsOneWidget);
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('bookmark-timeline')), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
       await tester.tap(find.text('プロフィール'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('旅程作成'));

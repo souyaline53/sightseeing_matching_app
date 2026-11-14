@@ -130,9 +130,9 @@ void main() {
       await tester.tapAt(const Offset(4, 4));
       await tester.pumpAndSettle();
       await tab(tester, '旅のしおり');
-      expect(find.text('Step2. 交通を選んで旅程を完成'), findsOneWidget);
+      expect(find.text('保存した観光地から旅を作る'), findsOneWidget);
       expect(find.byKey(const ValueKey('home-trip-hero')), findsNothing);
-      await tester.tap(find.text('Step2. 交通を選んで旅程を完成'));
+      await tester.tap(find.text('保存した観光地から旅を作る'));
       await tester.pumpAndSettle();
       final selected = find.byKey(ValueKey('setup-spot-${experiences[1].id}'));
       await reveal(tester, selected);

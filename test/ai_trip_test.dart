@@ -1,4 +1,5 @@
-import 'package:sightseeing_matching_app/screen/shared/trips/plan_screen.dart';
+import 'package:sightseeing_matching_app/screen/bookmark/bookmark_home.dart';
+import 'package:sightseeing_matching_app/state/app_tab.dart';
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -248,8 +249,10 @@ Future<void> panel(WidgetTester tester, ProviderContainer c) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: c,
-      child: const MaterialApp(
-        home: Scaffold(body: SingleChildScrollView(child: AiTripPanel())),
+      child: MaterialApp(
+        home: _withBooklet(
+          const Scaffold(body: SingleChildScrollView(child: AiTripPanel())),
+        ),
       ),
     ),
   );
@@ -279,7 +282,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: c,
-          child: const MaterialApp(home: ItineraryHome()),
+          child: MaterialApp(home: _withBooklet(const ItineraryHome())),
         ),
       );
       await tester.pumpAndSettle();
@@ -291,10 +294,10 @@ void main() {
       await tester.tap(find.text('AIで旅程を作成'));
       await tester.pumpAndSettle();
       expect(requests, hasLength(1));
-      expect(find.byType(PlanScreen), findsOneWidget);
+      expect(find.byType(BookmarkHome), findsOneWidget);
       expect(c.read(tripProvider).aiLocked, false);
       final tripId = c.read(tripProvider).id;
-      await tester.tap(find.byType(BackButton));
+      c.read(appTabProvider.notifier).select(AppTab.itinerary);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('ai-create-trip')));
       await tester.pumpAndSettle();
@@ -303,7 +306,7 @@ void main() {
       expect(requests.toSet(), hasLength(2));
       expect(c.read(tripProvider).id, tripId);
       expect(c.read(tripProvider).aiStatus, 'completed');
-      await tester.tap(find.byType(BackButton));
+      c.read(appTabProvider.notifier).select(AppTab.itinerary);
       await tester.pumpAndSettle();
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
@@ -546,12 +549,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(calls, 1);
         expect(
-          find.byType(PlanScreen),
+          find.byType(BookmarkHome).hitTestable(),
           success ? findsOneWidget : findsNothing,
         );
         expect(c.read(tripProvider).aiStatus, success ? 'completed' : 'failed');
         if (success) {
-          expect(find.byType(AiTransportCard), findsWidgets);
+          expect(find.byType(AiTransportCard), findsNothing);
+          final transport = find.byType(ExpansionTile).first;
+          await tester.ensureVisible(transport);
+          await tester.tap(transport);
+          await tester.pumpAndSettle();
+          expect(find.byType(AiTransportCard), findsOneWidget);
           expect(find.text('AI提案を採用'), findsNothing);
         } else {
           expect(c.read(tripProvider).stops.map((e) => e.id), ['a', 'b']);
@@ -583,3 +591,10 @@ void main() {
     },
   );
 }
+
+Widget _withBooklet(Widget editor) => Consumer(
+  builder: (context, ref, child) => IndexedStack(
+    index: ref.watch(appTabProvider) == AppTab.bookmark ? 1 : 0,
+    children: [editor, const BookmarkHome()],
+  ),
+);

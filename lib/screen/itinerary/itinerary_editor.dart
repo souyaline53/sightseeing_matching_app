@@ -2,12 +2,11 @@ import '../../state/ai_trip_state.dart';
 import 'widgets/ai_trip_panel.dart';
 import '../../state/itinerary_navigation.dart';
 import '../../widgets/find_experiences_button.dart';
-import '../../navigation/travel_navigation.dart';
 import '../shared/trips/trips_drawer.dart';
 import '../../repository/transport_journey_repository.dart';
 import '../../service/transport/itinerary_transport_options.dart';
 import 'widgets/itinerary_endpoint_card.dart';
-import '../shared/trips/plan_screen.dart';
+import '../../navigation/travel_navigation.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -135,19 +134,7 @@ class _EditorState extends ConsumerState<ItineraryEditor> {
   void _openBooklet() {
     final trip = ref.read(tripProvider);
     if (trip.stops.isEmpty) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PlanScreen(
-          tripId: trip.id,
-          stops: trip.stops,
-          origin: trip.origin,
-          date: trip.travelDate,
-          publicTransport: trip.publicTransport,
-          demo: false,
-          conditions: trip.conditions,
-        ),
-      ),
-    );
+    openTripBooklet(context, ref, trip.id);
   }
 
   Future<void> _rename() async {

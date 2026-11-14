@@ -5,7 +5,7 @@ import '../../../model/ai_trip_draft.dart';
 import '../../../model/ai_trip_segment.dart';
 import '../../../data/catalog_data.dart';
 import '../../shared/transport/ai_transport_card.dart';
-import '../../shared/trips/plan_screen.dart';
+import '../../../navigation/travel_navigation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -174,19 +174,7 @@ class _AiTripPanelState extends ConsumerState<AiTripPanel> {
       await ref.read(tripLibraryProvider.notifier).flush();
       final applied = ref.read(tripProvider);
       if (mounted && applied.aiProposalValid) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => PlanScreen(
-              tripId: applied.id,
-              stops: applied.stops,
-              origin: applied.origin,
-              date: applied.travelDate,
-              publicTransport: applied.publicTransport,
-              demo: false,
-              conditions: applied.conditions,
-            ),
-          ),
-        );
+        openTripBooklet(context, ref, applied.id);
       }
     } catch (failure) {
       if (mounted && ref.read(tripProvider).id == before.id) {

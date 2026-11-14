@@ -1,3 +1,5 @@
+import 'package:sightseeing_matching_app/screen/bookmark/bookmark_home.dart';
+import 'package:sightseeing_matching_app/state/app_tab.dart';
 import 'departure_fixtures.dart';
 import 'package:sightseeing_matching_app/data/departure_places.dart';
 import 'package:sightseeing_matching_app/repository/transport_journey_repository.dart';
@@ -155,7 +157,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(home: ItineraryEditor()),
+            child: MaterialApp(home: _withBooklet(const ItineraryEditor())),
           ),
         );
         await tester.pumpAndSettle();
@@ -401,7 +403,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(home: ItineraryEditor()),
+          child: MaterialApp(home: _withBooklet(const ItineraryEditor())),
         ),
       );
       await tester.pumpAndSettle();
@@ -471,7 +473,7 @@ void main() {
           140,
           scrollable: find.byType(Scrollable).last,
         );
-        expect(find.text('帰路'), findsOneWidget);
+        expect(find.text('公共交通で移動 · 約30分'), findsOneWidget);
         expect(
           find.byKey(const ValueKey('saved-transport-back')),
           findsOneWidget,
@@ -481,3 +483,10 @@ void main() {
     });
   }
 }
+
+Widget _withBooklet(Widget editor) => Consumer(
+  builder: (context, ref, child) => IndexedStack(
+    index: ref.watch(appTabProvider) == AppTab.bookmark ? 1 : 0,
+    children: [editor, const BookmarkHome()],
+  ),
+);

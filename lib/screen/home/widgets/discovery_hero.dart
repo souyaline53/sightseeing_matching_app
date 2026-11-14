@@ -192,8 +192,17 @@ class _InterestCard extends StatelessWidget {
                   ),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.all(18),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              // 枠線と角丸は、必ず「同じ BoxDecoration の中」に書く
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(
+                  color: Colors.orangeAccent,
+                  width: 8.0,
+                ),
+                borderRadius: BorderRadius.circular(24.0), // ← これで枠線も一緒に丸くなる
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

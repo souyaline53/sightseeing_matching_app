@@ -57,7 +57,7 @@ class HomeOverview extends ConsumerWidget {
                       builder: (_) => const PlacesCatalogScreen(),
                     ),
                   ),
-                  child: const Text('もっと見る'),
+                  child: const Text('観光地一覧を開く'),
                 ),
               ],
             ),

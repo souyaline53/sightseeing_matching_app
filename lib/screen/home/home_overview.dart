@@ -7,6 +7,7 @@ import '../../navigation/travel_navigation.dart';
 import '../shared/experiences/widgets/place_card.dart';
 import '../shared/experiences/places_catalog_screen.dart';
 import 'widgets/discovery_hero.dart';
+import 'widgets/home_tutorial.dart';
 
 Experience? _featuredPhoto(List<Experience> spots, List<String> hints) {
   final photos = spots.where((e) => e.photo.isNotEmpty);
@@ -26,7 +27,16 @@ class HomeOverview extends ConsumerWidget {
     final catalog = ref.watch(catalogProvider).requireValue.experiences;
     final spots = catalog.take(4).toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('TABISAKI')),
+      appBar: AppBar(
+        title: const Text('TABISAKI'),
+        actions: [
+          IconButton(
+            tooltip: '使い方を見る',
+            icon: const Icon(Icons.help_outline),
+            onPressed: HomeTutorial.startOf(context),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 20),
         children: [

@@ -1,4 +1,5 @@
 import 'home/home_screen.dart';
+import 'home/widgets/home_tutorial.dart';
 import '../state/trip_library_state.dart';
 import '../data/catalog_data.dart';
 import '../state/settings_state.dart';
@@ -17,6 +18,7 @@ class BasePage extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final initialized = useRef(false);
+    final navigationKey = useMemoized(() => GlobalKey());
     final swipeOpened = useState(false);
     final settings = ref.watch(settingsProvider);
     final trips = ref.watch(tripLibraryProvider);
@@ -71,85 +73,90 @@ class BasePage extends HookConsumerWidget {
     final searchStep = ref.watch(
       discoveryProvider.select((state) => state.step),
     );
-    return PopScope(
-      canPop: tab != AppTab.home.index || searchStep == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && tab == AppTab.home.index && searchStep > 0) {
-          ref.read(discoveryProvider.notifier).back();
-        }
-      },
-      child: Scaffold(
-        body: Column(
-          children: [
-            if (saveFailed)
-              MaterialBanner(
-                content: const Text('旅程を端末に保存できませんでした。再試行してください。'),
-                actions: [
-                  TextButton(
-                    onPressed: () =>
-                        ref.read(tripLibraryProvider.notifier).retrySave(),
-                    child: const Text('再試行'),
-                  ),
-                ],
+    return HomeTutorial(
+      navigationKey: navigationKey,
+      ready: catalog.hasValue,
+      child: PopScope(
+        canPop: tab != AppTab.home.index || searchStep == 0,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && tab == AppTab.home.index && searchStep > 0) {
+            ref.read(discoveryProvider.notifier).back();
+          }
+        },
+        child: Scaffold(
+          body: Column(
+            children: [
+              if (saveFailed)
+                MaterialBanner(
+                  content: const Text('旅程を端末に保存できませんでした。再試行してください。'),
+                  actions: [
+                    TextButton(
+                      onPressed: () =>
+                          ref.read(tripLibraryProvider.notifier).retrySave(),
+                      child: const Text('再試行'),
+                    ),
+                  ],
+                ),
+              Expanded(
+                child: IndexedStack(
+                  index: tab,
+                  children: [
+                    catalog.hasValue
+                        ? const HomeScreen()
+                        : const _CatalogNotice(),
+                    catalog.hasValue && swipeOpened.value
+                        ? const SwipeHome()
+                        : const SizedBox.shrink(),
+                    catalog.hasValue
+                        ? const BookmarkHome()
+                        : const _CatalogNotice(),
+                    catalog.hasValue
+                        ? ItineraryHome(active: tab == AppTab.itinerary.index)
+                        : const _CatalogNotice(),
+                    const ProfileHome(),
+                  ],
+                ),
               ),
-            Expanded(
-              child: IndexedStack(
-                index: tab,
-                children: [
-                  catalog.hasValue
-                      ? const HomeScreen()
-                      : const _CatalogNotice(),
-                  catalog.hasValue && swipeOpened.value
-                      ? const SwipeHome()
-                      : const SizedBox.shrink(),
-                  catalog.hasValue
-                      ? const BookmarkHome()
-                      : const _CatalogNotice(),
-                  catalog.hasValue
-                      ? ItineraryHome(active: tab == AppTab.itinerary.index)
-                      : const _CatalogNotice(),
-                  const ProfileHome(),
-                ],
+            ],
+          ),
+          bottomNavigationBar: NavigationBar(
+            key: navigationKey,
+            selectedIndex: tab,
+            onDestinationSelected: (value) {
+              if (value == AppTab.swipe.index) swipeOpened.value = true;
+              if (value == AppTab.home.index) {
+                ref.read(discoveryProvider.notifier).reset();
+              }
+              ref.read(appTabProvider.notifier).select(AppTab.values[value]);
+            },
+            destinations: [
+              const NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'ホーム',
               ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: tab,
-          onDestinationSelected: (value) {
-            if (value == AppTab.swipe.index) swipeOpened.value = true;
-            if (value == AppTab.home.index) {
-              ref.read(discoveryProvider.notifier).reset();
-            }
-            ref.read(appTabProvider.notifier).select(AppTab.values[value]);
-          },
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'ホーム',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.style_outlined),
-              selectedIcon: Icon(Icons.style),
-              label: 'スワイプ',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.menu_book_outlined),
-              selectedIcon: Icon(Icons.menu_book),
-              label: '旅のしおり',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.route_outlined),
-              selectedIcon: Icon(Icons.route),
-              label: '旅程作成',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'プロフィール',
-            ),
-          ],
+              const NavigationDestination(
+                icon: Icon(Icons.style_outlined),
+                selectedIcon: Icon(Icons.style),
+                label: 'スワイプ',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.menu_book_outlined),
+                selectedIcon: Icon(Icons.menu_book),
+                label: '旅のしおり',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.route_outlined),
+                selectedIcon: Icon(Icons.route),
+                label: '旅程作成',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'プロフィール',
+              ),
+            ],
+          ),
         ),
       ),
     );

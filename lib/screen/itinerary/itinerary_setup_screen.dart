@@ -29,6 +29,44 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
         stop.walkingMinutes != null,
   );
 
+  bool canSelectSpot(Experience spot, SearchConditions conditions) =>
+      (conditions.transport != TravelMode.transit ||
+          hasPublicTransport(spot)) &&
+      !(spotOpeningHoursLabel(
+            spot.visitInfo,
+            conditions.resolveDate(),
+          )?.startsWith('休業日') ??
+          false);
+
+  void removeUnavailableSelections() {
+    if (!mounted) return;
+    final setup = ref.read(itinerarySetupProvider);
+    final catalog = ref.read(catalogProvider).value;
+    final unavailable = ref
+        .read(savedExperiencesProvider)
+        .where((saved) {
+          final spot =
+              catalog?.experiences
+                  .where((current) => current.id == saved.id)
+                  .firstOrNull ??
+              saved;
+          return !canSelectSpot(spot, setup.conditions);
+        })
+        .map((spot) => spot.id)
+        .toSet();
+    if (setup.selectedIds.any(unavailable.contains)) {
+      ref
+          .read(itinerarySetupProvider.notifier)
+          .update(
+            setup.copyWith(
+              selectedIds: Set.unmodifiable(
+                setup.selectedIds.difference(unavailable),
+              ),
+            ),
+          );
+    }
+  }
+
   Future<void> choosePlace({required bool origin}) async {
     final setup = ref.read(itinerarySetupProvider);
     final current = origin ? setup.conditions.origin : setup.destination;
@@ -255,6 +293,11 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
               )?.startsWith('休業日') ??
               false;
         });
+    if (hasUnavailableSelection || hasClosedSelection) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => removeUnavailableSelections(),
+      );
+    }
     final canCreate =
         selected > 0 && !hasUnavailableSelection && !hasClosedSelection;
     final today = DateUtils.dateOnly(DateTime.now());
@@ -387,6 +430,7 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
                   date,
                 );
                 final isClosed = openingHours?.startsWith('休業日') ?? false;
+                final selectable = canSelectSpot(spot, conditions);
                 return CheckboxListTile(
                   key: ValueKey('setup-spot-${spot.id}'),
                   contentPadding: const EdgeInsets.symmetric(
@@ -426,9 +470,13 @@ class _ItinerarySetupScreenState extends ConsumerState<ItinerarySetupScreen> {
                         ),
                     ],
                   ),
-                  value: setup.selectedIds.contains(spot.id),
-                  onChanged: (_) =>
-                      ref.read(itinerarySetupProvider.notifier).toggle(spot.id),
+                  enabled: selectable,
+                  value: selectable && setup.selectedIds.contains(spot.id),
+                  onChanged: selectable
+                      ? (_) => ref
+                            .read(itinerarySetupProvider.notifier)
+                            .toggle(spot.id)
+                      : null,
                 );
               },
             ),

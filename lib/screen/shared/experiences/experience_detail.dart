@@ -63,6 +63,13 @@ class ExperienceDetail extends HookConsumerWidget {
                       ),
                       const SizedBox(height: 20),
                       Text(
+                        experience.description,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
                         experience.story,
                         style: const TextStyle(height: 1.9),
                       ),
